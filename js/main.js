@@ -4,11 +4,14 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const drawables = [];
 
-const p1= new Port('Port1', 100, 100);
-const p2= new Port('Port2', 200, 100);
-const patch = new Patch("Patch1",p1, p2);
+const lldpMulticast = new MacAddress("01:80:C2:00:00:0E");
 
-drawables.push(p1, p2, patch);
+for (let i=0; i<1; i++) {
+    const nic1 = new NIC(`NIC${2*i}`, Math.random() * canvas.width, Math.random() * canvas.height, new MacAddress());
+    const nic2 = new NIC(`NIC${2*i+1}`, Math.random() * canvas.width, Math.random() * canvas.height, new MacAddress());
+    const patch = new Patch(`Patch${i}`, nic1, nic2);
+    drawables.push(nic1, nic2, patch);
+}
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);

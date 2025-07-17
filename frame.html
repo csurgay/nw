@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ethernet Frame Layout with Tooltips</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+    }
+    canvas {
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      display: block;
+      margin: 30px auto;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      border-radius: 5px;
+      font-size: 13px;
+      pointer-events: none;
+      visibility: hidden;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>Ethernet Frame Structure (Ethernet II)</h2>
+  <canvas id="ethFrame" width="1000" height="180"></canvas>
+  <div id="tooltip"></div>
+
+  <script>
+    const canvas = document.getElementById("ethFrame");
+    const ctx = canvas.getContext("2d");
+    const tooltip = document.getElementById("tooltip");
+
+    const baseX = 50;
+    const baseY = 60;
+    const boxHeight = 60;
+
+    const fields = [
+      { label: "Preamble", size: 7, color: "#a0a0a0", description: "Synchronization bits before the frame" },
+      { label: "SFD", size: 1, color: "#b0c4de", description: "Start Frame Delimiter (marks start of frame)" },
+      { label: "Destination MAC", size: 6, color: "#ff9999", description: "MAC address of the destination device" },
+      { label: "Source MAC", size: 6, color: "#ffcc99", description: "MAC address of the source device" },
+      { label: "EtherType", size: 2, color: "#ccffcc", description: "Indicates the payload type (e.g., 0x0800 = IPv4)" },
+      { label: "Payload", size: 46, color: "#d9edf7", description: "Encapsulated data (e.g., IP packet), up to 1500 bytes" },
+      { label: "FCS (CRC)", size: 4, color: "#cccccc", description: "Frame Check Sequence for error detection" }
+    ];
+
+    const totalBytes = fields.reduce((sum, f) => sum + f.size, 0);
+    const scale = 900 / totalBytes;
+
+    let x = baseX;
+    fields.forEach(field => {
+      field.x = x;
+      field.w = field.size * scale;
+      field.y = baseY;
+      field.h = boxHeight;
+
+      // Draw box
+      ctx.fillStyle = field.color;
+      ctx.fillRect(field.x, field.y, field.w, field.h);
+      ctx.strokeStyle = "#000";
+      ctx.strokeRect(field.x, field.y, field.w, field.h);
+
+      // Text inside
+      ctx.fillStyle = "#000";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(field.label, field.x + field.w / 2, field.y + 25);
+      ctx.fillText(`${field.size} byte${field.size > 1 ? "s" : ""}`, field.x + field.w / 2, field.y + 45);
+
+      x += field.w;
+    });
+
+    ctx.fillStyle = "#000";
+    ctx.font = "16px bold sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Ethernet II Frame Format", canvas.width / 2, 30);
+
+    // Tooltip handler
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      let found = false;
+      for (let field of fields) {
+        if (
+          mouseX >= field.x &&
+          mouseX <= field.x + field.w &&
+          mouseY >= field.y &&
+          mouseY <= field.y + field.h
+        ) {
+          tooltip.style.left = e.pageX + 10 + "px";
+          tooltip.style.top = e.pageY + 10 + "px";
+          tooltip.textContent = `${field.label}: ${field.description}`;
+          tooltip.style.visibility = "visible";
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        tooltip.style.visibility = "hidden";
+      }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      tooltip.style.visibility = "hidden";
+    });
+  </script>
+</body>
+</html>

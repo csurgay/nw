@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ping Frame Breakdown</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #aaa;
+      background: #f5f5f5;
+      display: block;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Ping (ICMP Echo Request) – Ethernet Frame Breakdown</h2>
+  <canvas id="pingFrame" width="1000" height="150"></canvas>
+
+  <script>
+    const canvas = document.getElementById("pingFrame");
+    const ctx = canvas.getContext("2d");
+
+    const parts = [
+      { label: "Ethernet Header", size: 14, color: "#cce5ff" },
+      { label: "IP Header", size: 20, color: "#d4edda" },
+      { label: "ICMP Header", size: 8, color: "#fff3cd" },
+      { label: "ICMP Payload", size: 56, color: "#f8d7da" }
+    ];
+
+    const totalBytes = parts.reduce((sum, p) => sum + p.size, 0);
+    const scale = 900 / totalBytes;
+    const xStart = 50;
+    const y = 50;
+    const height = 60;
+
+    let x = xStart;
+
+    parts.forEach(part => {
+      const width = part.size * scale;
+
+      // Draw section
+      ctx.fillStyle = part.color;
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = "#333";
+      ctx.strokeRect(x, y, width, height);
+
+      // Label
+      ctx.fillStyle = "#000";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(part.label, x + width / 2, y + 25);
+      ctx.fillText(`${part.size} byte${part.size > 1 ? 's' : ''}`, x + width / 2, y + 45);
+
+      // Tooltip info for hover
+      part.x = x;
+      part.width = width;
+
+      x += width;
+    });
+
+    // Add tooltip behavior
+    canvas.addEventListener("mousemove", function (e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      canvas.title = "";
+      for (const part of parts) {
+        if (
+          mouseX >= part.x &&
+          mouseX <= part.x + part.width &&
+          mouseY >= y &&
+          mouseY <= y + height
+        ) {
+          canvas.title = `${part.label} (${part.size} byte${part.size > 1 ? 's' : ''})`;
+          break;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

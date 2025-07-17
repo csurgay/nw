@@ -26,20 +26,33 @@ class Port {
         this.patch = null;
     }
 
-    isConnected() {
-        return this.connected;
-    }
-
-    sendData(data) {
-        if (this.isConnected() && this.patch) {
-            console.log(`Sending data from ${this.id}:`, data);
-            this.patch.sendData(data, this);
+    sendFrame(frame) {
+        if (this.connected && this.patch) {
+            console.log(`Sending data from ${this.id}:`, frame.toString());
+            this.patch.sendData(frame, this);
         } else {
             console.error(`Port ${this.id} is not connected.`);
         }
     }
 
-    rcvData(data) {
-        console.log(`Receiving data from ${this.id}:`, data);
+    rcvData(frame) {
+        console.log(`Receiving data from ${this.id}:`, frame.toString());
+    }
+
+    toString() {
+        return `${this.id}`;
+    }
+}
+
+class NIC extends Port {
+    constructor(id, x, y ,mac) {
+        super(id, x, y);
+        this.mac = mac; // Instance of MacAddress
+        console.log("NIC created: " + this.toString());
+        this.lldp = new Lldp(this);
+    }
+
+    toString() {
+        return super.toString()+" "+this.mac.toString();
     }
 }

@@ -1,35 +1,12 @@
-class Macs {
-    constructor() {
-        this.macs = [];
-    }
-
-    generateRandom() {
-        const randomMac = () => {
-            return Array.from({ length: 6 }, () => 
-                Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
-            ).join(':');
-        };
-        
-        let mac;
-        do {
-            mac = new MacAddress(randomMac());
-        } while (!mac.isValid() || this.macs.some(existingMac => existingMac.address === mac.address));
-        
-        this.add(mac);
-        return mac;
-    }
-    
-    add(mac) {
-        if (!(mac instanceof MacAddress)) {
-        throw new Error("Only instances of MacAddress can be added.");
-        }
-        this.macs.push(mac);
-    }
-}
-
 class MacAddress {
-  constructor(address) {
-    this.address = address;
+  constructor(mac="none") {
+    if (mac !== "none") {
+      this.address = mac;
+    } else {
+      this.address = Array.from({ length: 6 }, () => 
+        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
+      ).join(':');;
+    }
   }
 
   toString() {
