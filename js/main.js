@@ -6,7 +6,7 @@ const drawables = [];
 
 const lldpMulticast = new MacAddress("01:80:C2:00:00:0E");
 
-for (let i=0; i<1; i++) {
+for (let i=0; i<5; i++) {
     const nic1 = new NIC(`NIC${2*i}`, Math.random() * canvas.width, Math.random() * canvas.height, new MacAddress());
     const nic2 = new NIC(`NIC${2*i+1}`, Math.random() * canvas.width, Math.random() * canvas.height, new MacAddress());
     const patch = new Patch(`Patch${i}`, nic1, nic2);

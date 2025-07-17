@@ -5,7 +5,7 @@ class Patch {
         this.port2 = port2;
         port1.connect(this);
         port2.connect(this);
-        this.data = [];
+        this.frame = []; // full duplex: [port1 to port2, port2 to port1]
         this.sending = [false, false]; // [port1 to port2, port2 to port1]
         this.sendPhase = [0, 0]; // 0% to 100%: port1 to port2;
         this.animated = true; // Enable animation by default
@@ -34,10 +34,10 @@ class Patch {
                 this.sendPhase[i] += 1-i*2;
                 if (this.sendPhase[i] >= 100 || this.sendPhase[i] <= 0) {
                     if (this.sendPhase[i] >= 100) {
-                        this.port2.rcvData(this.data[0]);
+                        this.port2.rcvFrame(this.frame[0]);
                     }
                     else if (this.sendPhase[i] <= 0) {
-                        this.port1.rcvData(this.data[1]);
+                        this.port1.rcvFrame(this.frame[1]);
                     }
                     this.sending[i] = false;
                 }
@@ -45,22 +45,22 @@ class Patch {
         }
     }
 
-    sendData(data, senderPort) {
+    sendFrame(frame, senderPort) {
         if (this.animated) {
             if (senderPort === this.port1) {
                 this.sending[0] = true;
-                this.data[0] = data;
+                this.frame[0] = frame;
                 this.sendPhase[0] = 0; // reset phase
             }
             else if (senderPort === this.port2) {
                 this.sending[1] = true;
-                this.data[1] = data;
+                this.frame[1] = frame;
                 this.sendPhase[1] = 100; // reset phase
             }
         }
         else {
-            if (senderPort==this.port1) this.port2.rcvData(data[0]);
-            else if (senderPort==this.port2) this.port1.rcvData(data[1]);
+            if (senderPort==this.port1) this.port2.rcvFrame(frame[0]);
+            else if (senderPort==this.port2) this.port1.rcvFrame(frame[1]);
         }
     }
 }

@@ -29,13 +29,13 @@ class Port {
     sendFrame(frame) {
         if (this.connected && this.patch) {
             console.log(`Sending data from ${this.id}:`, frame.toString());
-            this.patch.sendData(frame, this);
+            this.patch.sendFrame(frame, this);
         } else {
             console.error(`Port ${this.id} is not connected.`);
         }
     }
 
-    rcvData(frame) {
+    rcvFrame(frame) {
         console.log(`Receiving data from ${this.id}:`, frame.toString());
     }
 
