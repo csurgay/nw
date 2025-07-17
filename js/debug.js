@@ -1,4 +1,5 @@
 const DEBUG=1;
+let ANIM=1;
 
 const debugSources = {
     'Frame': false,

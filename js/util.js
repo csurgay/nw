@@ -6,3 +6,11 @@ function getRandomColor() {
   }
   return color;
 }
+
+function stop() {
+  ANIM=0;
+}
+function start() {
+  ANIM=1;
+  draw();
+}

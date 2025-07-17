@@ -25,7 +25,7 @@ function draw() {
     
     drawables.forEach(drawable => drawable.draw());
 
-    requestAnimationFrame(draw);
+    if (ANIM==1) requestAnimationFrame(draw);
 }
 
 draw();
