@@ -5,12 +5,15 @@ class Port {
         this.y = y;
         this.connected = false;
         this.patch = null;
+        this.hub = null; // Reference to the hub if attached
     }
 
     draw() {
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = this.connected ? 'green' : 'red';
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         ctx.closePath();
@@ -37,7 +40,14 @@ class Port {
 
     rcvFrame(frame) {
         log("Port", "Receive", this.id + ": " + frame);
+        if (this.hub) {
+            this.hub.processFrame(frame, this);
+        }
     }
+
+    attachHub(hub) {
+        this.hub = hub;
+    }    
 
     toString() {
         return this.id;

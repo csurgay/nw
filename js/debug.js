@@ -1,11 +1,11 @@
-const DEBUG=1;
+const DEBUG=0;
 
 const debugSources = {
     'Frame': false,
     'NIC': true,
     'Patch': true,
-    'MAC': false,
-    'LLDP': false
+    'MAC': true,
+    'LLDP': true
 }
 
 function log(source, action, message) {
