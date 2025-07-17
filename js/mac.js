@@ -1,5 +1,6 @@
-class MacAddress {
+class MAC {
   constructor(mac="none") {
+    this.address = "";
     if (mac !== "none") {
       this.address = mac;
     } else {
@@ -12,10 +13,6 @@ class MacAddress {
 
   toString() {
     return this.address;
-  }
-
-  static fromString(address) {
-    return new MacAddress(address);
   }
 
   isValid() {
