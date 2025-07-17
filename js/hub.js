@@ -13,7 +13,7 @@ class Hub {
 
     processFrame(frame, sourcePort) {
         this.ports.forEach(port => {
-            if (port !== sourcePort) {
+            if (port.connected && port != sourcePort) {
                 port.sendFrame(frame);
             }
         });

@@ -1,14 +1,30 @@
 class MAC {
+  static macs = [Lldp.lldpMulticast];
   constructor(mac="none") {
     this.address = "";
     if (mac !== "none") {
-      this.address = mac;
+      if (this.isValid(mac)) {
+        mac = mac.toLowerCase();
+        this.address = mac;
+      }
+      else {
+        error("MAC", "Invalid", `MAC address ${mac} is not valid.`);
+      }
     } else {
-      this.address = Array.from({ length: 6 }, () => 
-        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
-      ).join(':');;
+      this.generateUnique();
     }
+    MAC.macs.push(this.address);
     log("MAC", "Create", this);
+  }
+
+  generateUnique() {
+    let newMac;
+    do {
+      newMac = Array.from({ length: 6 }, () =>
+        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
+      ).join(':');
+    } while (MAC.macs.includes(newMac));
+    this.address = newMac;
   }
 
   toString() {

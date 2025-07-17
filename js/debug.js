@@ -1,4 +1,4 @@
-const DEBUG=0;
+const DEBUG=1;
 
 const debugSources = {
     'Frame': false,

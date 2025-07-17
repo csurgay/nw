@@ -65,7 +65,7 @@ class NIC extends Port {
     rcvFrame(frame) {
         super.rcvFrame(frame);
         if (frame.etherType === 'lldp') {
-            this.lldp.add(frame.payload, frame.macSrc.toString(), Date.now());
+            this.lldp.add(frame.payload.value, frame.macSrc.toString(), Date.now());
         }
     }
 

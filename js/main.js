@@ -2,9 +2,7 @@ const canvas = document.getElementById('nwCanvas');
 const ctx = canvas.getContext('2d');
 const drawables = [];
 
-const lldpMulticast = new MAC("01:80:C2:00:00:0E");
-
-for (let i=0; i<0; i++) {
+for (let i=0; i<3; i++) {
     const nic1 = new NIC(`NIC${2*i}`, Math.random() * canvas.width, Math.random() * canvas.height, new MAC());
     const nic2 = new NIC(`NIC${2*i+1}`, Math.random() * canvas.width, Math.random() * canvas.height, new MAC());
     const patch = new Patch(`Patch${i}`, nic1, nic2);
@@ -14,7 +12,7 @@ for (let i=0; i<0; i++) {
 const hub4 = new Hub4("Hub4", 100, 100);
 
 for (let i=0; i<3; i++) {
-    const nic = new NIC(`NIC${10+i}`, 100+10*i, 100, new MAC());
+    const nic = new NIC(`NIC${10+i}`, 100+10*i, 200, new MAC());
     const patch = new Patch(`PatcH${i}`, nic, hub4.ports[i]);
     drawables.push(nic, patch);
 }
@@ -31,3 +29,4 @@ function draw() {
 }
 
 draw();
+
