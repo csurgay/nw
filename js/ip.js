@@ -2,6 +2,7 @@ class IPaddress {
   constructor(ip, cidr) {
     this.ip = ip;
     this.cidr = cidr;
+    log("IP", "Create", this);
   }
 
   isValid() {

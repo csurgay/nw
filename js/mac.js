@@ -7,6 +7,7 @@ class MacAddress {
         Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
       ).join(':');;
     }
+    log("MAC", "Create", this);
   }
 
   toString() {

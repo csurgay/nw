@@ -28,19 +28,19 @@ class Port {
 
     sendFrame(frame) {
         if (this.connected && this.patch) {
-            console.log(`Sending data from ${this.id}:`, frame.toString());
+            log("Port", "Send", this.id + ": " + frame);
             this.patch.sendFrame(frame, this);
         } else {
-            console.error(`Port ${this.id} is not connected.`);
+            error("Port", "NotConnected", this.id);
         }
     }
 
     rcvFrame(frame) {
-        console.log(`Receiving data from ${this.id}:`, frame.toString());
+        log("Port", "Receive", this.id + ": " + frame);
     }
 
     toString() {
-        return `${this.id}`;
+        return this.id;
     }
 }
 
@@ -48,11 +48,11 @@ class NIC extends Port {
     constructor(id, x, y ,mac) {
         super(id, x, y);
         this.mac = mac; // Instance of MacAddress
-        console.log("NIC created: " + this.toString());
+        log("NIC", "Create", this);
         this.lldp = new Lldp(this);
     }
 
     toString() {
-        return super.toString()+" "+this.mac.toString();
+        return super.toString() + " " + this.mac;
     }
 }

@@ -9,6 +9,7 @@ class Patch {
         this.sending = [false, false]; // [port1 to port2, port2 to port1]
         this.sendPhase = [0, 0]; // 0% to 100%: port1 to port2;
         this.animated = true; // Enable animation by default
+        log("Patch", "Create", this);
     }
     
     draw() {
@@ -19,7 +20,7 @@ class Patch {
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.closePath();
-        for (let i=0; i<=1; i++) {
+        if (this.animated) for (let i=0; i<=1; i++) {
             if (this.sending[i]) {
                 const midX = ((100-this.sendPhase[i]) * this.port1.x + this.sendPhase[i] * this.port2.x) / 100;
                 const midY = ((100-this.sendPhase[i]) * this.port1.y + this.sendPhase[i] * this.port2.y) / 100;
@@ -34,10 +35,10 @@ class Patch {
                 this.sendPhase[i] += 1-i*2;
                 if (this.sendPhase[i] >= 100 || this.sendPhase[i] <= 0) {
                     if (this.sendPhase[i] >= 100) {
-                        this.port2.rcvFrame(this.frame[0]);
+                        this.deliverFrame(this.port2, this.frame[0]);
                     }
                     else if (this.sendPhase[i] <= 0) {
-                        this.port1.rcvFrame(this.frame[1]);
+                        this.deliverFrame(this.port1, this.frame[1]);
                     }
                     this.sending[i] = false;
                 }
@@ -59,8 +60,16 @@ class Patch {
             }
         }
         else {
-            if (senderPort==this.port1) this.port2.rcvFrame(frame[0]);
-            else if (senderPort==this.port2) this.port1.rcvFrame(frame[1]);
+            if (senderPort==this.port1) this.deliverFrame(this.port2, frame);
+            else if (senderPort==this.port2) this.deliverFrame(this.port1, frame);
         }
+    }
+
+    deliverFrame(rcvPort, frame) {
+        rcvPort.rcvFrame(frame);
+    }
+
+    toString() {
+        return this.id + ": " + this.port1 + " <-> " + this.port2;
     }
 }
