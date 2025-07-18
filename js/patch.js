@@ -1,8 +1,10 @@
 class Patch {
+    static list = [];
     constructor(id, port1, port2) { // full-duplex patch cable, no CSMA/CD required
         this.id = id;
         this.port1 = port1;
         this.port2 = port2;
+        Patch.list.push(this);
         port1.connect(this);
         port2.connect(this);
         this.frame = []; // full duplex: [port1 to port2, port2 to port1]
@@ -11,7 +13,6 @@ class Patch {
         this.queue = [[], []]; // [port1 to port2, port2 to port1] queues for frames
         this.animated = true; // Enable animation by default
         this.color = [0, 0];
-//        this.animated = false; // Enable animation by default
         log("Patch", "Create", this);
         setTimeout(this.checkQueue.bind(this), 100);
     }

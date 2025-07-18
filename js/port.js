@@ -1,14 +1,13 @@
-class Port {
+class Port extends Drawable {
     constructor(id, x, y) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
+        super(id, x, y);
         this.connected = false;
         this.patch = null;
         this.hub = null; // Reference to the hub if attached
     }
 
     draw() {
+        super.draw();
         ctx.beginPath();
         ctx.fillStyle = this.connected ? 'green' : 'red';
         ctx.strokeStyle = 'blue';
@@ -52,37 +51,4 @@ class Port {
     toString() {
         return this.id;
     }
-}
-
-class NIC extends Port {
-    constructor(id, x, y ,mac) {
-        super(id, x, y);
-        this.mac = mac; // Instance of MacAddress
-        log("NIC", "Create", this);
-        this.lldp = null; 
-    }
-
-    rcvFrame(frame) {
-        super.rcvFrame(frame);
-        if (frame.etherType === 'lldp' && this.lldp && this.lldp.enabled) {
-            this.lldp.add(frame.payload.value, frame.macSrc.toString(), Date.now());
-        }
-    }
-
-    toString() {
-        return super.toString() + " " + this.mac;
-    }
-
-    lldpStart() {
-        if (!this.lldp) this.lldp = new Lldp(this);
-        this.lldp.enabled = true;
-        this.lldp.start();
-        log("NIC", "LLDPstarted", this);
-    }
-
-    lldpStop() {
-        if (this.lldp) this.lldp.enabled = false;
-        log("NIC", "LLDPstopped", this);
-    }
-
 }

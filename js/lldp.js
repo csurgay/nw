@@ -10,15 +10,16 @@ class Tlv {  // time - length - value for LLDP payload
 }
 
 class Lldp {  // Link Layer Discovery Protocol
-    static lldpMulticast = "01:80:c2:00:00:0e"; // LLDP multicast address
+    static MULTICAST = "01:80:c2:00:00:0e"; // LLDP multicast address
     constructor(nic) {
         this.nic = nic; // NIC instance
-        this.enabled = false;
+        this.enabled = false; // LLDP is disabled by default
         this.neighbors = [];
         log("LLDP", "Create", "for: "+nic);
     }
 
-    add(port, mac) {
+    processFrame(frame) {
+        const [port, mac] = [frame.payload.value, frame.macSrc.toString()];
         let found = false;
         this.neighbors.forEach(neighbor => {
             if (neighbor[0] == port) {
@@ -46,7 +47,7 @@ class Lldp {  // Link Layer Discovery Protocol
     sendLldpDu() {
         if (this.enabled) {
             log("LLDP", "Send", "from "+this.nic);
-            const frame = new Frame(Lldp.lldpMulticast, this.nic.mac, 'lldp', new Tlv("PortID", this.nic.id));
+            const frame = new Frame(Lldp.MULTICAST, this.nic.mac, 'lldp', new Tlv("PortID", this.nic.id));
             this.nic.sendFrame(frame, this.nic);
             setTimeout(this.sendLldpDu.bind(this), 20000+Math.random()*10000); // Resend every 30 seconds
         }

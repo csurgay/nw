@@ -1,8 +1,6 @@
-class Hub {
+class Hub extends Drawable {
     constructor(id, x, y) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
+        super(id, x, y);
         this.ports = [];
     }
 
@@ -19,6 +17,10 @@ class Hub {
         });
     }
 
+    draw() {
+        super.draw();
+    }
+
     toString() {
         return "Hub:" + this.id + " Ports:" + this.ports.length;
     }
@@ -30,7 +32,6 @@ class Hub4 extends Hub {
         log("Hub4", "Create", this);
         for (let i = 0; i < 4; i++) {
             const port = new Port(`Port${i}`, x + i * 10, y);
-            drawables.push(port);
             this.addPort(port);
         }
     }
