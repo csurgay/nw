@@ -59,12 +59,12 @@ class NIC extends Port {
         super(id, x, y);
         this.mac = mac; // Instance of MacAddress
         log("NIC", "Create", this);
-        this.lldp = new Lldp(this);
+        this.lldp = null; 
     }
 
     rcvFrame(frame) {
         super.rcvFrame(frame);
-        if (frame.etherType === 'lldp') {
+        if (frame.etherType === 'lldp' && this.lldp && this.lldp.enabled) {
             this.lldp.add(frame.payload.value, frame.macSrc.toString(), Date.now());
         }
     }
@@ -72,4 +72,17 @@ class NIC extends Port {
     toString() {
         return super.toString() + " " + this.mac;
     }
+
+    lldpStart() {
+        if (!this.lldp) this.lldp = new Lldp(this);
+        this.lldp.enabled = true;
+        this.lldp.start();
+        log("NIC", "LLDPstarted", this);
+    }
+
+    lldpStop() {
+        if (this.lldp) this.lldp.enabled = false;
+        log("NIC", "LLDPstopped", this);
+    }
+
 }

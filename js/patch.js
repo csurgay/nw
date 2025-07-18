@@ -19,8 +19,12 @@ class Patch {
     draw() {
         ctx.beginPath();
         ctx.moveTo(this.port1.x, this.port1.y);
-        ctx.lineTo(this.port2.x, this.port2.y); 
-        ctx.strokeStyle = this.port1.connected && this.port2.connected ? 'blue' : 'gray';
+        ctx.lineTo(this.port2.x, this.port2.y);
+        ctx.strokeStyle = 'lightgray';
+        if (this.port1.connected && this.port2.connected)
+            ctx.strokeStyle = 'blue';
+        if (this.sending[0] || this.sending[1])
+            ctx.strokeStyle = 'gray'; // Highlight if sending
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.closePath();

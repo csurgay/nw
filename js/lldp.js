@@ -13,10 +13,9 @@ class Lldp {  // Link Layer Discovery Protocol
     static lldpMulticast = "01:80:c2:00:00:0e"; // LLDP multicast address
     constructor(nic) {
         this.nic = nic; // NIC instance
+        this.enabled = false;
         this.neighbors = [];
         log("LLDP", "Create", "for: "+nic);
-        setTimeout(this.sendLldpDu.bind(this), Math.floor(500+Math.random()*1000));
-        setTimeout(this.tick.bind(this), Math.floor(8000+Math.random()*2000));
     }
 
     add(port, mac) {
@@ -45,10 +44,12 @@ class Lldp {  // Link Layer Discovery Protocol
     }
 
     sendLldpDu() {
-        log("LLDP", "Send", "from "+this.nic);
-        const frame = new Frame(Lldp.lldpMulticast, this.nic.mac, 'lldp', new Tlv("PortID", this.nic.id));
-        this.nic.sendFrame(frame, this.nic);
-        setTimeout(this.sendLldpDu.bind(this), 20000+Math.random()*10000); // Resend every 30 seconds
+        if (this.enabled) {
+            log("LLDP", "Send", "from "+this.nic);
+            const frame = new Frame(Lldp.lldpMulticast, this.nic.mac, 'lldp', new Tlv("PortID", this.nic.id));
+            this.nic.sendFrame(frame, this.nic);
+            setTimeout(this.sendLldpDu.bind(this), 20000+Math.random()*10000); // Resend every 30 seconds
+        }
     }
 
     showNeighbors() {
@@ -59,15 +60,22 @@ class Lldp {  // Link Layer Discovery Protocol
         })
     }
 
+    start() {
+        setTimeout(this.sendLldpDu.bind(this), Math.floor(500+Math.random()*1000));
+        setTimeout(this.tick.bind(this), Math.floor(8000+Math.random()*2000));
+    }
+
     tick() {
-        this.neighbors.forEach(neighbor => {
-            const [port, mac, timestamp] = neighbor;
-            if (Date.now() - timestamp > 120000) { // 2 minutes timeout
-                this.remove(port, mac);
-                log("LLDP", "Timeout", port + ":" + mac);
-            }
-        });
-        this.showNeighbors();
-        setTimeout(this.tick.bind(this), 8000 + Math.random() * 2000);
+        if (this.enabled) {
+            this.neighbors.forEach(neighbor => {
+                const [port, mac, timestamp] = neighbor;
+                if (Date.now() - timestamp > 120000) { // 2 minutes timeout
+                    this.remove(port, mac);
+                    log("LLDP", "Timeout", port + ":" + mac);
+                }
+            });
+            this.showNeighbors();
+            setTimeout(this.tick.bind(this), 8000 + Math.random() * 2000);
+        }
     }
 }
