@@ -1,12 +1,13 @@
 class NIC extends Port {
-    constructor(id, x, y ,mac) {
+    constructor(id, x, y, mac) {
         super(id, x, y);
-        this.mac = mac; // Instance of MacAddress
+        this.type = new Id('NIC', this); // Unique identifier for NIC
+        this.mac = mac;
         log("NIC", "Create", this);
-        this.arp = new Arp(this);
+        this.arp = new ARP(this);
         this.lldp = null;
-        //this.lldpStart(); // Start LLDP by default
-        this.ip = new IPaddress();
+        this.lldpStart(); // Start LLDP by default
+        this.ip = null;
     }
 
     rcvFrame(frame) {
@@ -26,7 +27,7 @@ class NIC extends Port {
     }
 
     lldpStart() {
-        if (!this.lldp) this.lldp = new Lldp(this);
+        if (!this.lldp) this.lldp = new LLDP(this);
         this.lldp.enabled = true;
         this.lldp.start();
         log("NIC", "LLDPstarted", this);

@@ -1,6 +1,7 @@
 class Hub extends Drawable {
     constructor(id, x, y) {
         super(id, x, y);
+        this.type = new Id('Hub', this);
         this.ports = [];
     }
 

@@ -1,6 +1,7 @@
 class Clickable extends Drawable {
     constructor(id,x,y) {
         super(id, x, y);
+        this.type = new Id('Clickable', this);
     }
 
     hover() {

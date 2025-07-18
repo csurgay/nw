@@ -1,6 +1,7 @@
 class Patch {
     static list = [];
     constructor(id, port1, port2) { // full-duplex patch cable, no CSMA/CD required
+        this.type = new Id('Patch', this);
         this.id = id;
         this.port1 = port1;
         this.port2 = port2;

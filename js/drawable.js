@@ -1,6 +1,7 @@
 class Drawable {
     static list = [];
     constructor(id,x,y) {
+        this.type = new Id('Drawable', this);
         this.id = id;
         this.x = x;
         this.y = y;

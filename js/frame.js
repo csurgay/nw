@@ -1,5 +1,6 @@
 class Frame {
     constructor(macDst, macSrc, etherType, payload) {
+        this.type = new Id('Frame', this);
         this.macDst = macDst; // Destination MAC address
         this.macSrc = macSrc; // Source MAC address
         this.etherType = etherType; // EtherType field: "ipv4", "ipv6", "arp", "vlan", "lldp"

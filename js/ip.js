@@ -1,5 +1,6 @@
-class IPaddress {
+class IP {
   constructor(ip, cidr) {
+    this.type = new Id('IP', this);
     this.ip = ip;
     this.cidr = cidr;
     log("IP", "Create", this);
@@ -18,4 +19,15 @@ class IPaddress {
   toString() {
     return this.ip+"/"+this.cidr;
   }
+}
+
+class Packet {
+    constructor(ipSrc=null, ipDst=null) {
+      this.type = new Id('Packet', this);
+      this.ipSrc = ipSrc;
+      this.ipDst = ipDst;
+    }
+    toString() {
+      return this.ipSrc+" -> "+this.ipDst;
+    }
 }

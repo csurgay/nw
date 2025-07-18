@@ -1,10 +1,17 @@
 class MAC {
-  static macs = [Lldp.lldpMulticast];
+  static macs = [LLDP.MULTICAST];
   constructor(mac="none") {
+    this.type = new Id('MAC', this); // Unique identifier for MAC
     this.address = "";
-    if (mac !== "none") {
+    if (mac != "none") {
       if (this.isValid(mac)) {
         mac = mac.toLowerCase();
+        this.address = mac;
+      }
+      else if (mac.length <= 2) {
+      mac = Array.from({ length: 6 }, () =>
+        mac.toString(16).padStart(2, '0')
+      ).join(':');
         this.address = mac;
       }
       else {
@@ -31,8 +38,8 @@ class MAC {
     return this.address;
   }
 
-  isValid() {
-    const parts = this.address.split(':');
+  isValid(mac) {
+    const parts = mac.split(':');
     if (parts.length !== 6) return false;
     for (const part of parts) {
       const num = parseInt(part, 16);

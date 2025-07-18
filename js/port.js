@@ -1,6 +1,7 @@
 class Port extends Drawable {
     constructor(id, x, y) {
         super(id, x, y);
+        this.type = new Id('Port', this); // Unique identifier for Port
         this.connected = false;
         this.patch = null;
         this.hub = null; // Reference to the hub if attached

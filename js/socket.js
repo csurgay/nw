@@ -1,5 +1,6 @@
 class Socket {
   constructor() {
+    this.type = new Id('Socket', this); // Unique identifier for Socket
     this.socket = null;
   }
 
