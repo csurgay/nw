@@ -1,27 +1,27 @@
 class MAC {
   static macs = [LLDP.MULTICAST];
   constructor(mac="none") {
-    this.type = new Id('MAC', this); // Unique identifier for MAC
+    this.id = new Id('MAC', this); // Unique identifier for MAC
     this.address = "";
     if (mac != "none") {
       if (this.isValid(mac)) {
         mac = mac.toLowerCase();
         this.address = mac;
       }
-      else if (mac.length <= 2) {
+      else if (mac == "same") {
       mac = Array.from({ length: 6 }, () =>
-        mac.toString(16).padStart(2, '0')
+        this.id.seq.toString(16).padStart(2, '0')
       ).join(':');
         this.address = mac;
       }
       else {
-        error("MAC", "Invalid", `MAC address ${mac} is not valid.`);
+        error(this.id, "Invalid", `MAC address ${mac} is not valid.`);
       }
     } else {
       this.generateUnique();
     }
     MAC.macs.push(this.address);
-    log("MAC", "Create", this);
+    Debug.log(this.id, "Create", this);
   }
 
   generateUnique() {

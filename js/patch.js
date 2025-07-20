@@ -1,29 +1,25 @@
-class Patch {
-    static list = [];
-    constructor(id, port1, port2) { // full-duplex patch cable, no CSMA/CD required
-        this.type = new Id('Patch', this);
-        this.id = id;
-        this.port1 = port1;
-        this.port2 = port2;
-        Patch.list.push(this);
+class Patch extends Drawable {
+    constructor(port1, port2) { // full-duplex patch cable, no CSMA/CD required
+        super((port1.x+port2.x)/2,(port1.y+port2.y)/2);
+        this.id = new Id('Patch', this);
+        this.ports = [port1, port2];
         port1.connect(this);
         port2.connect(this);
-        this.frame = []; // full duplex: [port1 to port2, port2 to port1]
+        this.frame = [null, null]; // full duplex: [port1 to port2, port2 to port1]
         this.sending = [false, false]; // [port1 to port2, port2 to port1]
-        this.sendPhase = [0, 0]; // 0% to 100%: port1 to port2;
-        this.queue = [[], []]; // [port1 to port2, port2 to port1] queues for frames
+        this.queue = []; // queues for both directions
         this.animated = true; // Enable animation by default
-        this.color = [0, 0];
-        log("Patch", "Create", this);
+        Debug.log(this.id, "Create", this);
         setTimeout(this.checkQueue.bind(this), 100);
     }
     
     draw() {
+        super.draw();
         ctx.beginPath();
-        ctx.moveTo(this.port1.x, this.port1.y);
-        ctx.lineTo(this.port2.x, this.port2.y);
+        ctx.moveTo(this.ports[0].x, this.ports[0].y);
+        ctx.lineTo(this.ports[1].x, this.ports[1].y);
         ctx.strokeStyle = 'lightgray';
-        if (this.port1.connected && this.port2.connected)
+        if (this.ports[0].connected && this.ports[1].connected)
             ctx.strokeStyle = 'blue';
         if (this.sending[0] || this.sending[1])
             ctx.strokeStyle = 'gray'; // Highlight if sending
@@ -32,58 +28,41 @@ class Patch {
         ctx.closePath();
         if (this.animated) for (let i=0; i<=1; i++) {
             if (this.sending[i]) {
-                const midX = ((100-this.sendPhase[i]) * this.port1.x + this.sendPhase[i] * this.port2.x) / 100;
-                const midY = ((100-this.sendPhase[i]) * this.port1.y + this.sendPhase[i] * this.port2.y) / 100;
-                ctx.beginPath();
-                ctx.arc(midX, midY, 5, 0, Math.PI * 2);
-                ctx.fillStyle = this.color[i]; // Use color for visualization
-                ctx.fill();
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.closePath();
-                this.sendPhase[i] += 1-i*2;
-                if (this.sendPhase[i] >= 100 || this.sendPhase[i] <= 0) {
-                    if (this.sendPhase[i] >= 100) {
-                        this.deliverFrame(this.port2, this.frame[0]);
-                    }
-                    else if (this.sendPhase[i] <= 0) {
-                        this.deliverFrame(this.port1, this.frame[1]);
-                    }
+                this.frame[i].x = 
+                    ((100-this.frame[i].phase) * this.ports[i].x + 
+                    this.frame[i].phase * this.ports[1-i].x) / 100;
+                this.frame[i].y = 
+                    ((100-this.frame[i].phase) * this.ports[i].y + 
+                    this.frame[i].phase * this.ports[1-i].y) / 100;
+                this.frame[i].phase += 1;
+                if (this.frame[i].phase >= 100) {
+                    this.deliverFrame(this.ports[1-i], this.frame[i]);
                     this.sending[i] = false;
+                    this.frame[i] = null;
                 }
             }
         }
     }
 
     sendFrame(frame, senderPort) {
-        if (this.animated) {
-            if (senderPort === this.port1) {
-                this.queue[0].push(frame);
-            }
-            else if (senderPort === this.port2) {
-                this.queue[1].push(frame);
-            }
-        }
-        else {
-            if (senderPort==this.port1) this.deliverFrame(this.port2, frame);
-            else if (senderPort==this.port2) this.deliverFrame(this.port1, frame);
-        }
+        this.queue.push([frame,senderPort]);
     }
 
     checkQueue() {
-        if (!this.sending[0] && this.queue[0].length>0) {
-            this.frame[0] = this.queue[0].shift();
-            this.color[0] = this.frame[0].color; // Set color for visualization
-            this.sending[0] = true;
-            this.sendPhase[0] = 0; // reset phase
-        }
-        if (!this.sending[1] && this.queue[1].length>0) {
-            this.frame[1] = this.queue[1].shift();
-            this.color[1] = this.frame[1].color; // Set color for visualization
-            this.sending[1] = true;
-            this.sendPhase[1] = 100; // reset phase
-        }
+        this.queue.forEach( (item, index) => {
+            const [frame, senderPort] = item;
+            for (let i=0; i<=1; i++) {
+                if (senderPort==this.ports[i] && !this.sending[i]) {
+                    if (this.animated) {
+                        this.frame[i] = frame;
+                        this.sending[i] = true;
+                        this.frame[i].phase = 0;
+                        this.queue.splice(index, 1);
+                    }
+                    else this.deliverFrame(this.ports[1-i], frame);
+                }
+            }
+        })
         setTimeout(this.checkQueue.bind(this), 100);
     }
 
@@ -92,6 +71,9 @@ class Patch {
     }
 
     toString() {
-        return this.id + ": " + this.port1 + " <-> " + this.port2;
+        return "" +
+            this.id.toString() + ": " + 
+            this.ports[0].toString() + " <-> " + 
+            this.ports[1].toString();
     }
 }

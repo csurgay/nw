@@ -1,23 +1,23 @@
 class TLV {  // time - length - value for LLDP payload
-    constructor(tlvType, value) {
-        this.type = new Id('TLV', this); // Unique identifier for TLV
-        this.tlvType = tlvType; // Type of TLV
+    constructor(type, value) {
+        this.id = new Id('TLV', this); // Unique identifier for TLV
+        this.type = type; // Type of TLV
         this.value = value; // Value of TLV
-        log("TLV", "Create", this);
+        Debug.log(this.id, "Create", this);
     }
     toString() {
-        return this.tlvType+":"+this.value;
+        return ""+this.type+":"+this.value;
     }
 }
 
 class LLDP {  // Link Layer Discovery Protocol
     static MULTICAST = "01:80:c2:00:00:0e"; // LLDP multicast address
     constructor(nic) {
-        this.type = new Id('LLDP', this); // Unique identifier for LLDP
+        this.id = new Id('LLDP', this); // Unique identifier for LLDP
         this.nic = nic; // NIC instance
         this.enabled = false; // LLDP is disabled by default
         this.neighbors = [];
-        log("LLDP", "Create", "for: "+nic);
+        Debug.log(this.id, "Create", "for: "+nic);
     }
 
     processFrame(frame) {
@@ -28,28 +28,30 @@ class LLDP {  // Link Layer Discovery Protocol
                 found = true;
                 neighbor[1] = mac; // Update mac
                 neighbor[2] = Date.now(); // Update timestamp
-                log("LLDP", "Update", port + " " + mac);
+                Debug.log(this.id, "Update", port + " " + mac);
             }
         });
         if (!found) {
             this.neighbors.push([port, mac, Date.now()]);
-            log("LLDP", "Add", port + " " + mac);
+            Debug.log(this.id, "Add", port + " " + mac);
         }
+        frame.removeFromDrawlist();
     }
 
     remove(port, mac) {
         this.neighbors.forEach((neighbor, index) => {
-            if (neighbor[0] === port && neighbor[1] === mac) {
+            if (neighbor[0] == port && neighbor[1] == mac) {
                 this.neighbors.splice(index, 1);
             }
         });
-        log("LLDP", "Remove", port + " " + mac);
+        Debug.log(this.id, "Remove", port + " " + mac);
     }
 
     sendLldpDu() {
         if (this.enabled) {
-            log("LLDP", "Send", "from "+this.nic);
+            Debug.log(this.id, "Send", "from "+this.nic);
             const frame = new Frame(
+                this.nic.x, this.nic.y,
                 LLDP.MULTICAST, 
                 this.nic.mac, 
                 'lldp', 
@@ -61,10 +63,10 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     showNeighbors() {
-        log("LLDP", "ShowNeighbors", "PortID:" + this.nic.id);
+        Debug.log(this.id, "ShowNeighbors", "PortID:" + this.nic.id);
         this.neighbors.forEach(neighbor => {
             const [port, mac, timestamp] = neighbor;
-            log("LLDP", "Neighbor", port + " " + mac.toString() + "(" + (Date.now()-timestamp) + ")");
+            Debug.log(this.id, "Neighbor", port + " " + mac.toString() + "(" + (Date.now()-timestamp) + ")");
         })
     }
 
@@ -79,7 +81,7 @@ class LLDP {  // Link Layer Discovery Protocol
                 const [port, mac, timestamp] = neighbor;
                 if (Date.now() - timestamp > 120000) { // 2 minutes timeout
                     this.remove(port, mac);
-                    log("LLDP", "Timeout", port + " " + mac);
+                    Debug.log(this.id, "Timeout", port + " " + mac);
                 }
             });
             this.showNeighbors();

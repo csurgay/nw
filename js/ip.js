@@ -1,9 +1,9 @@
 class IP {
   constructor(ip, cidr) {
-    this.type = new Id('IP', this);
+    this.id = new Id('IP', this);
     this.ip = ip;
     this.cidr = cidr;
-    log("IP", "Create", this);
+    Debug.log(this.id, "Create", this);
   }
 
   isValid() {
@@ -23,7 +23,7 @@ class IP {
 
 class Packet {
     constructor(ipSrc=null, ipDst=null) {
-      this.type = new Id('Packet', this);
+      this.id = new Id('Packet', this);
       this.ipSrc = ipSrc;
       this.ipDst = ipDst;
     }

@@ -1,7 +1,7 @@
 class Hub extends Drawable {
-    constructor(id, x, y) {
-        super(id, x, y);
-        this.type = new Id('Hub', this);
+    constructor(x,y) {
+        super(x,y);
+        this.id = new Id('Hub', this);
         this.ports = [];
     }
 
@@ -13,9 +13,10 @@ class Hub extends Drawable {
     processFrame(frame, sourcePort) {
         this.ports.forEach(port => {
             if (port.connected && port != sourcePort) {
-                port.sendFrame(frame);
+                port.sendFrame(frame.copy());
             }
         });
+        frame.removeFromDrawlist();
     }
 
     draw() {
@@ -23,17 +24,26 @@ class Hub extends Drawable {
     }
 
     toString() {
-        return "Hub:" + this.id + " Ports:" + this.ports.length;
+        return ""+super.toString() + " Ports:" + this.ports.length;
     }
 }
 
 class Hub4 extends Hub {
-    constructor(id, x, y) {
-        super(id, x, y);
-        log("Hub4", "Create", this);
+    constructor(x, y) {
+        super(x, y);
         for (let i = 0; i < 4; i++) {
-            const port = new Port(`Port${i}`, x + i * 10, y);
+            const port = new Port(x + 20 + i * 40, y + 20);
             this.addPort(port);
         }
+        Debug.log(this.id, "Create", this);
+    }
+
+    draw() {
+        super.draw();
+        ctx.beginPath();
+        ctx.strokeStyle = "black";
+        ctx.rect(this.x, this.y, 200, 41);
+        ctx.stroke();
+        ctx.closePath();
     }
 }

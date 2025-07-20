@@ -1,9 +1,9 @@
 class Port extends Drawable {
-    constructor(id, x, y) {
-        super(id, x, y);
-        this.type = new Id('Port', this); // Unique identifier for Port
+    constructor(x,y) {
+        super(x,y);
+        this.id = new Id('Port', this); // Unique identifier for Port
         this.connected = false;
-        this.patch = null;
+        this.patch = null; // Reference to the Patch cable if connected
         this.hub = null; // Reference to the hub if attached
     }
 
@@ -31,15 +31,15 @@ class Port extends Drawable {
 
     sendFrame(frame) {
         if (this.connected && this.patch) {
-            log("Port", "Send", this.id + ": " + frame);
+            Debug.log(this.id, "Send", frame);
             this.patch.sendFrame(frame, this);
         } else {
-            error("Port", "NotConnected", this.id);
+            error(this.id, "NotConnected", this.id);
         }
     }
 
     rcvFrame(frame) {
-        log("Port", "Receive", this.id + ": " + frame);
+        Debug.log(this.id, "Receive", frame);
         if (this.hub) {
             this.hub.processFrame(frame, this);
         }
@@ -50,6 +50,6 @@ class Port extends Drawable {
     }    
 
     toString() {
-        return this.id;
+        return ""+this.id;
     }
 }

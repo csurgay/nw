@@ -1,6 +1,6 @@
 class ARPentry {
     constructor(ip, mac, port) {
-        this.type = new Id('ARPentry', this);
+        this.id = new Id('ARPentry', this);
         this.ip = ip; // IP address as a string
         this.mac = mac; // MAC address as a string
         this.port = port; // Port number as a string
@@ -9,12 +9,12 @@ class ARPentry {
 }
 
 class ARP {
-    static MULTICAST = new MAC("ff:ff:ff:ff:ff:ff"); // ARP multicast address
+    static MULTICAST = "ff:ff:ff:ff:ff:ff"; // ARP multicast address
     constructor(nic) {
-        this.type = new Id('ARP', this);
+        this.id = new Id('ARP', this);
         this.nic = nic;
         this.cache = [];
-        log("ARP", "Create", "for: " + nic);
+        Debug.log(this.id, "Create", "for: " + nic);
     }
 
     processFrame(frame) {
@@ -24,17 +24,14 @@ class ARP {
             this.nic.id,
             Date.now()
         ];
-        console.log(ip);
-        console.log(mac);
-        console.log(port);
-        console.log(this.nic.ip.ip);
         if (ip == this.nic.ip.ip) {
-            log("ARP", "Hit", ip);
+            Debug.log(this.id, "Hit", ip);
             const frame = new Frame(
+                this.nic.x, this.nic.y,
                 mac,
                 this.nic.mac,
                 'arp',
-                new Packet(this.nic.ip, ip)
+                new Packet(this.nic.id, ip)
             );
             this.nic.sendFrame(frame, this.nic);
         }
@@ -46,12 +43,12 @@ class ARP {
                     entry.mac = mac; // Update mac
                     entry.port = port;
                     entry.date = timestamp;
-                    log("ARP", "Update", port + ":" + ip + " " + mac);
+                    Debug.log(this.id, "Update", port + ":" + ip + " " + mac);
                 }
             });
             if (!found) {
                 this.cache.push(new ARPentry(ip, mac, port, timestamp));
-                log("ARP", "Add", port + ":" + ip + " " + mac);
+                Debug.log(this.id, "Add", port + ":" + ip + " " + mac);
             }
         }
     }
@@ -62,12 +59,13 @@ class ARP {
                 this.neighbors.splice(index, 1);
             }
         });
-        log("LLDP", "Remove", ip);
+        Debug.log(this.id, "Remove", ip);
     }
 
     sendQuery(ip) {
-        log("ARP", "Query", "from "+this.nic+" to "+ip);
+        Debug.log(this.id, "Query from "+this.nic+" to "+ip);
         const frame = new Frame(
+            this.nic.x, this.nic.y,
             ARP.MULTICAST, 
             this.nic.mac, 
             'arp', 
@@ -77,9 +75,9 @@ class ARP {
     }
 
     showCache() {
-        log("ARP", "ShowCache", "PortID:" + this.nic.id);
+        Debug.log(this.id, "ShowCache", "PortID:" + this.nic.id);
         this.cache.forEach(entry => {
-            log("ARP", "Entry", entry.port + ":" + entry.ip + " " + entry.mac.toString() + "(" + (Date.now()-entry.timestamp) + ")");
+            Debug.log(this.id, "Entry", entry.port + ":" + entry.ip + " " + entry.mac.toString() + "(" + (Date.now()-entry.timestamp) + ")");
         })
     }
 
@@ -88,7 +86,7 @@ class ARP {
             this.cache.forEach(entry => {
                 if (Date.now() - entry.timestamp > 120000) { // 2 minutes timeout
                     this.remove(entry.ip);
-                    log("ARP", "Timeout", entry.port + ":" + entry.ip + " " + entry.mac);
+                    Debug.log(this.id, "Timeout", entry.port + ":" + entry.ip + " " + entry.mac);
                 }
             });
             this.showCache();

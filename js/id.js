@@ -1,5 +1,7 @@
 class Id {
     static types = {
+        'Id': 0,
+        'Debug': 0,
         'ARP': 0,
         'ARPentry': 0,
         'LLDP': 0,
@@ -18,13 +20,14 @@ class Id {
         'FrameType': 0,
         'PacketType': 0,
         'Drawable': 0,
+        'Clickable': 0,
         'Network': 0,
-        'Device': 0
+        'Device': 0,
     };
     static list = {};
     constructor(type, object) {
         if (!Id.types[type] && Id.types[type] != 0) {
-            error("Type", "Invalid type", type);
+            Debug.error(new Id("Id",0), "Invalid type", type);
         }
         this.type = type;
         Id.types[type] += 1;
@@ -34,4 +37,21 @@ class Id {
         }
         Id.list[type].push(object);
     }
+
+    toString() {
+        return this.type+this.seq;
+    }
+
+    static find(name) {
+        let ret;
+        for (let k in Id.list) {
+            Id.list[k].forEach(item => {
+                if (name==item.id.toString()) {
+                    ret = item;
+                }
+            })    
+        }
+        return ret;
+    }
 }
+
