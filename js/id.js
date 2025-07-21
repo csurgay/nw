@@ -16,7 +16,7 @@ class Id {
         'Packet': 0,
         'MAC': 0,
         'IP': 0,
-        'TLV': 0,
+        'TLVs': 0,
         'FrameType': 0,
         'PacketType': 0,
         'Drawable': 0,

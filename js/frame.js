@@ -34,7 +34,12 @@ class Frame extends Drawable {
    }
 
     toString() {
-        return super.toString() + " Dst:"+this.macDst+" Src:"+this.macSrc+" EtherType:"+this.etherType+" Payload:"+this.payload;
+        return "" +
+            super.toString() + 
+            " Dst:" + this.macDst + 
+            " Src:" + this.macSrc + 
+            " EtherType:" + this.etherType + 
+            " Payload:" + this.payload;
     }
 
     removeFromDrawlist() {

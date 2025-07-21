@@ -1,11 +1,11 @@
-let DEBUG=0;
+let DEBUG=1;
 let ANIM=1;
 
 class Debug extends Drawable {
     static SOURCES = {
     'Frame': false,
-    'NIC': true,
-    'Patch': true,
+    'NIC': false,
+    'Patch': false,
     'MAC': false,
     'LLDP': false,
     'ARP': true,
@@ -18,15 +18,15 @@ class Debug extends Drawable {
         super(x,y);
     }
 
-    static log(source, action, message) {
+    static log(source, action, message="") {
         if (DEBUG==1 || Debug.SOURCES[source.type]) {
-            console.log(source + "." + action + ": " + message);
+            console.log(source + "." + action + " " + message);
         }
     }
 
-    static error(source, action, message) {
+    static error(source, action, message="") {
         if (DEBUG==1 || Debug.SOURCES[source.type]) {
-            console.log("ERROR: " + source + "." + action + ": " + message);
+            console.log("ERROR: " + source + "." + action + " " + message);
         }
     }
 }

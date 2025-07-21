@@ -1,55 +1,53 @@
 class ARPentry {
-    constructor(ip, mac, port) {
+    constructor(ip, mac, port, timestamp = Date.now()) {
         this.id = new Id('ARPentry', this);
         this.ip = ip; // IP address as a string
         this.mac = mac; // MAC address as a string
         this.port = port; // Port number as a string
-        this.timestamp = Date.now(); // Timestamp for the entry
+        this.timestamp = timestamp; // Timestamp for the entry
+    }
+}
+
+class ARPplayload {
+    constructor(opCode,macSender,macTarget,ipSender,ipTarget) {
+        this.opCode = opCode;
+        this.macSender = macSender;
+        this.macTarget = macTarget;
+        this.ipSender = ipSender;
+        this.ipTarget = ipTarget;
     }
 }
 
 class ARP {
     static MULTICAST = "ff:ff:ff:ff:ff:ff"; // ARP multicast address
-    constructor(nic) {
+    constructor(host) {
         this.id = new Id('ARP', this);
-        this.nic = nic;
+        this.host = host;
         this.cache = [];
-        Debug.log(this.id, "Create", "for: " + nic);
+        Debug.log(this.id, "Create", this.host.id);
     }
 
     processFrame(frame) {
-        const [ip, mac, port, timestamp] = [
-            frame.payload.ipDst, 
+        const [ipDst, ipSrc, macDst, macSrc, port] = [
+            frame.payload.ipDst,
+            frame.payload.ipSrc,
+            frame.macDst.toString(),
             frame.macSrc.toString(),
-            this.nic.id,
-            Date.now()
+            this.nic.id
         ];
-        if (ip == this.nic.ip.ip) {
-            Debug.log(this.id, "Hit", ip);
+        if (ipDst == this.nic.ip.ip) {
+            Debug.log(this.id, "Hit", ipDst+"("+this.nic.id+")");
             const frame = new Frame(
                 this.nic.x, this.nic.y,
-                mac,
+                macDst,
                 this.nic.mac,
                 'arp',
-                new Packet(this.nic.id, ip)
+                new Packet(this.nic.id, ipDst)
             );
             this.nic.sendFrame(frame, this.nic);
         }
         else {
-            let found = false;
-            this.cache.forEach(entry => {
-                if (entry.ip == ip) {
-                    found = true;
-                    entry.mac = mac; // Update mac
-                    entry.port = port;
-                    entry.date = timestamp;
-                    Debug.log(this.id, "Update", port + ":" + ip + " " + mac);
-                }
-            });
-            if (!found) {
-                this.cache.push(new ARPentry(ip, mac, port, timestamp));
-                Debug.log(this.id, "Add", port + ":" + ip + " " + mac);
-            }
+            this.cacheIP(ipSrc, macSrc, port);
         }
     }
 
@@ -60,6 +58,24 @@ class ARP {
             }
         });
         Debug.log(this.id, "Remove", ip);
+    }
+
+    cacheIP(ip, mac, port) {
+        let found = false;
+        let timestamp = Date.now();
+        this.cache.forEach(entry => {
+            if (entry.ip == ip) {
+                found = true;
+                entry.mac = mac; // Update mac
+                entry.port = port; // Update port
+                entry.timestamp = timestamp;
+                Debug.log(this.id, "Update", port + ":" + ip + " " + mac);
+            }
+        });
+        if (!found) {
+            this.cache.push(new ARPentry(ip, mac, port, timestamp));
+            Debug.log(this.id, "Add", port + ":" + ip + " " + mac);
+        }
     }
 
     sendQuery(ip) {

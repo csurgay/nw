@@ -3,39 +3,25 @@ class NIC extends Port {
         super(x,y);
         this.id = new Id('NIC', this); // Unique identifier for NIC
         this.mac = mac;
+        this.host = null;
         Debug.log(this.id, "Create", this.toString());
-        this.arp = new ARP(this);
-        this.lldp = null;
-        this.lldpStart(); // Start LLDP by default
+        this.lldpEnabled = true;
         this.ip = null;
+        this.tlvs = new TLVs();
+        this.tlvs.addData("ChassisID", this.mac.toString());
+        this.tlvs.addData("PortID", this.id.toString());
     }
 
     rcvFrame(frame) {
         super.rcvFrame(frame);
-        if (frame.etherType === 'lldp' && this.lldp && this.lldp.enabled) {
-            this.lldp.processFrame(frame);
-        }
-        else if (frame.etherType === 'arp') {
-            this.arp.processFrame(frame);
-        } else {
-            Debug.log(this.id, "UnknownFrameType", frame);
-        }
+        this.host.l2.rcvFrame(frame);
     }
 
     toString() {
         return ""+super.toString();
     }
 
-    lldpStart() {
-        if (!this.lldp) this.lldp = new LLDP(this);
-        this.lldp.enabled = true;
-        this.lldp.start();
-        Debug.log(this.id, "LLDPstarted", this);
+    getIP() {
+        Debug.log(this.id, "IP", this.ip.toString());
     }
-
-    lldpStop() {
-        if (this.lldp) this.lldp.enabled = false;
-        Debug.log(this.id, "LLDPstopped", this);
-    }
-
 }
