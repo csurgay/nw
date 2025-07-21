@@ -17,6 +17,7 @@ class Hub extends Drawable {
             }
         });
         frame.removeFromDrawlist();
+        Id.remove(frame);
     }
 
     draw() {

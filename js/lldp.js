@@ -1,6 +1,6 @@
 class TLV {  // time - length - value for LLDP payload
     constructor(type, value) {
-        this.id = new Id('TLV', this); // Unique identifier for TLV
+        this.id = "TLV";
         this.type = type; // Type of TLV
         this.value = value; // Value of TLV
         Debug.log(this.id, "Create", this);
@@ -36,6 +36,7 @@ class LLDP {  // Link Layer Discovery Protocol
             Debug.log(this.id, "Add", port + " " + mac);
         }
         frame.removeFromDrawlist();
+        Id.remove(frame);
     }
 
     remove(port, mac) {

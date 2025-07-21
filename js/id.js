@@ -53,5 +53,20 @@ class Id {
         }
         return ret;
     }
+
+    static remove(object) {
+        let found = false;
+        for (let k in Id.list) {
+            const index = Id.list[k].indexOf(object);
+            if (index > -1) {
+                Id.list[k].splice(index, 1);
+                Debug.log(object.id, "RemoveFromIdlist", object.id);
+                found = true;
+            }
+        }
+        if (!found) {
+            Debug.error(object.id,"not found in Idlist", object.id);
+        }
+    }
 }
 
