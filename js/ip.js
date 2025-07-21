@@ -3,6 +3,7 @@ class IP {
     this.id = new Id('IP', this);
     this.ip = ip;
     this.cidr = cidr;
+    this.subnet = this.calcSubnet();
     Debug.log(this.id, "Create", this);
   }
 
@@ -19,15 +20,38 @@ class IP {
   toString() {
     return this.ip+"/"+this.cidr;
   }
-}
 
-class Packet {
-    constructor(ipSrc=null, ipDst=null) {
-      this.id = new Id('Packet', this);
-      this.ipSrc = ipSrc;
-      this.ipDst = ipDst;
+  static calcBinary(ipString) {
+    let octets = ipString.split(".");
+    let binary = "";
+    octets.forEach(octet => { 
+      binary += new Number(octet).toString(2).padStart(8,"0");
+    });
+    return binary;
+  }
+
+  calcSubnet() {
+    let ipBinary = IP.calcBinary(this.ip);
+    let subnetBinary = "";
+    for (let i=0; i<32; i++) {
+      if (i<this.cidr) subnetBinary += ipBinary[i];
+      else subnetBinary += "0";
     }
-    toString() {
-      return this.ipSrc+" -> "+this.ipDst;
+    let subnet = "";
+    for (let i=0; i<4; i++) {
+      subnet += parseInt(subnetBinary.substring(8*i,8*i+8),2).toString();
+      if (i<3) subnet += ".";
     }
+    return subnet;
+  }
+
+  inSubnet(subnet) {
+    let ret = true;
+    let ipBinary = IP.calcBinary(this.ip);
+    let subnetBinary = IP.calcBinary(subnet);
+    for (let i=0; i<this.cidr; i++) {
+      if (ipBinary[i] != subnetBinary[i]) ret = false;
+    }
+    return ret;
+  }
 }

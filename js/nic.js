@@ -14,7 +14,7 @@ class NIC extends Port {
 
     rcvFrame(frame) {
         super.rcvFrame(frame);
-        this.host.l2.rcvFrame(frame);
+        this.host.l2.rcvFrame(frame, this);
     }
 
     toString() {

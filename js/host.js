@@ -11,6 +11,8 @@ class Host extends Drawable {
         this.nics.push(nic);
         nic.host = this;
         nic.tlvs.addData("SystemName", this.id.toString());
+        // 192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.10
+        this.l3.addRoute(nic);
     }
 
     draw() {

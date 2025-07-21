@@ -17,8 +17,8 @@ const hub4a = new Hub4(100, 50);
 for (let i=0; i<3; i++) {
     const nic = new NIC(110+60*i, 200, new MAC("same"));
     const host = new Host(100+60*i,170);
-    host.addNic(nic);
     nic.ip = new IP(`192.168.1.${10+i}`, 24);
+    host.addNic(nic);
     const patch = new Patch(nic, hub4a.ports[i]);
 }
 
@@ -26,8 +26,8 @@ const hub4b = new Hub4(400, 50);
 for (let i=0; i<3; i++) {
     const nic = new NIC(410+60*i, 200, new MAC("same"));
     const host = new Host(400+60*i,170);
-    host.addNic(nic);
     nic.ip = new IP(`192.168.1.${20+i}`, 24);
+    host.addNic(nic);
     const patch = new Patch(nic, hub4b.ports[i+1]);
 }
 

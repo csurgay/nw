@@ -23,8 +23,6 @@ class LLDP {  // Link Layer Discovery Protocol
             this.neighbors.push([mac, portID, Date.now()]);
             Debug.log(this.id, "Add", mac + " " + portID);
         }
-        frame.removeFromDrawlist();
-        Id.remove(frame);
     }
 
     remove(port, mac) {
@@ -67,8 +65,8 @@ class LLDP {  // Link Layer Discovery Protocol
             this.neighbors.forEach(neighbor => {
                 const [port, mac, timestamp] = neighbor;
                 if (Date.now() - timestamp > 120000) { // 2 minutes timeout
-                    this.remove(port, mac);
                     Debug.log(this.id, "Timeout", port + " " + mac);
+                    this.remove(port, mac);
                 }
             });
             this.showNeighbors();

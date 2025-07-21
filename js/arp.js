@@ -1,20 +1,9 @@
-class ARPentry {
+class ArpEntry {
     constructor(ip, mac, port, timestamp = Date.now()) {
-        this.id = new Id('ARPentry', this);
         this.ip = ip; // IP address as a string
         this.mac = mac; // MAC address as a string
         this.port = port; // Port number as a string
         this.timestamp = timestamp; // Timestamp for the entry
-    }
-}
-
-class ARPplayload {
-    constructor(opCode,macSender,macTarget,ipSender,ipTarget) {
-        this.opCode = opCode;
-        this.macSender = macSender;
-        this.macTarget = macTarget;
-        this.ipSender = ipSender;
-        this.ipTarget = ipTarget;
     }
 }
 
@@ -27,27 +16,28 @@ class ARP {
         Debug.log(this.id, "Create", this.host.id);
     }
 
-    processFrame(frame) {
-        const [ipDst, ipSrc, macDst, macSrc, port] = [
-            frame.payload.ipDst,
-            frame.payload.ipSrc,
-            frame.macDst.toString(),
-            frame.macSrc.toString(),
-            this.nic.id
-        ];
-        if (ipDst == this.nic.ip.ip) {
-            Debug.log(this.id, "Hit", ipDst+"("+this.nic.id+")");
+    processFrame(payload, nic) {
+        this.cacheIP(
+            payload.data["ipSender"],
+            payload.data["macSender"],
+            nic.id
+        );
+        if (payload.data["ipTarget"] == nic.ip.ip && 
+            payload.data["opCode"] == "ArpRequest") 
+        {
+            Debug.log(this.id, "Hit", payload.data["ipTarget"]+
+                "("+nic.id+")");
+            const pl = new Payload();
+            pl.addData("opCode", "ArpResponse");
+            pl.addData("macSender", nic.mac);
+            pl.addData("ipSender", nic.ip.ip);
+            pl.addData("macTarget", payload["macSender"]);
+            pl.addData("ipTarget", payload["ipSender"]);
             const frame = new Frame(
-                this.nic.x, this.nic.y,
-                macDst,
-                this.nic.mac,
-                'arp',
-                new Packet(this.nic.id, ipDst)
+                nic.x,nic.y, payload.data["macTarget"], 
+                nic.mac, 'arp', pl
             );
-            this.nic.sendFrame(frame, this.nic);
-        }
-        else {
-            this.cacheIP(ipSrc, macSrc, port);
+            nic.sendFrame(frame);
         }
     }
 
@@ -73,25 +63,27 @@ class ARP {
             }
         });
         if (!found) {
-            this.cache.push(new ARPentry(ip, mac, port, timestamp));
+            this.cache.push(new ArpEntry(ip, mac, port, timestamp));
             Debug.log(this.id, "Add", port + ":" + ip + " " + mac);
         }
     }
 
-    sendQuery(ip) {
-        Debug.log(this.id, "Query from "+this.nic+" to "+ip);
+    sendQuery(ip, nic) {
+        Debug.log(this.id, "Query "+nic+" -> "+ip);
+        const pl = new Payload();
+        pl.addData("opCode", "ArpRequest");
+        pl.addData("macSender", nic.mac);
+        pl.addData("ipSender", nic.ip.ip);
+        pl.addData("macTarget", Payload.MACNULL);
+        pl.addData("ipTarget", ip);
         const frame = new Frame(
-            this.nic.x, this.nic.y,
-            ARP.MULTICAST, 
-            this.nic.mac, 
-            'arp', 
-            new Packet(this.nic.ip, ip)
+            nic.x,nic.y, ARP.MULTICAST, nic.mac, 'arp', pl
         );
-        this.nic.sendFrame(frame, this.nic);
+        nic.sendFrame(frame);
     }
 
     showCache() {
-        Debug.log(this.id, "ShowCache", "PortID:" + this.nic.id);
+        Debug.log(this.id, "ShowCache", "PortID:");
         this.cache.forEach(entry => {
             Debug.log(this.id, "Entry", entry.port + ":" + entry.ip + " " + entry.mac.toString() + "(" + (Date.now()-entry.timestamp) + ")");
         })

@@ -2,7 +2,7 @@ class Switching {
     constructor(host) {
         this.host = host;
         this.lldp = null;
-        this.lldpStart();
+        //this.lldpStart();
     }
 
     lldpStart() {
@@ -23,16 +23,18 @@ class Switching {
         Debug.log(this.id, "LLDPstopped", this);
     }
 
-    rcvFrame(frame) {
+    rcvFrame(frame, port) {
         if (frame.etherType === 'lldp' && this.lldp && 
             this.lldp.enabled) 
         {
             this.lldp.processFrame(frame);
         }
         else if (frame.etherType === 'arp') {
-            this.arp.processFrame(frame);
+            this.host.l3.arp.processFrame(frame.payload, port);
         } else {
             Debug.log(this.id, "UnknownFrameType", frame);
         }
+        frame.removeFromDrawlist();
+        Id.remove(frame);
     }
 }

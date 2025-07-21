@@ -13,7 +13,6 @@ class Id {
         'Router': 0,
         'Host': 0,
         'Frame': 0,
-        'Packet': 0,
         'MAC': 0,
         'IP': 0,
         'TLVs': 0,
