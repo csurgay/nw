@@ -8,11 +8,11 @@ function getRandomColor() {
 }
 
 function stop() {
-  ANIM=0;
-  Debug.log("Util","ANIM","Stopped")
+  ANIM = 0;
+  Debug.log("Util", "ANIM", "Stopped")
 }
 function start() {
-  ANIM=1;
-  Debug.log("Util","ANIM","Started")
+  ANIM = 1;
+  Debug.log("Util", "ANIM", "Started")
   draw();
 }

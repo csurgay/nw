@@ -1,6 +1,6 @@
 class NIC extends Port {
-    constructor(x,y, mac) {
-        super(x,y);
+    constructor(x, y, mac) {
+        super(x, y);
         this.id = new Id('NIC', this); // Unique identifier for NIC
         this.mac = mac;
         this.host = null;
@@ -10,8 +10,8 @@ class NIC extends Port {
         this.tlvs = new TLVs();
         this.tlvs.addData("ChassisID", this.mac.toString());
         this.tlvs.addData("PortID", this.id.toString());
-        this.info.push(["MAC",function(o){return o.mac;}]);
-        this.info.push(["IP",function(o){return o.ip;}]);
+        this.info.push(["MAC", function (o) { return o.mac; }]);
+        this.info.push(["IP", function (o) { return o.ip; }]);
     }
 
     rcvFrame(frame) {
@@ -20,7 +20,7 @@ class NIC extends Port {
     }
 
     toString() {
-        return ""+super.toString();
+        return "" + super.toString();
     }
 
     getIP() {

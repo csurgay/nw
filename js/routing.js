@@ -17,7 +17,7 @@ class Routing {
     showRoute() {
         Debug.log(this.host.id, "RoutingTable");
         this.table.forEach(r => {
-            Debug.log(r[0]+"/"+r[1], r[2]+" "+r[3], r[4]+" "+r[5]);
+            Debug.log(r[0] + "/" + r[1], r[2] + " " + r[3], r[4] + " " + r[5]);
         })
     }
 

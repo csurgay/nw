@@ -12,7 +12,7 @@ class Payload {
         this.data = {};
     }
 
-    addData(type,value) {
+    addData(type, value) {
         if (Payload.TYPES.indexOf(type) == -1) {
             Debug.error("Payload", "Invalid type", type);
         }

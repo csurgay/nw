@@ -1,6 +1,6 @@
 class Patch extends Clickable {
     constructor(port1, port2) { // full-duplex patch cable, no CSMA/CD required
-        super((port1.x+port2.x)/2,(port1.y+port2.y)/2);
+        super((port1.x + port2.x) / 2, (port1.y + port2.y) / 2);
         this.id = new Id('Patch', this);
         this.ports = [port1, port2];
         port1.connect(this);
@@ -11,11 +11,11 @@ class Patch extends Clickable {
         this.animated = true; // Enable animation by default
         Debug.log(this.id, "Create", this);
         setTimeout(this.checkQueue.bind(this), 100);
-        this.info.push(["Q", function(o){ return o.queue.length;}]);
-        this.info.push(["F[0]", function(o){ return o.frame[0];}]);
-        this.info.push(["F[1]", function(o){ return o.frame[1];}]);
+        this.info.push(["Q", function (o) { return o.queue.length; }]);
+        this.info.push(["F[0]", function (o) { return o.frame[0]; }]);
+        this.info.push(["F[1]", function (o) { return o.frame[1]; }]);
     }
-    
+
     draw() {
         super.draw();
         ctx.beginPath();
@@ -29,17 +29,17 @@ class Patch extends Clickable {
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.closePath();
-        if (this.animated) for (let i=0; i<=1; i++) {
+        if (this.animated) for (let i = 0; i <= 1; i++) {
             if (this.sending[i]) {
-                this.frame[i].x = 
-                    ((100-this.frame[i].phase) * this.ports[i].x + 
-                    this.frame[i].phase * this.ports[1-i].x) / 100;
-                this.frame[i].y = 
-                    ((100-this.frame[i].phase) * this.ports[i].y + 
-                    this.frame[i].phase * this.ports[1-i].y) / 100;
+                this.frame[i].x =
+                    ((100 - this.frame[i].phase) * this.ports[i].x +
+                        this.frame[i].phase * this.ports[1 - i].x) / 100;
+                this.frame[i].y =
+                    ((100 - this.frame[i].phase) * this.ports[i].y +
+                        this.frame[i].phase * this.ports[1 - i].y) / 100;
                 this.frame[i].phase += 1;
                 if (this.frame[i].phase >= 100) {
-                    this.deliverFrame(this.ports[1-i], this.frame[i]);
+                    this.deliverFrame(this.ports[1 - i], this.frame[i]);
                     this.sending[i] = false;
                     this.frame[i] = null;
                 }
@@ -48,21 +48,21 @@ class Patch extends Clickable {
     }
 
     sendFrame(frame, senderPort) {
-        this.queue.push([frame,senderPort]);
+        this.queue.push([frame, senderPort]);
     }
 
     checkQueue() {
-        this.queue.forEach( (item, index) => {
+        this.queue.forEach((item, index) => {
             const [frame, senderPort] = item;
-            for (let i=0; i<=1; i++) {
-                if (senderPort==this.ports[i] && !this.sending[i]) {
+            for (let i = 0; i <= 1; i++) {
+                if (senderPort == this.ports[i] && !this.sending[i]) {
                     if (this.animated) {
                         this.frame[i] = frame;
                         this.sending[i] = true;
                         this.frame[i].phase = 0;
                         this.queue.splice(index, 1);
                     }
-                    else this.deliverFrame(this.ports[1-i], frame);
+                    else this.deliverFrame(this.ports[1 - i], frame);
                 }
             }
         })
@@ -75,8 +75,8 @@ class Patch extends Clickable {
 
     toString() {
         return "" +
-            this.id.toString() + ": " + 
-            this.ports[0].toString() + " <-> " + 
+            this.id.toString() + ": " +
+            this.ports[0].toString() + " <-> " +
             this.ports[1].toString();
     }
 }

@@ -8,6 +8,10 @@ class Clickable extends Drawable {
         super.draw();
     }
 
+    drawTooltip() {
+        super.drawTooltip();
+    }
+
     click() {
         if (this.enabled) {
             Debug.log(this.id, "Click", this);
