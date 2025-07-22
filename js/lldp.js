@@ -1,11 +1,10 @@
 class LLDP {  // Link Layer Discovery Protocol
     static MULTICAST = "01:80:c2:00:00:0e"; // LLDP multicast address
     constructor(host) {
-        this.id = new Id('LLDP', this); // Unique identifier for LLDP
         this.host = host;
         this.enabled = false; // LLDP is disabled by default
         this.neighbors = [];
-        Debug.log(this.id, "Create", this.host.id);
+        Debug.log(this.host.id, "Create", "LLDP");
     }
 
     processFrame(frame) {
@@ -16,12 +15,12 @@ class LLDP {  // Link Layer Discovery Protocol
                 found = true;
                 neighbor[1] = portID; // Update PortID
                 neighbor[2] = Date.now(); // Update timestamp
-                Debug.log(this.id, "Update", mac + " " + portID);
+                Debug.log(this.host.id, "Update", mac + " " + portID);
             }
         });
         if (!found) {
             this.neighbors.push([mac, portID, Date.now()]);
-            Debug.log(this.id, "Add", mac + " " + portID);
+            Debug.log(this.host.id, "Add", mac + " " + portID);
         }
     }
 
@@ -31,12 +30,12 @@ class LLDP {  // Link Layer Discovery Protocol
                 this.neighbors.splice(index, 1);
             }
         });
-        Debug.log(this.id, "Remove", port + " " + mac);
+        Debug.log(this.host.id, "Remove", port + " " + mac);
     }
 
     sendLldpDu(nic) {
         if (this.enabled) {
-            Debug.log(this.id, "Send", nic);
+            Debug.log(this.host.id, "Send", nic);
             const frame = new Frame(
                 nic.x, nic.y,
                 LLDP.MULTICAST,
@@ -49,10 +48,10 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     showNeighbors() {
-        Debug.log(this.id, "ShowNeighbors");
+        Debug.log(this.host.id, "ShowNeighbors:");
         this.neighbors.forEach(neighbor => {
             const [port, mac, timestamp] = neighbor;
-            Debug.log(this.id, "Neighbor", port + " " + mac.toString() + "(" + (Date.now()-timestamp) + ")");
+            Debug.log(this.host.id, "Neighbor", port + " " + mac.toString() + "(" + (Date.now()-timestamp) + ")");
         })
     }
 
@@ -65,7 +64,7 @@ class LLDP {  // Link Layer Discovery Protocol
             this.neighbors.forEach(neighbor => {
                 const [port, mac, timestamp] = neighbor;
                 if (Date.now() - timestamp > 120000) { // 2 minutes timeout
-                    Debug.log(this.id, "Timeout", port + " " + mac);
+                    Debug.log(this.host.id, "Timeout", port + " " + mac);
                     this.remove(port, mac);
                 }
             });

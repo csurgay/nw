@@ -1,5 +1,6 @@
 const canvas = document.getElementById('nwCanvas');
 const ctx = canvas.getContext('2d');
+let tooltip = null; // object currently showing tooltip
 
 if (true) for (let i=0; i<3; i++) {
     const nic1 = new NIC(110, 330+100*i, new MAC("same"));
@@ -38,6 +39,15 @@ function draw() {
     ctx.beginPath();
     
     Id.list["Drawable"].forEach(drawable => drawable.draw());
+    let hover = false;
+    Id.list["Drawable"].forEach(drawable => { 
+        if (drawable.hover()) {
+            hover = true;
+            if (!tooltip) tooltip = drawable;
+            tooltip.drawTooltip();
+        }
+    });
+    if (!hover) tooltip = false;
 
     if (ANIM==1) requestAnimationFrame(draw);
 }

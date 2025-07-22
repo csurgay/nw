@@ -1,10 +1,12 @@
-class Host extends Drawable {
+class Host extends Clickable {
     constructor(x,y) {
         super(x,y);
         this.id = new Id("Host", this);
         this.nics = [];
         this.l2 = new Switching(this);
         this.l3 = new Routing(this);
+        this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
+        this.info.push(["ARP",function(o){return o.l3.arp.enabled;}]);
     }
 
     addNic(nic) {
@@ -23,5 +25,9 @@ class Host extends Drawable {
         ctx.rect(this.x, this.y, 50, 80);
         ctx.stroke();
         ctx.closePath();
+    }
+
+    toString() {
+        return super.toString();
     }
 }

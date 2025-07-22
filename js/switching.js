@@ -13,26 +13,31 @@ class Switching {
     }
 
     lldpSendDU() {
-        if (this.lldp.enabled) this.host.nics.forEach(nic => {
-            this.lldp.sendLldpDu(nic);
-        });
+        if (this.lldp && this.lldp.enabled) {
+            this.host.nics.forEach(nic => {
+                this.lldp.sendLldpDu(nic);
+            });
+        }
+        else {
+            Debug.log(this.host.id, "LLDP disabled");
+        }
     }
 
     lldpStop() {
         if (this.lldp) this.lldp.enabled = false;
-        Debug.log(this.id, "LLDPstopped", this);
+        Debug.log(this.host.id, "LLDPstopped", this);
     }
 
     rcvFrame(frame, port) {
-        if (frame.etherType === 'lldp' && this.lldp && 
-            this.lldp.enabled) 
-        {
-            this.lldp.processFrame(frame);
+        if (frame.etherType === 'lldp') {
+            if (this.lldp && this.lldp.enabled) {
+                this.lldp.processFrame(frame);
+            }
         }
         else if (frame.etherType === 'arp') {
             this.host.l3.arp.processFrame(frame.payload, port);
         } else {
-            Debug.log(this.id, "UnknownFrameType", frame);
+            Debug.log(this.host.id, "UnknownFrameType", frame);
         }
         frame.removeFromDrawlist();
         Id.remove(frame);

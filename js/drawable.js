@@ -9,6 +9,10 @@ class Drawable extends Position {
     constructor(x,y) {
         super(x,y);
         this.id = new Id('Drawable', this);
+        this.enabled = true;
+        this.tooltip = false;
+        this.info = [];
+        this.info.push(["ID",function(o){return ""+o.id;}]);
     }
 
     draw(label="none") {
@@ -26,17 +30,48 @@ class Drawable extends Position {
         ctx.closePath();
     }
 
-    toString() {
-        return this.id;
+    inBox(x,y, tooltip=false) {
+        let dx=35, dy=16;
+        if (tooltip) { dx=200; dy=70; }
+        return x>this.x && x<this.x+dx && y>this.y && y<this.y+dy;
     }
 
-    hovered(x,y) {
+    toString() {
+        return this.id.toString();
+    }
+
+    drawTooltip() {
         if (this.enabled) {
-            Debug.log(this.id, "Hovered", this);
+            ctx.beginPath();
+            ctx.fillStyle = "lightgray";
+            ctx.strokeStyle = "black";
+            ctx.fillRect(this.x,this.y,200,70);
+            ctx.rect(this.x,this.y,200,70);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.fillStyle = "black";
+            ctx.textAlign = 'left';
+            let x = this.x+5, y = this.y+10;
+            this.info.forEach( item => {
+                ctx.fillText( item[0], x, y);
+                ctx.fillText( item[1](this), x+30, y);
+                y += 10;
+            })
+            ctx.closePath();
         }        
     }
 
     hover() {
-        Debug.log(this.id, "Hover", this);
+        if (this.enabled) {
+            if (this.inBox(Mouse.x,Mouse.y,this.tooltip)) {
+                this.tooltip = true;
+                return true;
+            }
+            else {
+                this.tooltip = false;
+                return false;
+            }
+        }
     }
 }

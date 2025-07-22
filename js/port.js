@@ -1,4 +1,4 @@
-class Port extends Drawable {
+class Port extends Clickable {
     constructor(x,y) {
         super(x,y);
         this.id = new Id('Port', this); // Unique identifier for Port
@@ -50,6 +50,6 @@ class Port extends Drawable {
     }    
 
     toString() {
-        return ""+this.id;
+        return super.toString();
     }
 }

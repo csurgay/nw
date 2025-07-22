@@ -1,4 +1,4 @@
-class Hub extends Drawable {
+class Hub extends Clickable {
     constructor(x,y) {
         super(x,y);
         this.id = new Id('Hub', this);

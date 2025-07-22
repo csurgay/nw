@@ -1,4 +1,4 @@
-class Patch extends Drawable {
+class Patch extends Clickable {
     constructor(port1, port2) { // full-duplex patch cable, no CSMA/CD required
         super((port1.x+port2.x)/2,(port1.y+port2.y)/2);
         this.id = new Id('Patch', this);
@@ -11,6 +11,9 @@ class Patch extends Drawable {
         this.animated = true; // Enable animation by default
         Debug.log(this.id, "Create", this);
         setTimeout(this.checkQueue.bind(this), 100);
+        this.info.push(["Q", function(o){ return o.queue.length;}]);
+        this.info.push(["F[0]", function(o){ return o.frame[0];}]);
+        this.info.push(["F[1]", function(o){ return o.frame[1];}]);
     }
     
     draw() {
