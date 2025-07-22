@@ -10,6 +10,8 @@ class NIC extends Port {
         this.tlvs = new TLVs();
         this.tlvs.addData("ChassisID", this.mac.toString());
         this.tlvs.addData("PortID", this.id.toString());
+        this.info.push(["MAC",function(o){return o.mac;}]);
+        this.info.push(["IP",function(o){return o.ip;}]);
     }
 
     rcvFrame(frame) {

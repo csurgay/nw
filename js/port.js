@@ -5,6 +5,7 @@ class Port extends Clickable {
         this.connected = false;
         this.patch = null; // Reference to the Patch cable if connected
         this.hub = null; // Reference to the hub if attached
+        this.info.push(["Conn",function(o){return o.connected;}]);
     }
 
     draw() {
