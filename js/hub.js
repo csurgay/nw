@@ -41,6 +41,7 @@ class Hub4 extends Hub {
 
     draw() {
         super.draw();
+        // hub box
         ctx.beginPath();
         ctx.strokeStyle = "black";
         ctx.rect(this.x, this.y, 200, 40);

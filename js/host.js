@@ -7,6 +7,9 @@ class Host extends Clickable {
         this.l3 = new Routing(this);
         this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
         this.info.push(["ARP",function(o){return o.l3.arp.enabled;}]);
+        this.button.push(new Button(this.x+150,this.y+10,"LldpOn",function(o){o.host.l2.lldpStart();},this));
+        this.button.push(new Button(this.x+150,this.y+30,"LldpDu",function(o){o.host.l2.sendLldpDu();},this));
+        this.button.push(new Button(this.x+150,this.y+50,"ArpReq",function(o){o.host.l3.sendArpRequest();},this));
     }
 
     addNic(nic) {
@@ -19,7 +22,7 @@ class Host extends Clickable {
 
     draw() {
         super.draw();
-        super.draw();
+        // host box
         ctx.beginPath();
         ctx.strokeStyle = "black";
         ctx.rect(this.x, this.y, 50, 80);

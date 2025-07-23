@@ -12,7 +12,7 @@ class Switching {
         Debug.log(this.host.id, "LLDPstarted", "");
     }
 
-    lldpSendDU() {
+    sendLldpDu() {
         if (this.lldp && this.lldp.enabled) {
             this.host.nics.forEach(nic => {
                 this.lldp.sendLldpDu(nic);

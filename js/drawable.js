@@ -59,19 +59,17 @@ class Drawable extends Position {
                 y += 10;
             })
             ctx.closePath();
-        }        
+        }
     }
 
     hover() {
-        if (this.enabled) {
-            if (this.inBox(Mouse.x,Mouse.y,this.tooltip)) {
-                this.tooltip = true;
-                return true;
-            }
-            else {
-                this.tooltip = false;
-                return false;
-            }
+        if (this.inBox(Mouse.x,Mouse.y,this.tooltip)) {
+            this.tooltip = true;
+            return true;
+        }
+        else {
+            this.tooltip = false;
+            return false;
         }
     }
 }

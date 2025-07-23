@@ -2,6 +2,7 @@ class Clickable extends Drawable {
     constructor(x,y) {
         super(x,y);
         this.id = new Id('Clickable', this);
+        this.button = [];
     }
 
     draw() {
@@ -10,11 +11,11 @@ class Clickable extends Drawable {
 
     drawTooltip() {
         super.drawTooltip();
+        this.button.forEach( b => {
+            b.draw()
+        })
     }
 
     click() {
-        if (this.enabled) {
-            Debug.log(this.id, "Click", this);
-        }        
     }
 }

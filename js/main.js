@@ -1,7 +1,3 @@
-const canvas = document.getElementById('nwCanvas');
-const ctx = canvas.getContext('2d');
-let tooltip = null; // object currently showing tooltip
-
 if (true) for (let i = 0; i < 3; i++) {
 	const nic1 = new NIC(110, 330 + 100 * i, new MAC("same"));
 	nic1.ip = new IP(`192.168.1.${2 * i + 1}`, 24);
@@ -38,7 +34,9 @@ function draw() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.beginPath();
 
-	Id.list["Drawable"].forEach(drawable => drawable.draw());
+	Id.list["Drawable"].forEach(drawable => {
+        if (drawable.enabled) drawable.draw();
+    })
 	let hover = false;
 	Id.list["Drawable"].forEach(drawable => {
 		if (drawable.hover()) {
