@@ -28,6 +28,12 @@ class Switching {
         Debug.log(this.host.id, "LLDPstopped", this);
     }
 
+    showNeighbors() {
+        if (this.lldp && this.lldp.enabled) {
+            this.lldp.showNeighbors();
+        }
+    }
+
     rcvFrame(frame, port) {
         if (frame.etherType === 'lldp') {
             if (this.lldp && this.lldp.enabled) {
