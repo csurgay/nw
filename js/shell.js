@@ -2,14 +2,13 @@ class Shell {
     static consolePrompt = "[admin@console ~]$ ";
     constructor(prompt) {
         this.history = [
-            "systemctl start lldpd",
-            "ssh Host1",
-            "lldpcli update",
-            "lldpcli show neighbors",
+            "ssh Host1 systemctl start lldpd",
+            "ssh Host1 lldpcli update",
+            "ssh Host1 lldpcli show neighbors",
+            "ssh Host1 arping 192.168.1.2",
         ];
         this.historyIndex = 0;
         this.prompt = prompt;
-        this.command = "";
         term.value = this.prompt;
         term.value = bootlog;
         this.boot = new Boot(term);
@@ -20,7 +19,9 @@ class Shell {
     keypress(evt) {
         if (["ArrowUp","ArrowDown","Control"].includes(evt.key)) evt.preventDefault();
         if (evt.key == "ArrowLeft") {
-            if (term.selectionStart - term.value.lastIndexOf(this.prompt) - prompt.length < 1) {
+            if (term.selectionStart - 
+                term.value.lastIndexOf(this.prompt) - this.prompt.length < 1) 
+            {
                 evt.preventDefault();
             }
         }
@@ -49,14 +50,14 @@ class Shell {
         }    
         if (evt.key == "Enter") {
             evt.preventDefault();
-            this.command = term.value.substring(term.value.lastIndexOf(
+            let command = term.value.substring(term.value.lastIndexOf(
                 this.prompt)+this.prompt.length).trim();
-            if (this.command != "" && this.command != this.history[
+            if (command != "" && command != this.history[
                 this.history.length-1]) 
             {
-                this.history.push(this.command);
+                this.history.push(command);
             }
-            this.parse(this.command);
+            this.parse(command);
             term.value += "\n" + this.prompt;
             this.historyIndex = 0;
         }
@@ -90,44 +91,68 @@ class Shell {
     }
 
     parse(command) {
-        this.command = this.command.split(" ");
+        command = command.split(" ");
         Debug.log("Shell", "parse", this.command);
-        if (this.command[0] == "start") start();
-        if (this.command[0] == "stop") stop();
-        if (this.command[0] == "ssh") {
-            if (this.command.length==1) {
+        if (command[0] == "start") start();
+        if (command[0] == "stop") stop();
+        if (command[0] == "ssh") {
+            if (command.length == 1) {
                 term.value += "\nusage: ssh destination";
             }
             else {
-                let h = this.command[1];
+                let h = command[1];
                 let o = Id.find(h);
                 if (o==null) {
                     term.value += "\nCould not resolve hostname "+h;
                 }
                 else {
                     this.host = o;
-                    this.prompt = "[root@"+h+" ~]# ";
+                    if (command.length == 2) {
+                        this.prompt = "[root@"+h+" ~]# ";
+                    }
+                    else {
+                        let c = command.slice(2,command.length);
+                        c = c.join(" ");
+                        this.parse(c);
+                    }
                 }
             }
         }
-        if (this.command[0] == "systemctl") {
-            if (this.command[1] == "start" && this.command[2] == "lldpd") {
+        if (command[0] == "systemctl") {
+            if (command[1] == "start" && command[2] == "lldpd") {
                 this.host.l2.lldpStart();
             }
-            if (this.command[1] == "stop" && this.command[2] == "lldpd") {
+            if (command[1] == "stop" && command[2] == "lldpd") {
                 this.host.l2.lldpStop();
             }
         }
-        if (this.command[0] == "lldpcli") {
-            if (this.command[1] == "update") {
+        if (command[0] == "lldpcli") {
+            if (command[1] == "update") {
                 this.host.l2.sendLldpDu();
             }
-            if (this.command[1] == "show" && this.command[2] == "chassis") {
+            if (command[1] == "show" && command[2] == "chassis") {
                 this.host.l2.lldpStop();
             }
-            if (this.command[1] == "show" && this.command[2] == "neighbors") {
+            if (command[1] == "show" && command[2] == "neighbors") {
                 this.host.l2.showNeighbors();
             }
+        }
+        if (command[0] == "arping") {
+            if (!command[1]) {
+                term.value += "\nusage: arping <destination>";
+            }
+            else if(!IP.isValid(command[1])) {
+                term.value += "\narping: " + command[1] + ": Name or service not known";
+            }
+            else {
+                term.value += "\nARPING " + command[1] + 
+                    " from " + this.host.nics[0].ip.ip + 
+                    " [" + this.host.nics[0].mac + "]";
+                this.host.l3.sendArpRequest(command[1]);
+            }
+        }
+        if (command[0] == "arp" && command[1] == "-a") {
+            this.host.l3.arp.showCache();
         }
     }
 }

@@ -7,8 +7,8 @@ class IP {
         Debug.log(this.id, "Create", this);
     }
 
-    isValid() {
-        const parts = this.ip.split('.');
+    static isValid(ip) {
+        const parts = ip.split('.');
         if (parts.length !== 4) return false;
         for (const part of parts) {
             const num = parseInt(part, 10);

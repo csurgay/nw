@@ -6,10 +6,15 @@ class Switching {
     }
 
     lldpStart() {
-        if (!this.lldp) this.lldp = new LLDP(this.host);
-        this.lldp.enabled = true;
-        this.lldp.start();
-        Debug.log(this.host.id, "LLDPstarted", "");
+        if (!this.lldp) {
+            this.lldp = new LLDP(this.host);
+            this.lldp.enabled = true;
+            this.lldp.start();
+            Debug.log(this.host.id, "LLDPstarted", "");
+        }
+        else {
+            Debug.log(this.host.id, "LLDP alerady started", "");
+        }
     }
 
     sendLldpDu() {
