@@ -35,7 +35,7 @@ class Switching {
 
     showNeighbors() {
         if (this.lldp && this.lldp.enabled) {
-            this.lldp.showNeighbors();
+            return this.lldp.showNeighbors();
         }
     }
 

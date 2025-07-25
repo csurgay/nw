@@ -48,11 +48,13 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     showNeighbors() {
-        Debug.log(this.host.id, "ShowNeighbors:");
+        let ret = "";
+        ret += this.host.id + " LLDP neighbors:\n";
         this.neighbors.forEach(neighbor => {
             const [port, mac, timestamp] = neighbor;
-            Debug.log(this.host.id, "Neighbor", port + " " + mac.toString() + "(" + (Date.now()-timestamp) + ")");
+            ret += "Neighbor" + port + " " + mac.toString() + "\n";
         })
+        return ret;
     }
 
     start() {

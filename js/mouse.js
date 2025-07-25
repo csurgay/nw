@@ -24,8 +24,9 @@ class Mouse extends Position {
 document.addEventListener('keydown', keypress);
 document.addEventListener('click', Mouse.mouseclick);
 document.addEventListener('mousemove', Mouse.mousemove);
+consoleArea.addEventListener('click', terminal.mouseclick.bind(terminal));
 
 function keypress(evt) {
     //Debug.log("Shell", "keypress", evt.key);
-    shell.keypress(evt);
+    terminal.keypress(evt);
 }

@@ -296,18 +296,18 @@ const bootlog = `
 [  OK  ] Started System Logging Service.
 `
 class Boot {
-    constructor(term) {
-        this.term = term;
+    constructor(terminal) {
+        this.terminal = terminal;
         this.scrollIndex = 0;
     }
     init() {
-        this.term.scrollTop = 0;
+        this.scrollTop = 0;
         setTimeout(this.scroll.bind(this), 1);
     }
     scroll() {
         this.scrollIndex += 24;
-        if (this.scrollIndex < this.term.scrollHeight) {
-            this.term.scrollTop = this.scrollIndex;
+        if (this.scrollIndex < this.terminal.textarea.scrollHeight) {
+            this.terminal.textarea.scrollTop = this.scrollIndex;
             setTimeout(this.scroll.bind(this), 1);
         }
         else {
@@ -315,6 +315,7 @@ class Boot {
         }
     }
     setPrompt() {
-        this.term.value = Shell.consolePrompt;
+        this.terminal.textarea.value = Terminal.consolePrompt;
+        setTimeout(this.terminal.callback.bind(this), 100);
     }
 }
