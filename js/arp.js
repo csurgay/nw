@@ -16,16 +16,16 @@ class ARP {
         Debug.log(this.id, "Create", this.host.id);
     }
 
-    processFrame(payload, nic) {
+    processArpPayload(payload, nic, color = getRandomColor()) {
         this.cacheIP(
-            payload.data["ipSender"],
-            payload.data["macSender"],
+            payload["ipSender"],
+            payload["macSender"],
             nic.id
         );
-        if (payload.data["ipTarget"] == nic.ip.ip && 
-            payload.data["opCode"] == "ArpRequest") 
+        if (payload["ipTarget"] == nic.ip.ip && 
+            payload["opCode"] == "ArpRequest") 
         {
-            Debug.log(this.id, "Hit", payload.data["ipTarget"]+
+            Debug.log(this.id, "Hit", payload["ipTarget"]+
                 "("+nic.id+")");
             const pl = new Payload();
             pl.addData("opCode", "ArpResponse");
@@ -34,10 +34,21 @@ class ARP {
             pl.addData("macTarget", payload["macSender"]);
             pl.addData("ipTarget", payload["ipSender"]);
             const frame = new Frame(
-                nic.x,nic.y, payload.data["macTarget"], 
+                nic.x,nic.y, payload["macTarget"], 
                 nic.mac, 'arp', pl
             );
-            nic.sendFrame(frame);
+            nic.sendFrame(frame, color);
+        }
+        if (payload["ipTarget"] == nic.ip.ip && 
+            payload["opCode"] == "ArpResponse") 
+        {
+            Debug.log(this.id, "Response", payload["ipTarget"]+
+                "("+nic.id+")");
+            this.host.terminal.print("\nUnicast reply from " + 
+                payload["ipSender"] + " [" + 
+                payload["macSender"] + "]" +
+                "\n" + this.host.terminal.prompt
+            );
         }
     }
 

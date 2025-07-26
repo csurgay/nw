@@ -1,17 +1,18 @@
-let DEBUG=1;
+let DEBUG="test"; // "none" "test" "whitelist" "blacklist" "full"
 let ANIM=1;
 
 class Debug extends Drawable {
     static SOURCES = {
-    'Frame': false,
-    'NIC': false,
-    'Patch': false,
-    'MAC': false,
-    'LLDP': false,
-    'ARP': true,
-    'IP': false,
-    'TLV': false,
-    'Util': true,
+        'Frame': false,
+        'NIC': false,
+        'Patch': false,
+        'MAC': false,
+        'LLDP': false,
+        'ARP': true,
+        'IP': false,
+        'TLV': false,
+        'Util': true,
+        'Test': true,
     }
 
     constructor(x,y) {
@@ -19,13 +20,19 @@ class Debug extends Drawable {
     }
 
     static log(source, action, message="") {
-        if (DEBUG==1 || Debug.SOURCES[source.type]) {
+        if (DEBUG == "full" || 
+            DEBUG  == "test" && source == "Test" ||
+            DEBUG == "whitelist" && Debug.SOURCES[source.type]) 
+        {
             console.log(source + "." + action + " " + message);
         }
     }
 
     static error(source, action, message="") {
-        if (DEBUG==1 || Debug.SOURCES[source.type]) {
+        if (DEBUG == "full" || 
+            DEBUG  == "test" && source == "Test" ||
+            DEBUG == "whitelist" && Debug.SOURCES[source.type]) 
+        {
             console.log("ERROR: " + source + "." + action + " " + message);
         }
     }

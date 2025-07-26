@@ -55,13 +55,20 @@ class Shell {
             if (command[1] == "stop" && command[2] == "lldpd") {
                 this.host.l2.lldpStop();
             }
+            if (command[1] == "is-active" && command[2] == "lldpd") {
+                let ret = "failed";
+                if (this.host.l2.lldp && this.host.l2.lldp.enabled) {
+                    ret = "active";
+                }
+                this.t.print("\n"+ret);
+            }
         }
         if (command[0] == "lldpcli") {
             if (command[1] == "update") {
                 this.host.l2.sendLldpDu();
             }
             if (command[1] == "show" && command[2] == "chassis") {
-                this.host.l2.lldpStop();
+                this.t.print(this.host.l2.lldpStop);
             }
             if (command[1] == "show" && command[2] == "neighbors") {
                 this.t.print("\n"+this.host.l2.showNeighbors());
@@ -77,7 +84,7 @@ class Shell {
             else {
                 this.t.print("\nARPING " + command[1] + 
                     " from " + this.host.nics[0].ip.ip + 
-                    " [" + this.host.nics[0].mac + "]");
+                    " " + this.host.nics[0].id);
                 this.host.l3.sendArpRequest(command[1]);
             }
         }

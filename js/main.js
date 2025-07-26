@@ -1,7 +1,7 @@
 if (true) for (let i = 0; i < 3; i++) {
 	const nic1 = new NIC(110, 250 + 95 * i, new MAC("same"));
 	nic1.ip = new IP(`192.168.1.${2 * i + 1}`, 24);
-	const host1 = new Host(100, 220 + 95 * i);
+	const host1 = new Host(100, 220 + 95 * i, terminal);
 	host1.addNic(nic1);
 	const nic2 = new NIC(560, 250 + 95 * i, new MAC("same"));
 	nic2.ip = new IP(`192.168.1.${2 * i + 2}`, 24);

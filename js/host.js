@@ -1,6 +1,7 @@
 class Host extends Clickable {
-    constructor(x,y) {
+    constructor(x,y, terminal) {
         super(x,y);
+        this.terminal = terminal;
         this.id = new Id("Host", this);
         this.nics = [];
         this.l2 = new Switching(this);
@@ -13,6 +14,7 @@ class Host extends Clickable {
     }
 
     addNic(nic) {
+        nic.host = this;
         this.nics.push(nic);
         nic.host = this;
         nic.tlvs.addData("SystemName", this.id.toString());

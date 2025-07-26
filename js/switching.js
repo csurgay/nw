@@ -8,13 +8,20 @@ class Switching {
     lldpStart() {
         if (!this.lldp) {
             this.lldp = new LLDP(this.host);
-            this.lldp.enabled = true;
             this.lldp.start();
-            Debug.log(this.host.id, "LLDPstarted", "");
         }
         else {
-            Debug.log(this.host.id, "LLDP alerady started", "");
+            if (!this.lldp.enabled) {
+                this.lldp.start();
+            }
         }
+        this.lldp.enabled = true;
+        Debug.log(this.host.id, "LLDPstarted", "");
+    }
+
+    lldpStop() {
+        if (this.lldp) this.lldp.enabled = false;
+        Debug.log(this.host.id, "LLDPstopped", this);
     }
 
     sendLldpDu() {
@@ -26,11 +33,6 @@ class Switching {
         else {
             Debug.log(this.host.id, "LLDP disabled");
         }
-    }
-
-    lldpStop() {
-        if (this.lldp) this.lldp.enabled = false;
-        Debug.log(this.host.id, "LLDPstopped", this);
     }
 
     showNeighbors() {
@@ -46,7 +48,7 @@ class Switching {
             }
         }
         else if (frame.etherType === 'arp') {
-            this.host.l3.arp.processFrame(frame.payload, port);
+            this.host.l3.arp.processArpPayload(frame.payload.data, port, frame.color);
         } else {
             Debug.log(this.host.id, "UnknownFrameType", frame);
         }

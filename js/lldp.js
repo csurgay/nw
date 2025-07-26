@@ -43,16 +43,16 @@ class LLDP {  // Link Layer Discovery Protocol
                 'lldp',
                 nic.tlvs
             );
-            nic.sendFrame(frame, nic);
+            nic.sendFrame(frame, getRandomColor());
         }
     }
 
     showNeighbors() {
         let ret = "";
-        ret += this.host.id + " LLDP neighbors:\n";
+        ret += this.host.id + " LLDP neighbors:";
         this.neighbors.forEach(neighbor => {
-            const [port, mac, timestamp] = neighbor;
-            ret += "Neighbor" + port + " " + mac.toString() + "\n";
+            const [mac, port, timestamp] = neighbor;
+            ret += "\n" + port + " [" + mac.toString() + "]";
         })
         return ret;
     }

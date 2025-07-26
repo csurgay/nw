@@ -2,6 +2,7 @@ class Port extends Clickable {
     constructor(x, y) {
         super(x, y);
         this.id = new Id('Port', this); // Unique identifier for Port
+        this.host = null; // the host this nic is plugged in
         this.connected = false;
         this.patch = null; // Reference to the Patch cable if connected
         this.hub = null; // Reference to the hub if attached
@@ -30,8 +31,9 @@ class Port extends Clickable {
         this.patch = null;
     }
 
-    sendFrame(frame) {
+    sendFrame(frame, color) {
         if (this.connected && this.patch) {
+            if (color) frame.color = color;
             Debug.log(this.id, "Send", frame);
             this.patch.sendFrame(frame, this);
         } else {

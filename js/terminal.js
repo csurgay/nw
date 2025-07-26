@@ -56,9 +56,10 @@ class Terminal {
         this.historyIndex = 0;
     }
 
-    lastLine() {
-        return this.textarea.value.substring(this.textarea.value.lastIndexOf("\n")+1,
-            this.textarea.value.length);
+    lastLines() {
+        let lines = this.textarea.value.split("\n");
+        let l = lines.length;
+        return [lines[l-2], lines[l-1]];
     }
 
     keypress(evt) {
@@ -87,10 +88,12 @@ class Terminal {
             }
         }
         if (evt.ctrlKey && (evt.key == 'c' || evt.key == 'C')) {
+            evt.preventDefault();
             this.print("^C\n" + this.prompt);
             this.historyIndex = 0;
         }    
         if (evt.ctrlKey && (evt.key == 'd' || evt.key == 'D')) {
+            evt.preventDefault();
             this.quitToConsole();
             this.print("\n" + this.prompt);
         }    
