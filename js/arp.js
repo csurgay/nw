@@ -37,7 +37,7 @@ class ARP {
                 nic.x,nic.y, payload["macTarget"], 
                 nic.mac, 'arp', pl
             );
-            nic.sendFrame(frame, color);
+            this.host.l2.sendFrame(nic, frame, color);
         }
         if (payload["ipTarget"] == nic.ip.ip && 
             payload["opCode"] == "ArpResponse") 
@@ -79,6 +79,17 @@ class ARP {
         }
     }
 
+    getMAC(ip) {
+        let ret = null;
+        this.cache.forEach(entry => {
+            if (entry.ip == ip) {
+                ret = entry.mac; // found mac
+                Debug.log(this.id, "Found", ip + " " + entry.mac);
+            }
+        });
+        return ret;
+    }
+
     sendQuery(ip, nic) {
         Debug.log(this.id, "Query "+nic+" -> "+ip);
         const pl = new Payload();
@@ -90,14 +101,21 @@ class ARP {
         const frame = new Frame(
             nic.x,nic.y, ARP.MULTICAST, nic.mac, 'arp', pl
         );
-        nic.sendFrame(frame);
+        this.host.l2.sendFrame(nic, frame);
     }
 
     showCache() {
         Debug.log(this.id, "ShowCache", "PortID:");
+        let ret = "";
         this.cache.forEach(entry => {
-            Debug.log(this.id, "Entry", entry.port + ":" + entry.ip + " " + entry.mac.toString() + "(" + (Date.now()-entry.timestamp) + ")");
+            Debug.log(this.id, "Entry", entry.port + ":" + 
+                entry.ip + " " + entry.mac.toString() + 
+                "(" + (Date.now() - entry.timestamp) + ")"
+            );
+            ret += "\n? (" + entry.ip + ") at " + entry.mac.toString() +
+            " [ether] on " + entry.port;
         })
+        return ret;
     }
 
     tick() {

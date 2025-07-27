@@ -2,6 +2,7 @@ class Routing {
     constructor(host) {
         this.host = host;
         this.arp = new ARP(this.host);
+        this.icmp = new ICMP(this.host);
         this.table = []; // Routing table
     }
 
@@ -28,4 +29,9 @@ class Routing {
     sendArpRequest(ip) {
         this.arp.sendQuery(ip, this.route(ip));
     }
+
+    sendPingRequest(ip) {
+        this.icmp.sendQuery(ip, this.route(ip));
+    }
+
 }

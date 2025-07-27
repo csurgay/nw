@@ -20,7 +20,8 @@ class Terminal {
     }
 
     callback() {
-        test.test();
+        if (TEST) test.test();
+        consoleArea.focus();
     }
 
     print(string) {
@@ -74,10 +75,10 @@ class Terminal {
         }
         if (evt.key == "Home") {
             evt.preventDefault();
-            selectionStart = 
+            this.textarea.selectionStart = 
                 this.textarea.value.lastIndexOf(this.prompt) + 
                 this.prompt.length;
-            selectionEnd = selectionStart;
+            this.textarea.selectionEnd = this.textarea.selectionStart;
         }
         if (evt.key == "Backspace") {
             if (this.textarea.selectionStart - 

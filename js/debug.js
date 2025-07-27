@@ -1,5 +1,6 @@
-let DEBUG="test"; // "none" "test" "whitelist" "blacklist" "full"
-let ANIM=1;
+let DEBUG = "test"; // "none" "test" "whitelist" "blacklist" "full"
+let ANIM = 1;
+let TEST = false;
 
 class Debug extends Drawable {
     static SOURCES = {

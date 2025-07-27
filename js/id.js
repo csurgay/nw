@@ -3,6 +3,7 @@ class Id {
         'Id': 0,
         'Debug': 0,
         'ARP': 0,
+        'ICMP': 0,
         'ARPentry': 0,
         'LLDP': 0,
         'NIC': 0,

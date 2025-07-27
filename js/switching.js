@@ -49,10 +49,18 @@ class Switching {
         }
         else if (frame.etherType === 'arp') {
             this.host.l3.arp.processArpPayload(frame.payload.data, port, frame.color);
-        } else {
+        } 
+        else if (frame.etherType === 'icmp') {
+            this.host.l3.icmp.processIcmpPayload(frame.payload.data, port, frame.color);
+        } 
+        else {
             Debug.log(this.host.id, "UnknownFrameType", frame);
         }
         frame.removeFromDrawlist();
         Id.remove(frame);
+    }
+
+    sendFrame(nic, frame, color) {
+        nic.sendFrame(frame, color);
     }
 }

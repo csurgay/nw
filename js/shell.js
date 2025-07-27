@@ -36,6 +36,7 @@ class Shell {
                     this.t.print("\nCould not resolve hostname "+h);
                 }
                 else {
+                    let savedHost = this.host;
                     this.host = o;
                     if (command.length == 2) {
                         this.t.prompt = "[root@"+h+" ~]# ";
@@ -44,6 +45,7 @@ class Shell {
                         let c = command.slice(2,command.length);
                         c = c.join(" ");
                         this.parse(c);
+                        this.host = savedHost;
                     }
                 }
             }
@@ -89,7 +91,22 @@ class Shell {
             }
         }
         if (command[0] == "arp" && command[1] == "-a") {
-            this.host.l3.arp.showCache();
+            let ret = this.host.l3.arp.showCache();
+            this.t.print(ret);
         }
+        if (command[0] == "ping") {
+            if (!command[1]) {
+                this.t.print("\nuping: usage error: Destination address required");
+            }
+            else if(!IP.isValid(command[1])) {
+                this.t.print("\nping: " + command[1] + ": Name or service not known");
+            }
+            else {
+                this.t.print("\nPING " + command[1] + 
+                    " (" + command[1] + ") 56(84) byzes of data.");
+                this.host.l3.sendPingRequest(command[1]);
+            }
+        }
+
     }
 }
