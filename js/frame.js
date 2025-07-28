@@ -1,4 +1,11 @@
 class Frame extends Drawable {
+    static EtherType = {
+        "IPv4": 0x0800,
+        "ARP": 0x0806,
+        "Wake-on-LAN": 0x0842,
+        "LLDP": 0x88cc,
+    }
+
     constructor(x, y, macDst, macSrc, etherType, payload) {
         super(x,y);
         this.id = new Id("Frame", this);

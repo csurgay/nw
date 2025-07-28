@@ -1,4 +1,32 @@
 class IP {
+    static protocol = {
+        "ICMP": 0x01,
+        "TCP": 0x06,
+        "UDP": 0x11,
+        "IPv6": 0x29,
+    }
+
+    static port = {
+        "FTPdata": 20,
+        "FTPctrl": 21,
+        "SSH": 22,
+        "SMTP": 25,
+        "DNS": 53,
+        "DHCP": 67,
+        "DHCP2": 68,
+        "HTTP": 80,
+        "HTTPS": 443,
+        "NTP": 123,
+        "OpenVPN": 1194,
+        "NFS": 2049,
+        "MYSQL": 3306,
+        "PostgreSQL": 5432,
+        "Viber": 4244,
+        "Viber2": 5242,
+        "Synology": 5000,
+        "TeamViewer": 5938,
+    }
+
     constructor(ip, cidr) {
         this.id = new Id('IP', this);
         this.ip = ip;
