@@ -30,12 +30,7 @@ class Debug extends Drawable {
     }
 
     static error(source, action, message="") {
-        if (DEBUG == "full" || 
-            DEBUG  == "test" && source == "Test" ||
-            DEBUG == "whitelist" && Debug.SOURCES[source.type]) 
-        {
-            console.log("ERROR: " + source + "." + action + " " + message);
-        }
+        console.log("ERROR: " + source + "." + action + " " + message);
     }
 }
 

@@ -1,10 +1,10 @@
 class Frame extends Drawable {
-    static EtherType = {
+    static EtherTypes = new Lookup("EtherTypes", {
         "IPv4": 0x0800,
         "ARP": 0x0806,
         "Wake-on-LAN": 0x0842,
         "LLDP": 0x88cc,
-    }
+    });
 
     constructor(x, y, macDst, macSrc, etherType, payload) {
         super(x,y);
@@ -14,7 +14,7 @@ class Frame extends Drawable {
         this.etherType = etherType; // EtherType field: "ipv4", "ipv6", "arp", "vlan", "lldp"
         this.payload = payload; // Data being sent
         this.timestamp = Date.now(); // Timestamp for the frame
-        this.color=getRandomColor(); // Random color for visualization
+        this.frameColor=getRandomColor(); // Random color for visualization
         this.phase = 0; // distance% along the way on a patch
         Debug.log(this.id, "Create", this);
     }
@@ -24,15 +24,15 @@ class Frame extends Drawable {
             this.etherType, this.payload);
         frame.id = this.id;
         frame.timestamp = this.timestamp;
-        frame.color = this.color;
+        frame.frameColor = this.frameColor;
         return frame;
     }
 
     draw() {
-        super.draw(this.etherType);
+        super.draw(Frame.EtherTypes.getKey(this.etherType));
         ctx.beginPath();
         ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = this.color; // Use color for visualization
+        ctx.fillStyle = this.frameColor; // Use color for visualization
         ctx.fill();
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 1;

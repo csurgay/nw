@@ -6,6 +6,9 @@ class Payload {
         "ipSender",
         "macTarget",
         "ipTarget",
+        "ipPayload",
+        "ipProtocol",
+        "payloadColor",
     ];
 
     constructor() {

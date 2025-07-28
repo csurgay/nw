@@ -1,4 +1,4 @@
-class Routing {
+class Layer3 {
     constructor(host) {
         this.host = host;
         this.arp = new ARP(this.host);
@@ -27,11 +27,27 @@ class Routing {
     }
 
     sendArpRequest(ip) {
-        this.arp.sendQuery(ip, this.route(ip));
+        let nic = this.route(ip);
+        let payload = this.arp.getQueryPayload(ip, nic);
+        this.host.l2.sendPayload(nic, 
+            Frame.EtherTypes.getValue('ARP'), 
+            payload
+        );
+    }
+
+    rcvArpPayload(payload, nic) {
+        this.arp.processArpPayload(payload, nic);
     }
 
     sendPingRequest(ip) {
-        this.icmp.sendQuery(ip, this.route(ip));
+        this.icmp.sendEchoRequest(ip, this.route(ip));
+    }
+
+    processIpPayload(payload, nic) {
+        let protocol = payload.data["ipProtocol"];
+        if (protocol == IP.Protocol.getValue('ICMP')) {
+            this.icmp.processIcmpPayload(payload, nic);
+        }
     }
 
 }

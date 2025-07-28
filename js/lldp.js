@@ -40,7 +40,7 @@ class LLDP {  // Link Layer Discovery Protocol
                 nic.x, nic.y,
                 LLDP.MULTICAST,
                 nic.mac,
-                'lldp',
+                Frame.EtherTypes.getValue('LLDP'),
                 nic.tlvs
             );
             nic.sendFrame(frame, getRandomColor());

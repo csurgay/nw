@@ -1,4 +1,4 @@
-class Switching {
+class Layer2 {
     constructor(host) {
         this.host = host;
         this.lldp = null;
@@ -42,25 +42,38 @@ class Switching {
     }
 
     rcvFrame(frame, port) {
-        if (frame.etherType === 'lldp') {
+        if (frame.etherType == Frame.EtherTypes.getValue('LLDP')) {
             if (this.lldp && this.lldp.enabled) {
                 this.lldp.processFrame(frame);
             }
         }
-        else if (frame.etherType === 'arp') {
-            this.host.l3.arp.processArpPayload(frame.payload.data, port, frame.color);
+        else if (frame.etherType == Frame.EtherTypes.getValue('ARP')) {
+            this.host.l3.rcvArpPayload(frame.payload, port);
         } 
-        else if (frame.etherType === 'icmp') {
-            this.host.l3.icmp.processIcmpPayload(frame.payload.data, port, frame.color);
+        else if (frame.etherType == Frame.EtherTypes.getValue('IPv4')) {
+            this.host.l3.processIpPayload(
+                frame.payload, port);
         } 
         else {
-            Debug.log(this.host.id, "UnknownFrameType", frame);
+            Debug.log(this.host.id, "UnknownFrameEtherType", frame);
         }
         frame.removeFromDrawlist();
         Id.remove(frame);
     }
 
-    sendFrame(nic, frame, color) {
-        nic.sendFrame(frame, color);
+    sendPayload(nic, etherType, payload) {
+        let macTarget = payload.data['macTarget'];
+        if (!macTarget) {
+            macTarget = this.host.l3.arp.getMAC(payload.data["ipTarget"]);
+        }
+        if (macTarget) {
+            const frame = new Frame(
+                nic.x,nic.y, macTarget, nic.mac, etherType, payload
+            );
+            let color = payload.data["payloadColor"];
+            if (color) frame.frameColor = color;
+            nic.sendFrame(frame);
+        }
+        else Debug.error("Layer2", "ARPrequired");
     }
 }

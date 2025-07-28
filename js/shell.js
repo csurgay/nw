@@ -28,6 +28,9 @@ class Shell {
         if (command[0] == "test") {
             test.test();
         }
+        if (command[0] == "debug") {
+            DEBUG = command[1];
+        }
         if (command[0] == "ssh") {
             if (command.length == 1) {
                 this.t.print("\nusage: ssh destination");

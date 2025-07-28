@@ -4,8 +4,8 @@ class Host extends Clickable {
         this.terminal = terminal;
         this.id = new Id("Host", this);
         this.nics = [];
-        this.l2 = new Switching(this);
-        this.l3 = new Routing(this);
+        this.l2 = new Layer2(this);
+        this.l3 = new Layer3(this);
         this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
         this.info.push(["ARP",function(o){return o.l3.arp.enabled;}]);
         this.button.push(new Button(this.x+150,this.y+10,"LldpOn",function(o){o.host.l2.lldpStart();},this));

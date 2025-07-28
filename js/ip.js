@@ -1,12 +1,12 @@
 class IP {
-    static protocol = {
+    static Protocol = new Lookup("IpProtocol", {
         "ICMP": 0x01,
         "TCP": 0x06,
         "UDP": 0x11,
         "IPv6": 0x29,
-    }
+    });
 
-    static port = {
+    static Port = new Lookup("IpPort", {
         "FTPdata": 20,
         "FTPctrl": 21,
         "SSH": 22,
@@ -25,7 +25,7 @@ class IP {
         "Viber2": 5242,
         "Synology": 5000,
         "TeamViewer": 5938,
-    }
+    });
 
     constructor(ip, cidr) {
         this.id = new Id('IP', this);

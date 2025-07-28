@@ -31,9 +31,8 @@ class Port extends Clickable {
         this.patch = null;
     }
 
-    sendFrame(frame, color) {
+    sendFrame(frame) {
         if (this.connected && this.patch) {
-            if (color) frame.color = color;
             Debug.log(this.id, "Send", frame);
             this.patch.sendFrame(frame, this);
         } else {
