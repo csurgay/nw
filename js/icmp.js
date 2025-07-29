@@ -1,19 +1,4 @@
-class IcmpPacket {
-    constructor(type, seq) {
-        this.type = type;
-        this.seq = seq;
-    }
-    toString() {
-        return "Type:" + this.type + " Seq:" + this.seq;
-    }
-}
-
 class ICMP {
-    static Types = new Lookup("IcmpTypes", {
-        "EchoRequest": 0x08,
-        "EchoReply": 0x00,
-    });
-
     constructor(host) {
         this.id = new Id('ICMP', this);
         this.host = host;
@@ -21,25 +6,24 @@ class ICMP {
     }
 
     processIcmpPayload(payload, nic) {
-        let icmpPacket = payload.data["ipPayload"];
-        if (icmpPacket.type == ICMP.Types.getValue("EchoRequest")) {
-            icmpPacket.type = ICMP.Types.getValue("EchoReply");
-            let ipAux = payload.data["ipTarget"];
-            payload.data["ipTarget"] = payload.data["ipSender"];
-            payload.data["ipSender"] = ipAux;
-            let macAux = payload.data["macTarget"];
-            payload.data["macTarget"] = payload.data["macSender"];
-            payload.data["macSender"] = macAux;
-            this.host.l2.sendPayload(nic,
-                Frame.EtherTypes.getValue("IPv4"),
-                payload
+        let icmpPacket = payload.getPayload();
+        if (icmpPacket.getValue("Type") == "EchoRequest") {
+            icmpPacket.addValue("Type", "EchoReply");
+            let ipPacket = new IpPacket(
+                "ICMP",
+                payload.getValue("DstIP"),
+                payload.getValue("SrcIP"),
+                icmpPacket
             );
+            ipPacket.color = payload.color;
+            this.host.l3.sendIpPacket(nic, ipPacket);
         }
-        else if (icmpPacket.type == ICMP.Types.getValue("EchoReply")) {
-            Debug.log(this.id, "Response", payload.data["ipTarget"]+
+        else if (icmpPacket.getValue("Type") == "EchoReply") {
+            Debug.log(this.id, "Response", payload.getValue("DstIP") +
                 "("+nic.id+")");
             this.host.terminal.print("\n64 bytes from " + 
-                payload.data["ipSender"] + ": icmp_seq=1" +
+                payload.getValue("DstIP") + ": icmp_seq=" + 
+                icmpPacket.getValue("Seq") +
                 "\n" + this.host.terminal.prompt
             );
         }
@@ -47,17 +31,8 @@ class ICMP {
 
     sendEchoRequest(ip, nic) {
         Debug.log(this.id, "EchoRequest "+nic+" -> "+ip);
-        const icmpPacket = new IcmpPacket(
-            ICMP.Types.getValue('EchoRequest'), 1);
-        const pl = new Payload();
-        pl.addData("ipProtocol", IP.Protocol.getValue('ICMP'));
-        pl.addData("ipSender", nic.ip.ip);
-        pl.addData("ipTarget", ip);
-        pl.addData("ipPayload", icmpPacket);
-        pl.addData("payloadColor", getRandomColor());
-        this.host.l2.sendPayload(nic, 
-            Frame.EtherTypes.getValue('IPv4'), 
-            pl
-        );
+        let icmpPacket = new IcmpPacket('EchoRequest', 1);
+        let ipPacket = new IpPacket('ICMP', nic.ip.ip, ip, icmpPacket);
+        this.host.l3.sendIpPacket(nic, ipPacket);
     }
 }

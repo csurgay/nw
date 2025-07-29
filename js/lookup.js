@@ -11,6 +11,14 @@ class Lookup {
             dict[key] = value;
         }
     }
+    isValue(key) {
+        if (key in this.dict) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
     getValue(key) {
         if (key in this.dict) {
             return this.dict[key];

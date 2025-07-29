@@ -29,8 +29,8 @@ class Layer3 {
     sendArpRequest(ip) {
         let nic = this.route(ip);
         let payload = this.arp.getQueryPayload(ip, nic);
-        this.host.l2.sendPayload(nic, 
-            Frame.EtherTypes.getValue('ARP'), 
+        this.host.l2.sendFrame(nic, 
+            'ARP', 
             payload
         );
     }
@@ -43,9 +43,13 @@ class Layer3 {
         this.icmp.sendEchoRequest(ip, this.route(ip));
     }
 
+    sendIpPacket(nic, ipPacket) {
+        this.host.l2.sendFrame(nic, 'IPv4', ipPacket);
+    }
+
     processIpPayload(payload, nic) {
-        let protocol = payload.data["ipProtocol"];
-        if (protocol == IP.Protocol.getValue('ICMP')) {
+        let protocol = payload.getValue("Protocol");
+        if (protocol == 'ICMP') {
             this.icmp.processIcmpPayload(payload, nic);
         }
     }

@@ -42,15 +42,15 @@ class Layer2 {
     }
 
     rcvFrame(frame, port) {
-        if (frame.etherType == Frame.EtherTypes.getValue('LLDP')) {
+        if (frame.etherType == 'LLDP') {
             if (this.lldp && this.lldp.enabled) {
                 this.lldp.processFrame(frame);
             }
         }
-        else if (frame.etherType == Frame.EtherTypes.getValue('ARP')) {
+        else if (frame.etherType == 'ARP') {
             this.host.l3.rcvArpPayload(frame.payload, port);
         } 
-        else if (frame.etherType == Frame.EtherTypes.getValue('IPv4')) {
+        else if (frame.etherType == 'IPv4') {
             this.host.l3.processIpPayload(
                 frame.payload, port);
         } 
@@ -61,16 +61,17 @@ class Layer2 {
         Id.remove(frame);
     }
 
-    sendPayload(nic, etherType, payload) {
-        let macTarget = payload.data['macTarget'];
+    sendFrame(nic, etherType, payload) {
+        let macTarget = payload.isValue('DstMAC');
+        if (macTarget) macTarget = payload.getValue('DstMAC');
         if (!macTarget) {
-            macTarget = this.host.l3.arp.getMAC(payload.data["ipTarget"]);
+            macTarget = this.host.l3.arp.getMAC(payload.getValue("DstIP"));
         }
         if (macTarget) {
             const frame = new Frame(
                 nic.x,nic.y, macTarget, nic.mac, etherType, payload
             );
-            let color = payload.data["payloadColor"];
+            let color = payload.color;
             if (color) frame.frameColor = color;
             nic.sendFrame(frame);
         }

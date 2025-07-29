@@ -8,7 +8,7 @@ class ArpEntry {
 }
 
 class ARP {
-    static MULTICAST = "ff:ff:ff:ff:ff:ff"; // ARP multicast address
+    static BROADCAST = "ff:ff:ff:ff:ff:ff"; // ARP multicast address
     constructor(host) {
         this.id = new Id('ARP', this);
         this.host = host;
@@ -18,35 +18,31 @@ class ARP {
 
     processArpPayload(payload, nic) {
         this.cacheIP(
-            payload.data["ipSender"],
-            payload.data["macSender"],
+            payload.getValue("SrcIP"),
+            payload.getValue("SrcMAC"),
             nic.id
         );
-        if (payload.data["ipTarget"] == nic.ip.ip &&
-            payload.data["opCode"] == "ArpRequest")
+        if (payload.getValue("DstIP") == nic.ip.ip &&
+            payload.getValue("OpCode") == "ArpRequest")
         {
-            Debug.log(this.id, "Hit", payload.data["ipTarget"]+
+            Debug.log(this.id, "Hit", payload.getValue("DstIP") +
                 "("+nic.id+")");
-            const pl = new Payload();
-            pl.addData("opCode", "ArpResponse");
-            pl.addData("macSender", nic.mac);
-            pl.addData("ipSender", nic.ip.ip);
-            pl.addData("macTarget", payload.data["macSender"]);
-            pl.addData("ipTarget", payload.data["ipSender"]);
-            pl.addData("payloadColor", payload.data["payloadColor"]);
-            this.host.l2.sendPayload(nic, 
-                Frame.EtherTypes.getValue('ARP'), 
-                pl
-            );
+            let arpPacket = new ArpPacket("ArpReply");
+            arpPacket.addValue("SrcMAC", nic.mac);
+            arpPacket.addValue("SrcIP", nic.ip.ip);
+            arpPacket.addValue("DstMAC", payload.getValue("SrcMAC"));
+            arpPacket.addValue("DstIP", payload.getValue("SrcIP"));
+            arpPacket.color = payload.color;
+            this.host.l2.sendFrame(nic, 'ARP', arpPacket);
         }
-        if (payload.data["ipTarget"] == nic.ip.ip && 
-            payload.data["opCode"] == "ArpResponse") 
+        else if (payload.getValue("DstIP") == nic.ip.ip && 
+            payload.getValue("OpCode") == "ArpReply") 
         {
-            Debug.log(this.id, "Response", payload.data["ipTarget"]+
+            Debug.log(this.id, "Reply", payload.getValue("DstIP") +
                 "("+nic.id+")");
             this.host.terminal.print("\nUnicast reply from " + 
-                payload.data["ipSender"] + " [" + 
-                payload.data["macSender"] + "]" +
+                payload.getValue("SrcIP") + " [" + 
+                payload.getValue("SrcMAC") + "]" +
                 "\n" + this.host.terminal.prompt
             );
         }
@@ -92,14 +88,12 @@ class ARP {
 
     getQueryPayload(ip, nic) {
         Debug.log(this.id, "Query "+nic+" -> "+ip);
-        const pl = new Payload();
-        pl.addData("opCode", "ArpRequest");
-        pl.addData("macSender", nic.mac);
-        pl.addData("ipSender", nic.ip.ip);
-        pl.addData("macTarget", Payload.MACNULL);
-        pl.addData("ipTarget", ip);
-        pl.addData("payloadColor", getRandomColor());
-        return pl;
+        let payload = new ArpPacket("ArpRequest");
+        payload.addValue("SrcMAC", nic.mac);
+        payload.addValue("SrcIP", nic.ip.ip);
+        payload.addValue("DstMAC", ArpPacket.MACNULL);
+        payload.addValue("DstIP", ip);
+        return payload;
     }
 
     showCache() {

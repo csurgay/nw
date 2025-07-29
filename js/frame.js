@@ -1,11 +1,4 @@
 class Frame extends Drawable {
-    static EtherTypes = new Lookup("EtherTypes", {
-        "IPv4": 0x0800,
-        "ARP": 0x0806,
-        "Wake-on-LAN": 0x0842,
-        "LLDP": 0x88cc,
-    });
-
     constructor(x, y, macDst, macSrc, etherType, payload) {
         super(x,y);
         this.id = new Id("Frame", this);
@@ -29,7 +22,7 @@ class Frame extends Drawable {
     }
 
     draw() {
-        super.draw(Frame.EtherTypes.getKey(this.etherType));
+        super.draw(this.etherType);
         ctx.beginPath();
         ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = this.frameColor; // Use color for visualization
