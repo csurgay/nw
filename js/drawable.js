@@ -10,6 +10,7 @@ class Drawable extends Position {
         super(x,y);
         this.id = new Id('Drawable', this);
         this.enabled = true;
+        this.tooltipEnabled = true;
         this.tooltip = false;
         this.info = [];
         this.info.push(["ID",function(o){return ""+o.id;}]);
@@ -41,7 +42,7 @@ class Drawable extends Position {
     }
 
     drawTooltip() {
-        if (this.enabled) {
+        if (this.tooltipEnabled) {
             ctx.beginPath();
             ctx.fillStyle = "lightgray";
             ctx.strokeStyle = "black";

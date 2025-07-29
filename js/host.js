@@ -17,7 +17,8 @@ class Host extends Clickable {
         nic.host = this;
         this.nics.push(nic);
         nic.host = this;
-        nic.tlvs.addData("SystemName", this.id.toString());
+        nic.tlv.addValue("SystemName", this.id.toString());
+        nic.tlv.addValue("SystemCapabilities", "Station");
         // 192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.10
         this.l3.addRoute(nic);
     }

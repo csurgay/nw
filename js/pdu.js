@@ -34,7 +34,7 @@ class PDU { // Protocol Data Unit
                 this.headerValues[field] = value;
             }
             else {
-                Debug.error(this.name, "MissingLookupValue", field);
+                Debug.error(this.name, "MissingLookupValue", field + ":" + value);
             }
         }
         else {
@@ -99,9 +99,26 @@ class EthernetFrame extends PDU {
     };
 }
 
-class LldpPacket extends PDU {
+class TLV extends PDU {
     constructor() {
-        
+        super("TLV");
+        this.addHeaderField("ChassisID");
+        this.addHeaderField("PortID");
+        this.addHeaderField("TTL");
+        this.addHeaderField("SystemName");
+        this.addHeaderField("SystemCapabilities");
+        this.addLookup("SystemCapabilities", 
+            new Lookup("SystemCapabilities", {
+                "Other": 0,
+                "Repeater": 1, // ampliflies network signal (Layer1)
+                "Bridge": 2, // can forward based on MAC addresses (Layer2)
+                "WlanAP": 3, // Wireless LAN Access Point
+                "Router": 4, // can forward network traffic
+                "Telephone": 5, // telephone
+                "DocsysCable": 6, // data transmission over cable TV systems
+                "Station": 7, //end-station or endpoint
+            })
+        );
     }
 }
 

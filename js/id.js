@@ -21,6 +21,8 @@ class Id {
         'PacketType': 0,
         'Drawable': 0,
         'Clickable': 0,
+        'Draggable': 0,
+        'Canvas': 0,
         'Network': 0,
         'Device': 0,
     };

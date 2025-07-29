@@ -7,9 +7,9 @@ class NIC extends Port {
         Debug.log(this.id, "Create", this.toString());
         this.lldpEnabled = true;
         this.ip = null;
-        this.tlvs = new TLVs();
-        this.tlvs.addData("ChassisID", this.mac.toString());
-        this.tlvs.addData("PortID", this.id.toString());
+        this.tlv = new TLV();
+        this.tlv.addValue("ChassisID", this.mac.toString());
+        this.tlv.addValue("PortID", this.id.toString());
         this.info.push(["MAC", function (o) { return o.mac; }]);
         this.info.push(["IP", function (o) { return o.ip; }]);
     }

@@ -1,5 +1,5 @@
-const canvas = document.getElementById('nwCanvas');
-const ctx = canvas.getContext('2d');
+const nwCanvas = document.getElementById('nwCanvas');
+const ctx = nwCanvas.getContext('2d');
 const consoleArea = document.getElementById('nwConsole');
 const terminal = new Terminal(consoleArea);
 const shell = new Shell(terminal);

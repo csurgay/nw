@@ -1,3 +1,5 @@
+const canvas = new Canvas(nwCanvas.width-9, nwCanvas.height-9);
+
 if (true) for (let i = 0; i < 3; i++) {
 	const nic1 = new NIC(110, 250 + 95 * i, new MAC("same"));
 	nic1.ip = new IP(`192.168.1.${2 * i + 1}`, 24);
@@ -31,7 +33,7 @@ for (let i = 0; i < 3; i++) {
 new Patch(hub4a.ports[3], hub4b.ports[0]);
 
 function draw() {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.clearRect(0, 0, nwCanvas.width, nwCanvas.height);
 	ctx.beginPath();
 
 	Id.list["Drawable"].forEach(drawable => {
