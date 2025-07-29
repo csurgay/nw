@@ -8,18 +8,23 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     processFrame(frame) {
-        const [mac, portID] = [frame.payload.data["ChassisID"], frame.payload.data["PortID"]];
+        const [mac, portID, tlv] = [
+            frame.payload.getValue("ChassisID"), 
+            frame.payload.getValue("PortID"),
+            frame.payload.getPayload()
+        ];
         let found = false;
         this.neighbors.forEach(neighbor => {
             if (neighbor[0] == mac) {
                 found = true;
                 neighbor[1] = portID; // Update PortID
                 neighbor[2] = Date.now(); // Update timestamp
+                neighbor[3] = tlv; // Update tlv data
                 Debug.log(this.host.id, "Update", mac + " " + portID);
             }
         });
         if (!found) {
-            this.neighbors.push([mac, portID, Date.now()]);
+            this.neighbors.push([mac, portID, Date.now(), tlv]);
             Debug.log(this.host.id, "Add", mac + " " + portID);
         }
     }
@@ -33,26 +38,14 @@ class LLDP {  // Link Layer Discovery Protocol
         Debug.log(this.host.id, "Remove", port + " " + mac);
     }
 
-    sendLldpDu(nic) {
-        if (this.enabled) {
-            Debug.log(this.host.id, "Send", nic);
-            const frame = new Frame(
-                nic.x, nic.y,
-                LLDP.MULTICAST,
-                nic.mac,
-                'LLDP',
-                nic.tlvs
-            );
-            nic.sendFrame(frame, getRandomColor());
-        }
-    }
-
     showNeighbors() {
         let ret = "";
         ret += this.host.id + " LLDP neighbors:";
         this.neighbors.forEach(neighbor => {
-            const [mac, port, timestamp] = neighbor;
-            ret += "\n" + port + " [" + mac.toString() + "]";
+            const [mac, port, timestamp, tlv] = neighbor;
+            ret += "\n" + port + " [" + mac.toString() + "]"
+                // + " " + tlv
+                ;
         })
         return ret;
     }

@@ -24,10 +24,10 @@ class Layer2 {
         Debug.log(this.host.id, "LLDPstopped", this);
     }
 
-    sendLldpDu() {
+    sendLldp() {
         if (this.lldp && this.lldp.enabled) {
             this.host.nics.forEach(nic => {
-                this.lldp.sendLldpDu(nic);
+                this.sendFrame(nic, 'LLDP', nic.tlv);
             });
         }
         else {
@@ -62,9 +62,14 @@ class Layer2 {
     }
 
     sendFrame(nic, etherType, payload) {
-        let macTarget = payload.isValue('DstMAC');
-        if (macTarget) macTarget = payload.getValue('DstMAC');
-        if (!macTarget) {
+        let macTarget;
+        if (etherType == 'LLDP') {
+            macTarget = LLDP.MULTICAST;
+        }
+        else if (etherType == 'ARP') {
+            macTarget = payload.getValue('DstMAC');
+        }
+        else if (etherType == 'IPv4') {
             macTarget = this.host.l3.arp.getMAC(payload.getValue("DstIP"));
         }
         if (macTarget) {

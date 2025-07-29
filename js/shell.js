@@ -73,12 +73,12 @@ class Shell {
         }
         if (command[0] == "lldpcli") {
             if (command[1] == "update") {
-                this.host.l2.sendLldpDu();
+                this.host.l2.sendLldp();
             }
             if (command[1] == "show" && command[2] == "chassis") {
                 this.t.print(this.host.l2.lldpStop);
             }
-            if (command[1] == "show" && command[2] == "neighbors") {
+            if (command[1] == "show" && "neighbors".startsWith(command[2])) {
                 this.t.print("\n"+this.host.l2.showNeighbors());
             }
         }
@@ -109,7 +109,7 @@ class Shell {
             }
             else {
                 this.t.print("\nPING " + command[1] + 
-                    " (" + command[1] + ") 56(84) byzes of data.");
+                    " (" + command[1] + ") 56(84) bytes of data.");
                 this.host.l3.sendPingRequest(command[1]);
             }
         }

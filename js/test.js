@@ -15,6 +15,7 @@ class Test {
         ["ssh Host1 arping 192.168.1.2", "ARPING 192.168.1.2 from 192.168.1.1 NIC1", "", 3000],
         ["", "Unicast reply from 192.168.1.2 [02:02:02:02:02:02]", "[root@Host12 ~]# ", 3000],
         ["ssh Host1 arp -a", "? (192.168.1.2) at 02:02:02:02:02:02 [ether] on NIC1", "", 100],
+        ["ssh Host1 ping 192.168.1.2", "PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.", "", 3000],
     ];
 
     constructor(terminal, shell) {

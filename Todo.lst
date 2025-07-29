@@ -6,3 +6,6 @@ Done
 Todo
 ====
 2025-07-22 Routing via table, not ports[0]
+2025-07-29 ARP required at L2 sendFrame
+2025-07-29 nwCanvas resize at drag event
+

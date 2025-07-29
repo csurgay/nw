@@ -79,7 +79,7 @@ class PDU { // Protocol Data Unit
             }
             ret += t + n + ",";
         });
-        ret += "Payload=" + this.payload;
+        ret += "Payload=" + this.payload?this.payload:"N/A";
         return ret;
     }
 }
