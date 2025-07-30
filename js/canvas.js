@@ -17,8 +17,7 @@ class Canvas extends Draggable {
         ctx.moveTo(this.x + 4, this.y + 7);
         ctx.lineTo(this.x + 7, this.y + 4);
         ctx.stroke();
-        ctx.closePath();
-        if (this.hover(Mouse.x, Mouse.y)) this.cursor("se-resize");
+        if (this.hover(mouse.x, mouse.y)) this.cursor("se-resize");
         else this.cursor("default");
     }
 
@@ -31,12 +30,12 @@ class Canvas extends Draggable {
     }
 
     click() {
-        this.downX = Mouse.x;
-        this.downY = Mouse.y;
+        this.downX = mouse.x;
+        this.downY = mouse.y;
     }
 
     move() {
-        nwCanvas.width += Mouse.x - this.downX;
-        nwCanvas.height += Mouse.y - this.downY;
+        nwCanvas.width += mouse.x - this.downX;
+        nwCanvas.height += mouse.y - this.downY;
     }
 }

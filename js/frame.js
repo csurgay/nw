@@ -30,7 +30,6 @@ class Frame extends Drawable {
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.closePath();
    }
 
     toString() {

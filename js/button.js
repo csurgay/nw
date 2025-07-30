@@ -9,7 +9,9 @@ class Button extends Clickable {
     }
 
     draw() {
-        super.draw();
+        if (this.visible) {
+            super.draw();
+        }
     }
 
     hover() {

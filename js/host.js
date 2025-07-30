@@ -30,7 +30,6 @@ class Host extends Clickable {
         ctx.strokeStyle = "black";
         ctx.rect(this.x, this.y, 50, 80);
         ctx.stroke();
-        ctx.closePath();
     }
 
     toString() {

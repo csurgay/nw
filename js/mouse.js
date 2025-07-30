@@ -1,32 +1,35 @@
 class Mouse extends Position {
 	constructor() {
+        super(0,0);
+        this.state = "Idle"; // Idle, Down, Drag
 	}
 
-	static mouseclick(evt) {
-        Mouse.mousemove(evt);
+	mouseclick(evt) {
+        Debug.log("Mouse", "click");
+        this.mousemove(evt);
         Id.list["Clickable"].forEach(clickable => {
             if (clickable.hover()) {
                 clickable.click();
             }
         })
     }
+
+    mousedown(evt) {
+		this.moveTo(evt.pageX, evt.pageY);
+    }
     
-    static mousemove(evt) {
-		Mouse.moveTo(evt.pageX, evt.pageY);
+    mouseup(evt) {
+		this.moveTo(evt.pageX, evt.pageY);
+    }
+    
+    mousemove(evt) {
+		this.moveTo(evt.pageX, evt.pageY);
 	}
 
-	static moveTo(x, y) {
+	moveTo(x, y) {
 		this.x = x;
 		this.y = y;
 	}
 }
 
-document.addEventListener('keydown', keypress);
-document.addEventListener('click', Mouse.mouseclick);
-document.addEventListener('mousemove', Mouse.mousemove);
-consoleArea.addEventListener('click', terminal.mouseclick.bind(terminal));
-
-function keypress(evt) {
-    //Debug.log("Shell", "keypress", evt.key);
-    terminal.keypress(evt);
-}
+const mouse = new Mouse();

@@ -46,6 +46,5 @@ class Hub4 extends Hub {
         ctx.strokeStyle = "black";
         ctx.rect(this.x, this.y, 200, 40);
         ctx.stroke();
-        ctx.closePath();
     }
 }

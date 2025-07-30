@@ -18,7 +18,6 @@ class Port extends Clickable {
         ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.closePath();
     }
 
     connect(patch) {

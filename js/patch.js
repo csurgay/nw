@@ -28,7 +28,6 @@ class Patch extends Clickable {
             ctx.strokeStyle = 'gray'; // Highlight if sending
         ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.closePath();
         if (this.animated) for (let i = 0; i <= 1; i++) {
             if (this.sending[i]) {
                 this.frame[i].x =
