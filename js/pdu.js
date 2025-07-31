@@ -178,3 +178,15 @@ class IcmpPacket extends PDU {
         this.addValue("Seq", seq);
     }
 }
+
+class RoutingEntry extends PDU {
+    constructor() {
+        super("RoutingEntry");
+        this.addHeaderField("Destination");
+        this.addHeaderField("Gateway");
+        this.addHeaderField("PrefixLength");
+        this.addHeaderField("Interface");
+        this.addHeaderField("Metric");
+        this.addHeaderField("Flags");
+    }
+}

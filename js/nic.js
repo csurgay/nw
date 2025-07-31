@@ -7,6 +7,7 @@ class NIC extends Port {
         Debug.log(this.id, "Create", this.toString());
         this.lldpEnabled = true;
         this.ip = null;
+        this.gateway = null;
         this.tlv = new TLV();
         this.tlv.addValue("ChassisID", this.mac.toString());
         this.tlv.addValue("PortID", this.id.toString());
@@ -25,5 +26,10 @@ class NIC extends Port {
 
     getIP() {
         Debug.log(this.id, "IP", this.ip.toString());
+    }
+
+    addGateway(ip) {
+        this.gateway = ip;
+        this.host.l3.reouting.addDefault(ip);
     }
 }

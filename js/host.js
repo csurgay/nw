@@ -20,7 +20,7 @@ class Host extends Clickable {
         nic.tlv.addValue("SystemName", this.id.toString());
         nic.tlv.addValue("SystemCapabilities", "Station");
         // 192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.10
-        this.l3.addRoute(nic);
+        this.l3.routing.addRoute(nic);
     }
 
     draw() {

@@ -22,7 +22,7 @@ class Frame extends Drawable {
     }
 
     draw() {
-        super.draw(this.etherType);
+        super.draw(this.etherType=='IPv4'?this.payload.getValue('Protocol'):this.etherType);
         ctx.beginPath();
         ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = this.frameColor; // Use color for visualization
