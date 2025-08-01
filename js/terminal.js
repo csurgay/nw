@@ -98,6 +98,10 @@ class Terminal {
             this.quitToConsole();
             this.print("\n" + this.prompt);
         }    
+        if (evt.ctrlKey && (evt.key == 'l' || evt.key == 'L')) {
+            evt.preventDefault();
+            this.textarea.value = this.prompt;
+        }    
         if (evt.key == "Enter") {
             evt.preventDefault();
             let command = this.textarea.value.substring(this.textarea.value.lastIndexOf(
@@ -118,10 +122,14 @@ class Terminal {
         else if (evt.key == "ArrowDown") {
             if (this.history.length > 0) {
                 this.historyIndex--;
-                if (this.historyIndex <= 0) this.historyIndex = 1;
+                let newCommand = this.history[this.history.length-this.historyIndex];
+                if (this.historyIndex <= 0) {
+                    this.historyIndex = 1;
+                    newCommand = "";
+                }
                 this.textarea.value = this.textarea.value.substring(0,
                     this.textarea.value.lastIndexOf(this.prompt)+this.prompt.length);
-                this.print(this.history[this.history.length-this.historyIndex]);
+                this.print(newCommand);
             }
         }
         else if (!["ArrowLeft", "ArrowRight"].includes(evt.key)) {

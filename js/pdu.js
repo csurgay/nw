@@ -119,6 +119,7 @@ class TLV extends PDU {
                 "Station": 7, //end-station or endpoint
             })
         );
+        this.addHeaderField("MgmtIP");
     }
 }
 

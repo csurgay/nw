@@ -1,14 +1,15 @@
 class Shell {
     constructor(terminal) {
+        this.host = null;
         this.t = terminal;
     }
     parse(cmd) {
         let command = cmd.split(" ");
         Debug.log("Shell", "parse", command);
         if (command[0] == "exit") this.t.quitToConsole();
-        if (command[0] == "start") start();
-        if (command[0] == "stop") stop();
-        if (command[0] == "for") {
+        else if (command[0] == "start") start();
+        else if (command[0] == "stop") stop();
+        else if (command[0] == "for") {
             let variable = command[1];
             if (command[2] != "in") {
                 this.t.print("\nSyntax error near unexpected token " + command[2]);
@@ -25,13 +26,13 @@ class Shell {
                 }
             }
         }
-        if (command[0] == "test") {
+        else if (command[0] == "test") {
             test.test();
         }
-        if (command[0] == "debug") {
+        else if (command[0] == "debug") {
             DEBUG = command[1];
         }
-        if (command[0] == "ssh") {
+        else if (command[0] == "ssh") {
             if (command.length == 1) {
                 this.t.print("\nusage: ssh destination");
             }
@@ -56,7 +57,7 @@ class Shell {
                 }
             }
         }
-        if (command[0] == "systemctl") {
+        else if (command[0] == "systemctl") {
             if (command[1] == "start" && command[2] == "lldpd") {
                 this.host.l2.lldpStart();
             }
@@ -71,18 +72,23 @@ class Shell {
                 this.t.print("\n"+ret);
             }
         }
-        if (command[0] == "lldpcli") {
-            if (command[1] == "update") {
-                this.host.l2.sendLldp();
+        else if (command[0] == "lldpcli") {
+            if (!this.host.l2.lldp || !this.host.l2.lldp.enabled) {
+                this.t.print("\nUnable to connect to lldpd");
             }
-            if (command[1] == "show" && command[2] == "chassis") {
-                this.t.print(this.host.l2.lldpStop);
-            }
-            if (command[1] == "show" && "neighbors".startsWith(command[2])) {
-                this.t.print("\n"+this.host.l2.showNeighbors());
+            else {
+                if (command[1] == "update") {
+                    this.host.l2.sendLldp();
+                }
+                if (command[1] == "show" && "chassis".startsWith(command[2])) {
+                    this.t.print(this.host.l2.showDetails());
+                }
+                if (command[1] == "show" && "neighbors".startsWith(command[2])) {
+                    this.t.print("\n"+this.host.l2.showNeighbors());
+                }
             }
         }
-        if (command[0] == "arping") {
+        else if (command[0] == "arping") {
             if (!command[1]) {
                 this.t.print("\nusage: arping <destination>");
             }
@@ -96,11 +102,11 @@ class Shell {
                 this.host.l3.sendArpRequest(command[1]);
             }
         }
-        if (command[0] == "arp" && command[1] == "-a") {
+        else if (command[0] == "arp" && command[1] == "-a") {
             let ret = this.host.l3.arp.showCache();
             this.t.print(ret);
         }
-        if (command[0] == "ping") {
+        else if (command[0] == "ping") {
             if (!command[1]) {
                 this.t.print("\nuping: usage error: Destination address required");
             }
@@ -112,6 +118,9 @@ class Shell {
                     " (" + command[1] + ") 56(84) bytes of data.");
                 this.host.l3.sendPingRequest(command[1]);
             }
+        }
+        else if (command[0] != "") {
+            this.t.print("\n" + command[0] + ": command not found...");
         }
 
     }

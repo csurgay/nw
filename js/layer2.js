@@ -35,6 +35,12 @@ class Layer2 {
         }
     }
 
+    showDetails() {
+        if (this.lldp && this.lldp.enabled) {
+            return this.lldp.showDetails();
+        }
+    }
+
     showNeighbors() {
         if (this.lldp && this.lldp.enabled) {
             return this.lldp.showNeighbors();

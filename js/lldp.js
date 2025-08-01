@@ -38,6 +38,16 @@ class LLDP {  // Link Layer Discovery Protocol
         Debug.log(this.host.id, "Remove", port + " " + mac);
     }
 
+    showDetails() {
+        let ret = "\n-------------------------------------------------------------------------------";
+        ret += "\nLocal chassis: (" + this.host.id + ")";
+        ret += "\n-------------------------------------------------------------------------------";
+        for (let k in this.host.nics[0].tlv.headerValues) {
+            ret += "\n" + k + ": " + this.host.nics[0].tlv.headerValues[k];
+        }
+        return ret;
+    }
+
     showNeighbors() {
         let ret = "";
         ret += this.host.id + " LLDP neighbors:";

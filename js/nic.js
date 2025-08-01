@@ -24,6 +24,11 @@ class NIC extends Port {
         return "" + super.toString();
     }
 
+    addIP(ip) {
+        this.ip = ip;
+        this.tlv.addValue("MgmtIP", ip.ip);
+    }
+
     getIP() {
         Debug.log(this.id, "IP", this.ip.toString());
     }

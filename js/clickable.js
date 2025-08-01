@@ -10,7 +10,7 @@ class Clickable extends Drawable {
     }
 
     drawTooltip() {
-        super.drawTooltip();
+//        super.drawTooltip();
         this.button.forEach( b => {
             b.draw()
         })
