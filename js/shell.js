@@ -59,10 +59,10 @@ class Shell {
         }
         else if (command[0] == "systemctl") {
             if (command[1] == "start" && command[2] == "lldpd") {
-                this.host.l2.lldpStart();
+                this.t.print("\n"+this.host.l2.lldpStart());
             }
             if (command[1] == "stop" && command[2] == "lldpd") {
-                this.host.l2.lldpStop();
+                this.t.print("\n"+this.host.l2.lldpStop());
             }
             if (command[1] == "is-active" && command[2] == "lldpd") {
                 let ret = "failed";

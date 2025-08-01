@@ -17,11 +17,13 @@ class Layer2 {
         }
         this.lldp.enabled = true;
         Debug.log(this.host.id, "LLDPstarted", "");
+        return "lldp.service started";
     }
 
     lldpStop() {
         if (this.lldp) this.lldp.enabled = false;
         Debug.log(this.host.id, "LLDPstopped", this);
+        return "lldp.service stopped";
     }
 
     sendLldp() {

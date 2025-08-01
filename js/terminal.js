@@ -60,7 +60,11 @@ class Terminal {
     lastLines() {
         let lines = this.textarea.value.split("\n");
         let l = lines.length;
-        return [lines[l-2], lines[l-1]];
+        let ret = [];
+        for (let i=1; i<=5; i++) {
+            if (lines[l-i]) ret.push(lines[l-i]);
+        }
+        return ret;
     }
 
     keypress(evt) {
