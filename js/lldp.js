@@ -39,9 +39,12 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     showDetails() {
-        let ret = "\n-------------------------------------------------------------------------------";
-        ret += "\nLocal chassis: (" + this.host.id + ")";
-        ret += "\n-------------------------------------------------------------------------------";
+        let ret = "";
+        ret += "-------------------------------------------------------------------------------";
+        ret += "\n";
+        ret += "Local chassis: (" + this.host.id + ")";
+        ret += "\n";
+        ret += "-------------------------------------------------------------------------------";
         for (let k in this.host.nics[0].tlv.headerValues) {
             ret += "\n" + k + ": " + this.host.nics[0].tlv.headerValues[k];
         }

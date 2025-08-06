@@ -25,6 +25,7 @@ class Id {
         'Canvas': 0,
         'Network': 0,
         'Device': 0,
+        "Test": 0,
     };
     static list = {};
     constructor(type, object) {

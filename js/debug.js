@@ -22,7 +22,7 @@ class Debug extends Drawable {
 
     static log(source, action, message="") {
         if (DEBUG == "full" || 
-            DEBUG  == "test" && source == "Test" ||
+            DEBUG  == "test" && source.type == "Test" ||
             DEBUG == "whitelist" && Debug.SOURCES[source.type]) 
         {
             console.log(source + "." + action + " " + message);

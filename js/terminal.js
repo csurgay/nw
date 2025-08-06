@@ -24,8 +24,27 @@ class Terminal {
         consoleArea.focus();
     }
 
+    showPrompt(newLine=false) {
+        if (newLine) this.newLine();        
+        this.textarea.value += this.prompt;        
+    }
+
+    newLine() {
+        this.print("\n");
+    }
+
     print(string) {
         this.textarea.value += string;
+        this.showBottom();
+    }
+
+    println(string) {
+        this.print(string);
+        this.newLine();
+    }
+
+    showBottom() {
+        this.textarea.scrollTop = this.textarea.scrollHeight;
     }
 
     mouseclick(evt) {
@@ -52,8 +71,10 @@ class Terminal {
         {
             this.history.push(command);
         }
-        shell.parse(command);
-        this.print("\n" + this.prompt);
+        this.newLine();
+        if (shell.parse(command)) {
+            this.showPrompt();
+        }
         this.historyIndex = 0;
     }
 
@@ -100,7 +121,7 @@ class Terminal {
         if (evt.ctrlKey && (evt.key == 'd' || evt.key == 'D')) {
             evt.preventDefault();
             this.quitToConsole();
-            this.print("\n" + this.prompt);
+            this.showPrompt();
         }    
         if (evt.ctrlKey && (evt.key == 'l' || evt.key == 'L')) {
             evt.preventDefault();
@@ -142,6 +163,6 @@ class Terminal {
             if (ANIM == 1) stop();
             else start();
         }
-        this.textarea.scrollTop = this.textarea.scrollHeight;
+        this.showBottom();
     }
 }

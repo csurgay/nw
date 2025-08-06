@@ -1,5 +1,6 @@
 class Test {
     static case = [
+        ["blabla", ["blabla: command not found...", "*"], 100],
         ["ssh Host1", ["[root@Host1 ~]# "], 100],
         ["exit", ["[admin@console ~]$ "], 100],
         ["for i in {1..12}; do ssh Host$i; done", ["[root@Host12 ~]# "], 100],
@@ -20,14 +21,31 @@ class Test {
     ];
 
     constructor(terminal, shell) {
+        this.id = new Id("Test", this);
         this.terminal = terminal;
         this.shell = shell;
         this.index = 0;
+        this.startCase;
+        this.endCase;
         this.failed = false;
     }
 
-    test() {
-        this.index = 0;
+    test(startCase, endCase) {
+        if (isNaN(parseInt(startCase))) {
+            this.startCase = 0;
+            this.endCase = Test.case.length - 1;
+        }
+        else {
+            this.startCase = parseInt(startCase);
+            if (isNaN(parseInt(endCase))) {
+                this.endCase = parseInt(startCase);
+            }
+            else {
+                this.endCase = parseInt(endCase);
+            }
+        }
+        this.failed = false;
+        this.index = this.startCase;
         setTimeout(this.input.bind(this), 100);
     }
 
@@ -47,26 +65,26 @@ class Test {
         for (let i=assert.length-1; i>=0; i--) {
             if (assert[i] != "*" && assert[i] != outStr[assert.length-1-i]) {
                 ret = false;
-                Debug.error("Test", "assert", "_" + assert[i] 
+                Debug.error(this.id, this.index+".assert", "_" + assert[i] 
                     + "_ is not _" + outStr[assert.length-1-i] + "_");
             }
         }
         if (ret) {
-            Debug.log("Test", assert, "...OK");
+            Debug.log(this.id, this.index+"."+assert, "...OK");
         }
         else {
             this.failed = true;
         }
         this.index++;
-        if (this.index < Test.case.length) {
+        if (this.index <= this.endCase) {
             setTimeout(this.input.bind(this), 10);
         }
         else {
             if (this.failed) {
-                Debug.log("Test", "SOME TESTS", "FAILED");
+                Debug.log(this.id, "SOME TESTS", "FAILED");
             }
             else {
-                Debug.log("Test", "ALL TESTS", "OK");
+                Debug.log(this.id, "ALL TESTS", "OK");
             }
             // End of testing
             DEBUG = "whitelist";

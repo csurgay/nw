@@ -40,11 +40,11 @@ class ARP {
         {
             Debug.log(this.id, "Reply", payload.getValue("DstIP") +
                 "("+nic.id+")");
-            this.host.terminal.print("\nUnicast reply from " + 
+            this.host.terminal.println("Unicast reply from " + 
                 payload.getValue("SrcIP") + " [" + 
-                payload.getValue("SrcMAC") + "]" +
-                "\n" + this.host.terminal.prompt
+                payload.getValue("SrcMAC") + "]"
             );
+            this.host.terminal.showPrompt();
         }
     }
 
@@ -104,7 +104,7 @@ class ARP {
                 entry.ip + " " + entry.mac.toString() + 
                 "(" + (Date.now() - entry.timestamp) + ")"
             );
-            ret += "\n? (" + entry.ip + ") at " + entry.mac.toString() +
+            ret += "? (" + entry.ip + ") at " + entry.mac.toString() +
             " [ether] on " + entry.port;
         })
         return ret;

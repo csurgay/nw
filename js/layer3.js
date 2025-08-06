@@ -19,10 +19,6 @@ class Layer3 {
         this.arp.processArpPayload(payload, nic);
     }
 
-    sendPingRequest(ip) {
-        this.icmp.sendEchoRequest(ip, this.routing.route(ip));
-    }
-
     sendIpPacket(nic, ipPacket) {
         this.host.l2.sendFrame(nic, 'IPv4', ipPacket);
     }
