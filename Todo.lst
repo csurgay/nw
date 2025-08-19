@@ -9,3 +9,5 @@ Todo
 2025-07-29 ARP required at L2 sendFrame
 2025-07-29 nwCanvas resize at drag event
 2025-07-30 arping and ping wait for reply with no prompt
+2025-08-18 test script terminal output chaos fix
+2025-08-18 datagram log képernyőre
