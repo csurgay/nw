@@ -155,6 +155,7 @@ class Router extends Host {
             { label: "traceroute", tpl: `ssh ${id} traceroute {}` },
             ...this.nics.flatMap(n => [{ sep: true }, { input: n.ip ? n.ip.toString() : "", title: "address/prefix for " + n.id },
                 { label: "Set " + n.id, tpl: `ssh ${id} ip addr replace {} dev ${n.id}` }]),
+            ...this.nameActions(),
         ];
     }
 }

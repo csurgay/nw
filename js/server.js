@@ -105,6 +105,7 @@ class Server extends Host {
             ...(this.dhcpd ? [{ label: "leases", cmd: `ssh ${id} cat /var/lib/dhcpd/dhcpd.leases` }] : []),
             ...(this.named ? [{ label: "zone file", cmd: `ssh ${id} cat /var/named/${this.named.domain}.zone` }] : []),
             { label: "ip neigh", cmd: `ssh ${id} ip neigh` },
+            ...this.nameActions(),
         ];
     }
 }

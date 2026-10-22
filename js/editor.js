@@ -287,11 +287,13 @@ const Editor = {
                 if (d.lease) o.ip = "dhcp";
                 if (d.dhcpd) o.dhcp = { range: d.dhcpd.first + "-" + d.dhcpd.last, router: d.dhcpd.router, dns: d.dhcpd.dns, domain: d.dhcpd.domain, lease: d.dhcpd.lease };
                 if (d.named) o.zone = { domain: d.named.domain, records: Object.assign({}, d.named.records) };
+                if (d.persistName) o.name = d.persistName;
                 devices.push(o);
             } else if (t == "router") {
                 devices.push({
                     type: t, x: r(d.x), y: r(d.y), ifs: d.nics.map(n => ({ ip: cidr(n), side: n.dir })),
                     routes: d.l3.routing.table.filter(x => x.proto == "static").map(x => (x.cidr == 0 ? "default" : x.net + "/" + x.cidr) + " via " + x.via),
+                    ...(d.persistName ? { name: d.persistName } : {}),
                 });
             } else {
                 const o = { type: t, x: r(d.x), y: r(d.y), ports: d.ports.length };

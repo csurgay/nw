@@ -43,6 +43,10 @@ class Id {
     }
 
     toString() {
+        return this.name || this.type+this.seq; // name: set by hostname / hostnamectl
+    }
+
+    defaultName() {
         return this.type+this.seq;
     }
 

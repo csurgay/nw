@@ -42,7 +42,11 @@ class Port extends Clickable {
     }
 
     linkUp() {
-        return this.connected && this.patch && this.patch.other(this);
+        const o = this.connected && this.patch && this.patch.other(this);
+        if (!o) return false;
+        // a rebooting machine has its card off: no link light on either end
+        if ((this.host && this.host.down) || (o.host && o.host.down)) return false;
+        return o;
     }
 
     activity() {

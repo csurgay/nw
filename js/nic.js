@@ -24,6 +24,11 @@ class NIC extends Port {
 
     rcvFrame(frame) {
         super.rcvFrame(frame);
+        if (this.host.down) {
+            Sim.event("drop", `<b>${this.host}</b> is rebooting — nobody is listening, the frame is lost`, { frame });
+            frame.dispose("dropped");
+            return;
+        }
         this.host.l2.rcvFrame(frame, this);
     }
 

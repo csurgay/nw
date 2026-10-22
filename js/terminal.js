@@ -67,6 +67,15 @@ class Terminal {
         this.historyIndex = 0;
     }
 
+    // the console restarts: the boot log scrolls by, then a fresh prompt
+    reboot() {
+        this.booting = true;
+        this.textarea.value = bootlog;
+        this.textarea.scrollTop = 0;
+        this.boot = new Boot(this);
+        this.boot.init();
+    }
+
     // run a command as if it had been typed (used by popup buttons and hint chips)
     runCommand(command) {
         if (this.booting) { // wait until the boot log has scrolled by

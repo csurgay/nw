@@ -4,8 +4,8 @@ const Coreutils = {
     BIN: ["bash", "cat", "date", "df", "echo", "env", "false", "file", "free", "grep", "head", "host", "hostname", "id",
         "less", "ls", "lldpcli", "man", "mkdir", "more", "netstat", "nslookup", "ping", "printenv", "ps", "pwd", "rm", "rmdir", "sort",
         "ss", "ssh", "su", "sudo", "systemctl", "tail", "touch", "traceroute", "tree", "true", "uname", "uniq", "uptime",
-        "w", "wc", "which", "who", "whoami", "groups"],
-    SBIN: ["arp", "arping", "dhclient", "dhcpd", "ifconfig", "ip", "lldpd", "named", "sshd"],
+        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl"],
+    SBIN: ["arp", "arping", "dhclient", "dhcpd", "ifconfig", "ip", "lldpd", "named", "sshd", "reboot", "shutdown", "poweroff", "halt", "init"],
 
     // commands that read text and may sit behind a |
     FILTERS: ["grep", "head", "tail", "wc", "sort", "uniq", "cat", "less", "more", "tee"],
@@ -200,7 +200,7 @@ const Coreutils = {
     },
 
     uptimeText(sh) {
-        const boot = sh.host ? Vfs.BOOT : Vfs.PAGE;
+        const boot = Vfs.bootOf(sh.host);
         const min = Math.floor((Date.now() - boot.getTime()) / 60000);
         const up = min < 60 ? `${min} min` : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
         return ` ${this.fmtDate(new Date(), "%T")} up ${up},  1 user,  load average: 0.00, 0.01, 0.00`;
@@ -462,8 +462,48 @@ const Coreutils = {
             else if (o.f.has("i")) Coreutils.out(sh, h && h.nics.find(n => n.ip) ? h.nics.find(n => n.ip).ip.ip : "127.0.0.1");
             else if (o.f.has("f")) Coreutils.out(sh, h && h.domain ? name.toLowerCase() + "." + h.domain : name);
             else if (o.f.has("d")) Coreutils.out(sh, h && h.domain ? h.domain : "");
-            else if (o.rest.length) Coreutils.err(sh, "hostname: you must be root to change the host name" + (h ? " — here the lab decides the names" : ""));
+            else if (o.rest.length) {
+                if (!h) return Coreutils.err(sh, "hostname: you must be root to change the host name");
+                const e = h.rename(o.rest[0], false);
+                if (e) Coreutils.err(sh, e);
+            }
             else Coreutils.out(sh, name);
+        },
+
+        hostnamectl(sh, a) {
+            const h = sh.host;
+            const o = Coreutils.opts(a);
+            const sub = o.rest[0] || "status";
+            if (sub == "set-hostname" || sub == "hostname") {
+                if (!o.rest[1]) return Coreutils.err(sh, sub == "hostname" ? (h ? h.id.toString() : "console") : "Too few arguments.");
+                if (!h) return Coreutils.err(sh, "Could not set static hostname: Access denied\n(Only root can do this: log in to a lab machine with  ssh Host1)");
+                const e = h.rename(o.rest[1], !o.long.has("transient"));
+                if (e) Coreutils.err(sh, e.replace(/^hostname:/, "hostnamectl:"));
+                return;
+            }
+            if (sub != "status") return Coreutils.err(sh, `Unknown command verb '${sub}'.`);
+            const name = h ? h.id.toString() : "console";
+            const stat = h ? (h.persistName || h.id.defaultName()) : "console";
+            const kind = !h ? ["computer-desktop", "desktop 🖥️"] : h.forwarding ? ["network-wired", "router 📶"] : h.dhcpd || h.named ? ["computer-server", "server 🖳"] : ["computer-desktop", "desktop 🖥️"];
+            Coreutils.out(sh, ` Static hostname: ${stat}\n` + (stat != name ? `Transient hostname: ${name}\n` : "") +
+                `       Icon name: ${kind[0]}\n         Chassis: ${kind[1]}\n      Machine ID: ${sh.vfs().read(sh.vfs().lookup("/etc/machine-id").node)}\n` +
+                `Operating System: ${Vfs.OS} ${Vfs.VER} (Blue Wire)\n          Kernel: Linux ${Vfs.KERNEL}\n    Architecture: x86-64`);
+        },
+
+        reboot(sh) {
+            if (sh.host) { sh.host.reboot(); return; }
+            return sh.rebootConsole();
+        },
+        shutdown(sh, a) {
+            if (a.includes("-r")) return Coreutils.cmds.reboot(sh);
+            Coreutils.err(sh, "In this lab the machines can't be switched off, only restarted: try  reboot  (or  shutdown -r now)");
+        },
+        poweroff(sh) { return Coreutils.cmds.shutdown(sh, []); },
+        halt(sh) { return Coreutils.cmds.shutdown(sh, []); },
+        init(sh, a) {
+            if (a[0] == "6") return Coreutils.cmds.reboot(sh);
+            if (a[0] == "0") return Coreutils.cmds.shutdown(sh, []);
+            Coreutils.err(sh, "init: use  init 6  to restart");
         },
 
         uname(sh, a) {
@@ -485,19 +525,19 @@ const Coreutils = {
 
         uptime(sh, a) {
             if (a.includes("-p")) {
-                const min = Math.floor((Date.now() - (sh.host ? Vfs.BOOT : Vfs.PAGE).getTime()) / 60000);
+                const min = Math.floor((Date.now() - (Vfs.bootOf(sh.host)).getTime()) / 60000);
                 return Coreutils.out(sh, "up " + (min >= 60 ? Math.floor(min / 60) + " hour" + (min >= 120 ? "s" : "") + ", " : "") + (min % 60) + " minute" + (min % 60 == 1 ? "" : "s"));
             }
-            if (a.includes("-s")) return Coreutils.out(sh, Coreutils.fmtDate(sh.host ? Vfs.BOOT : Vfs.PAGE, "%F %T"));
+            if (a.includes("-s")) return Coreutils.out(sh, Coreutils.fmtDate(Vfs.bootOf(sh.host), "%F %T"));
             Coreutils.out(sh, Coreutils.uptimeText(sh));
         },
 
         who(sh) {
-            const login = Coreutils.fmtDate(sh.host ? Vfs.BOOT : Vfs.PAGE, "%F %R");
+            const login = Coreutils.fmtDate(Vfs.bootOf(sh.host), "%F %R");
             Coreutils.out(sh, sh.host ? `root     pts/0        ${login} (console)` : `admin    tty1         ${login}`);
         },
         w(sh) {
-            const login = Coreutils.fmtDate(sh.host ? Vfs.BOOT : Vfs.PAGE, "%R");
+            const login = Coreutils.fmtDate(Vfs.bootOf(sh.host), "%R");
             Coreutils.out(sh, Coreutils.uptimeText(sh) + "\nUSER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT\n" +
                 (sh.host ? `root     pts/0    console          ${login}    0.00s  0.02s  0.00s w` : `admin    tty1     -                ${login}    0.00s  0.03s  0.00s w`));
         },
@@ -542,7 +582,7 @@ const Coreutils = {
                 p = p.filter(x => x.tty == tty);
                 return Coreutils.out(sh, "    PID TTY          TIME CMD\n" + p.map(x => `${String(x.pid).padStart(7)} ${x.tty.padEnd(8)} 00:00:00 ${x.cmd.replace(/^-/, "").split(" ")[0]}`).join("\n"));
             }
-            const start = Coreutils.fmtDate(sh.host ? Vfs.BOOT : Vfs.PAGE, "%R");
+            const start = Coreutils.fmtDate(Vfs.bootOf(sh.host), "%R");
             if (/u/.test(raw) && !raw.startsWith("-e")) {
                 return Coreutils.out(sh, "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\n" +
                     p.map(x => `${x.user.padEnd(8)} ${String(x.pid).padStart(7)}  0.0  ${(x.rss / 20000).toFixed(1).padStart(3)} ${String(x.rss * 4 + (x.rss ? 9000 : 0)).padStart(6)} ${String(x.rss).padStart(5)} ${x.tty.padEnd(8)} ${x.kernel ? "S   " : x.pid == psPid ? "R+  " : "Ss  "} ${start}   0:00 ${x.cmd}`).join("\n"));

@@ -11,6 +11,9 @@ class Vfs {
     static OS = "NetLab Linux";
     static VER = "9.4";
     static MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    // when this machine started: the console with the page, a lab machine with the lab or its last reboot
+    static bootOf(h) { return h ? (h.bootTime || Vfs.BOOT) : Vfs.PAGE; }
+
     static DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     // ---- node builders
@@ -117,7 +120,7 @@ class Vfs {
 
     mtime(node) {
         if (node.mtime) return typeof node.mtime == "function" ? node.mtime() : node.mtime;
-        if (node.proc) return this.host ? Vfs.BOOT : Vfs.PAGE;
+        if (node.proc) return Vfs.bootOf(this.host);
         return Vfs.INSTALL;
     }
 
@@ -139,7 +142,7 @@ class Vfs {
     build() {
         const { D, F, X, L, C } = Vfs;
         const h = this.host, sh = this.shell;
-        const boot = () => this.host ? Vfs.BOOT : Vfs.PAGE;
+        const boot = () => Vfs.bootOf(this.host);
         const now = () => new Date();
         const name = h ? h.id.toString() : "console";
         const isRouter = h && h.forwarding;
@@ -153,12 +156,12 @@ class Vfs {
 
         // /etc
         const etc = {
-            "hostname": F(name),
+            "hostname": F(() => h ? (h.persistName || h.id.defaultName()) : "console"),
             "hosts": F("127.0.0.1   localhost localhost.localdomain\n::1         localhost localhost.localdomain\n"),
             "os-release": F(`NAME="${Vfs.OS}"\nVERSION="${Vfs.VER} (Blue Wire)"\nID="netlab"\nID_LIKE="rhel centos fedora"\nVERSION_ID="${Vfs.VER}"\nPRETTY_NAME="${Vfs.OS} ${Vfs.VER} (Blue Wire)"\nHOME_URL="https://github.com/csurgay/nw"`),
             "redhat-release": L("netlab-release"),
             "netlab-release": F(`${Vfs.OS} release ${Vfs.VER} (Blue Wire)`),
-            "machine-id": F(Array.from({ length: 32 }, (_, i) => "0123456789abcdef"[(Vfs.fakeSize(name + i) >> 3) & 15]).join("")),
+            "machine-id": F(Array.from({ length: 32 }, (_, i) => "0123456789abcdef"[(Vfs.fakeSize((h ? h.id.defaultName() : "console") + i * 7919) >> 3) & 15]).join("")),
             "motd": F(h ? `\nWelcome to ${name}!\nThis is a ${isRouter ? "router: it passes packets between networks" : isServer ? "server: other machines ask it for things" : "computer on the lab network"}.\nType  help  to see what you can do here.\n`
                 : "\nWelcome to the admin console.\nThis machine is not on the lab network: log in to one with  ssh Host1\n"),
             "passwd": F(this.passwd(isServer)),
@@ -339,8 +342,8 @@ class Vfs {
         const rows = EventLog.entries.filter(e => h ? (e.obj == h || (e.text || "").indexOf(tag) >= 0) : e.kind == "cmd");
         const strip = s => { const d = document.createElement("div"); d.innerHTML = s; return d.textContent; };
         const name = h ? h.id.toString() : "console";
-        const head = `${Vfs.lsDate(h ? Vfs.BOOT : Vfs.PAGE, true)} ${name} kernel: Linux version ${Vfs.KERNEL}\n` +
-            `${Vfs.lsDate(h ? Vfs.BOOT : Vfs.PAGE, true)} ${name} systemd[1]: Reached target Multi-User System.`;
+        const head = `${Vfs.lsDate(Vfs.bootOf(h), true)} ${name} kernel: Linux version ${Vfs.KERNEL}\n` +
+            `${Vfs.lsDate(Vfs.bootOf(h), true)} ${name} systemd[1]: Reached target Multi-User System.`;
         return head + (rows.length ? "\n" : "") + rows.slice(-60).map(e => {
             const d = new Date((h ? Vfs.BOOT : Vfs.PAGE).getTime() + e.t);
             const proto = e.proto || (e.frame ? e.frame.proto() : "");

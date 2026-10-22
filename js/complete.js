@@ -50,7 +50,7 @@ const Completion = {
                 return this.onHost(sh, prev[1], () => this.candidates(sh, prev.slice(2), cur));
             case "ip": return this.ip(sh, prev, cur);
             case "systemctl":
-                if (n == 1) return this.w(["start", "stop", "restart", "status", "is-active"]);
+                if (n == 1) return this.w(["start", "stop", "restart", "status", "is-active", "reboot"]);
                 if (n == 2) return this.w(["lldpd", "dhcpd", "named"]);
                 return [];
             case "lldpcli":
@@ -58,6 +58,9 @@ const Completion = {
                 if (n == 2 && prev[1] == "show") return this.w(["neighbors", "chassis"]);
                 return [];
             case "lab": return n == 1 ? this.w(Topology.all().map(t => t.id)) : [];
+            case "hostnamectl": return n == 1 ? this.w(["set-hostname", "status"]) : [];
+            case "shutdown": return this.w(["-r"]);
+            case "reboot": case "poweroff": case "halt": return [];
             case "ping": case "traceroute": case "tracert": case "arping": case "host": case "nslookup": {
                 if (["-c", "-t", "-w", "-i", "-I"].includes(last)) return last == "-I" ? this.w(this.nics(sh)) : [];
                 if (cur.startsWith("-")) return this.w({ ping: ["-c", "-t"], traceroute: ["-n", "-m"], arping: ["-c", "-I"] }[cmd] || [], " ");

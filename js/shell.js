@@ -36,6 +36,19 @@ class Shell {
         this.t.prompt = this.host ? `[root@${this.host.id} ${dir}]# ` : `[admin@console ${dir}]$ `;
     }
 
+    // reboot on the admin console: the boot messages scroll by again
+    rebootConsole() {
+        if (this.job) { this.job.cancel(false); this.job = null; }
+        Object.keys(this.consoleFiles).forEach(k => { if (k.startsWith("/tmp/")) delete this.consoleFiles[k]; });
+        this.cwd = this.consoleCwd = "/home/admin";
+        this.oldCwd = null;
+        this.updatePrompt();
+        Vfs.PAGE = new Date();
+        Sim.event("info", "The admin console reboots — the lab machines keep running");
+        this.t.reboot();
+        return false; // the boot sequence prints the prompt
+    }
+
     // back to the admin console (exit, Ctrl-D, loading a lab)
     toConsole() {
         this.host = null;
@@ -127,6 +140,40 @@ class Shell {
         return parts;
     }
 
+    // "a; b && c" -> [{cmd: "a"}, {cmd: "b", op: ";"}, {cmd: "c", op: "&&"}]
+    splitList(s) {
+        const out = [];
+        let q = null, start = 0, op = null;
+        for (let i = 0; i < s.length; i++) {
+            const c = s[i];
+            if (c == "\\") { i++; continue; }
+            if (q) { if (c == q) q = null; continue; }
+            if (c == "'" || c == '"') { q = c; continue; }
+            const two = s.substring(i, i + 2);
+            if (c == ";" || two == "&&" || two == "||") {
+                out.push({ cmd: s.substring(start, i), op });
+                op = c == ";" ? ";" : two;
+                i += c == ";" ? 0 : 1;
+                start = i + 1;
+            }
+        }
+        out.push({ cmd: s.substring(start), op });
+        return out.filter(x => x.cmd.trim() != "" || x.op);
+    }
+
+    // run them one after the other; && only after success, || only after failure
+    runList(list) {
+        let show = true;
+        for (const x of list) {
+            if (x.cmd.trim() == "") continue;
+            if (x.op == "&&" && this.status != 0) continue;
+            if (x.op == "||" && this.status == 0) continue;
+            show = this.parse(x.cmd);
+            if (show === false) break; // ping & co. keep running: the rest is not waited for here
+        }
+        return show;
+    }
+
     // "cmd > file", "cmd >> file", "cmd 2>/dev/null" -> { cmd, target, append, quiet }
     findRedirect(s) {
         let q = null;
@@ -203,6 +250,8 @@ class Shell {
     parse(cmd) {
         let showPrompt = true;
         if (!/^\s*for\s/.test(cmd)) {
+            const list = this.splitList(cmd);
+            if (list.length > 1) return this.runList(list);
             let segs = this.splitUnquoted(cmd, "|");
             const redir = this.findRedirect(segs[segs.length - 1]);
             if (redir && !redir.target) { this.t.println("-bash: syntax error near unexpected token `newline'"); return true; }
@@ -256,6 +305,10 @@ class Shell {
                     this.t.println("ssh: Could not resolve hostname "+h+": Name or service not known");
                     this.status = 255;
                 }
+                else if (o.down) {
+                    this.t.println("ssh: connect to host "+h+" port 22: Connection refused" + "   (" + h + " is rebooting, try again in a few seconds)");
+                    this.status = 255;
+                }
                 else if (command.length == 2) {
                     if (!this.host) this.consoleCwd = this.cwd;
                     this.host = o;
@@ -268,12 +321,18 @@ class Shell {
                     const saved = { host: this.host, cwd: this.cwd, oldCwd: this.oldCwd };
                     this.host = o;
                     this.cwd = "/root";
-                    showPrompt = this.parse(cmd.trim().replace(/^ssh\s+\S+\s+/, ""));
+                    this.oneShot = (this.oneShot || 0) + 1;
+                    try { showPrompt = this.parse(cmd.trim().replace(/^ssh\s+\S+\s+/, "")); }
+                    finally { this.oneShot--; }
                     this.host = saved.host;
                     this.cwd = saved.cwd;
                     this.oldCwd = saved.oldCwd;
+                    this.updatePrompt();
                 }
             }
+        }
+        else if (command[0] == "systemctl" && (command[1] == "reboot" || command[1] == "poweroff")) {
+            showPrompt = Coreutils.run(this, [command[1]]);
         }
         else if (command[0] == "systemctl" && /^(dhcpd|named)(\.service)?$/.test(command[2] || "")) {
             if (this.needHost("systemctl")) return true;
@@ -503,6 +562,8 @@ class Shell {
             "  ps aux · ss -tulpn · ifconfig · free -h · df -h · history",
             "  grep, head, tail, wc, sort, uniq   also after a |  (ip route | grep default)",
             "  echo hello > /tmp/a.txt · touch · mkdir · rm    in your home folder and /tmp",
+            "  reboot                       restart this machine (on the console: the console)",
+            "  hostnamectl set-hostname Web1   rename the machine (hostname Web1: until reboot)",
             "  ip route add default via 192.168.1.1",
             "  lab [name|number]            list or load an example network",
             "  systemctl start|stop|status lldpd",

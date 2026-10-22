@@ -1,4 +1,5 @@
 class Host extends Clickable {
+    static BOOT_MS = 4000; // how long a reboot takes (simulated time)
     // opts.nicSide: where the network socket is: "right", "left" or "up"
     constructor(x,y, terminal, opts = {}) {
         super(x,y);
@@ -246,6 +247,100 @@ class Host extends Clickable {
 
     lldpOn() { return !!(this.l2.lldp && this.l2.lldp.enabled); }
 
+    // ---- names: `hostname X` lasts until the next reboot, `hostnamectl set-hostname X`
+    // is written to /etc/hostname and stays. Returns an error text or null.
+    rename(name, persistent) {
+        if (!/^[A-Za-z][A-Za-z0-9-]{0,23}$/.test(name)) return "hostname: the name must start with a letter and contain only letters, digits and '-' (at most 24)";
+        const other = Id.find(name);
+        if (other && other !== this) return `hostname: “${name}” is already the name of another device`;
+        const old = this.id.toString();
+        this.id.name = name == this.id.defaultName() ? null : name;
+        if (persistent) this.persistName = this.id.name;
+        this.nics.forEach(n => n.tlv.addValue("SystemName", this.id.toString()));
+        if (old != name) {
+            Sim.event("info", `<b>${old}</b> is now called <b>${esc(name)}</b>` + (persistent ? " (saved in /etc/hostname)" : " (until the next reboot)"), { obj: this });
+            // popups and the shell prompt show the new name
+            const w = Inspector.wins.get(this);
+            if (w) {
+                const at = { x: parseInt(w.el.style.left) || 100, y: parseInt(w.el.style.top) || 100 };
+                Inspector.close(this);
+                Inspector.open(this, at);
+            }
+            if (shell.host == this && !shell.oneShot) shell.updatePrompt();
+        }
+        return null;
+    }
+
+    // ---- reboot: the machine is gone for a few seconds, then starts with the
+    // settings it has on disk (the lab's start settings), everything learned is forgotten
+    reboot() {
+        if (this.down) return;
+        const name = this.id.toString();
+        if (shell.host == this) {
+            if (shell.job) { shell.job.cancel(false); shell.job = null; }
+            terminal.println(`Connection to ${name} closed by remote host.\nConnection to ${name} closed.`);
+            if (!shell.oneShot) shell.toConsole();
+        }
+        Sim.event("info", `<b>${name}</b> reboots: every program stops, the network card goes quiet. Learned things (ARP cache, DHCP address, routes added by hand, LLDP neighbours) are forgotten.`, { obj: this });
+        this.down = true;
+        this.downSince = Sim.time;
+        this.resetState();
+        Sim.after(Host.BOOT_MS, () => {
+            this.down = false;
+            this.bootTime = new Date();
+            Sim.event("info", `<b>${this}</b> is up again with its start settings` +
+                (this.nics.some(n => n.ip) ? ": " + this.nics.filter(n => n.ip).map(n => n.ip.toString()).join(", ") : this.useDhcp ? " — no address yet, run dhclient" : ""), { obj: this });
+        });
+    }
+
+    resetState() {
+        const s = this.spec;
+        const oldStatic = this.l3.routing.table.filter(r => r.proto == "static").map(r => (r.cidr == 0 ? "default" : r.net + "/" + r.cidr) + " via " + r.via);
+        const oldIps = this.nics.map(n => n.ip);
+        const svc = {
+            dhcp: this.dhcpd ? { range: this.dhcpd.first + "-" + this.dhcpd.last, router: this.dhcpd.router, dns: this.dhcpd.dns, domain: this.dhcpd.domain, lease: this.dhcpd.lease } : null,
+            dns: this.named ? { domain: this.named.domain, records: Object.assign({}, this.named.records) } : null,
+        };
+        const leases = this.dhcpd ? this.dhcpd.leases : null; // dhcpd keeps its lease file on disk
+        this.l2 = new Layer2(this);
+        this.l3 = new Layer3(this);
+        this.udp = new Udp(this);
+        this.dhcpc = new DhcpClient(this);
+        this.resolver = new Resolver(this);
+        this.lease = null;
+        this.dhcpPending = false;
+        const parse = v => { if (!v || v == "dhcp") return null; const [ip, c] = v.split("/"); return new IP(ip, parseInt(c || 24)); };
+        if (s) {
+            const ips = s.ifs ? s.ifs.map(f => f.ip) : [s.ip];
+            this.nics.forEach((n, i) => { n.ip = parse(ips[i]); });
+            this.useDhcp = s.ip == "dhcp";
+            this.dnsServer = s.dns || null;
+            this.domain = s.domain || null;
+        } else {
+            // made in the editor: what it had is what it has on disk, except DHCP addresses
+            this.nics.forEach((n, i) => { n.ip = this.useDhcp ? null : oldIps[i]; });
+            if (this.useDhcp) { this.dnsServer = null; this.domain = null; }
+        }
+        this.nics.forEach(n => {
+            if (n.ip) n.tlv.addValue("MgmtIP", n.ip.ip);
+            this.l3.routing.addRoute(n);
+        });
+        if (s && s.gw) this.l3.routing.addDefault(s.gw);
+        if (s && s.routes) Topology.applyRoutes(this, s.routes);
+        if (!s) Topology.applyRoutes(this, oldStatic);
+        if (svc.dhcp || svc.dns) {
+            this.dhcpd = this.named = null;
+            this.startServices(svc);
+            if (leases && this.dhcpd) this.dhcpd.leases = leases.filter(l => l.state == "bound");
+        }
+        // the name from /etc/hostname
+        this.id.name = this.persistName || null;
+        this.nics.forEach(n => n.tlv.addValue("SystemName", this.id.toString()));
+        // /tmp is emptied at boot, the home folder stays
+        const f = this.userFiles || {};
+        Object.keys(f).forEach(k => { if (k.startsWith("/tmp/")) delete f[k]; });
+    }
+
     actions() {
         const peer = this.peers()[0];
         const target = peer && peer.ip ? peer.ip.ip : "192.168.1.2";
@@ -266,7 +361,16 @@ class Host extends Clickable {
             { label: "traceroute", tpl: `ssh ${id} traceroute {}` },
             ...(n ? [{ sep: true }, { input: n.ip ? n.ip.toString() : "192.168.1.50/24", title: "address/prefix for " + n.id },
                 { label: "Set IP", tpl: `ssh ${id} ip addr replace {} dev ${n.id}` }] : []),
+            ...this.nameActions(),
         ];
+    }
+
+    // buttons every machine has: reboot it, give it a new name
+    nameActions() {
+        const id = this.id.toString();
+        return [{ sep: true }, { input: id, title: "a new name for this machine" },
+            { label: "Rename", tpl: `ssh ${id} hostnamectl set-hostname {}` },
+            { label: "Reboot", cmd: `ssh ${id} reboot` }];
     }
 
     toString() {

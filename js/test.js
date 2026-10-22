@@ -53,6 +53,13 @@ class Test {
         ["ssh Server1 ss -ulpn | grep -c UNCONN", ["1", "*"], 100],
         ["echo \"hi $USER\" > /tmp/t.txt", ["[admin@console ~]$ echo \"hi $USER\" > /tmp/t.txt", "*"], 100],
         ["cat /tmp/t.txt", ["hi admin", "*"], 100],
+        ["ssh Host1 hostname Pc1", ["[admin@console ~]$ ssh Host1 hostname Pc1", "*"], 100],
+        ["ssh Pc1 hostname", ["Pc1", "*"], 100],
+        ["ssh Pc1 reboot", ["Connection to Pc1 closed by remote host.", "Connection to Pc1 closed.", "*"], 100],
+        ["ssh Host1 hostname", ["ssh: connect to host Host1 port 22: Connection refused   (Host1 is rebooting, try again in a few seconds)", "*"], 100],
+        ["", ["*"], 4500],
+        ["ssh Host1 hostname", ["Host1", "*"], 100],
+        ["ls /nope && echo yes || echo no", ["no", "*"], 100],
     ];
 
     constructor(terminal, shell) {

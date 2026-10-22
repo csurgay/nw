@@ -206,6 +206,26 @@ const App = {
         });
     },
 
+    // a machine that is restarting: dimmed, with a spinner and the seconds left
+    drawRebooting(h) {
+        const b = h.bounds();
+        const left = Math.max(0, Math.ceil((Host.BOOT_MS - (Sim.time - h.downSince)) / 1000));
+        ctx.save();
+        Gfx.rrect(b.x - 4, b.y - 4, b.w + 8, b.h + 8, 8);
+        ctx.fillStyle = "rgba(8,12,18,.62)";
+        ctx.fill();
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2 - 6;
+        const a = (performance.now() / 160) % (Math.PI * 2);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 9, a, a + Math.PI * 1.4);
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.stroke();
+        ctx.restore();
+        Gfx.text("rebooting… " + left + " s", cx, cy + 22, { size: 10, weight: 700, color: "#fde68a", halo: true });
+    },
+
     render() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, nwCanvas.width, nwCanvas.height);
@@ -218,6 +238,7 @@ const App = {
         this.devices().forEach(h => h.draw());
         this.list("Patch").forEach(p => p.drawCable(hov == p));
         this.devices().forEach(h => { if (h.drawLabels) h.drawLabels(); });
+        this.devices().forEach(h => { if (h.down) this.drawRebooting(h); });
 
         // outline for hovered object and for objects with an open popup
         const outline = (o, strong) => {

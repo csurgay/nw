@@ -41,7 +41,21 @@ const Topology = {
         return nic;
     },
 
+    // static routes of a router, "192.168.2.0/24 via 10.0.0.2" or "default via ..."
+    applyRoutes(r, routes) {
+        (routes || []).forEach(rt => {
+            const m = rt.match(/^(\S+)\s+via\s+(\S+)$/);
+            if (!m) return;
+            if (m[1] == "default") r.l3.routing.addDefault(m[2]);
+            else {
+                const [net, cidr] = m[1].split("/");
+                r.l3.routing.addStatic(net, parseInt(cidr), m[2]);
+            }
+        });
+    },
+
     build(spec) {
+        const names = [];
         spec.devices.forEach(d => {
             if (d.type == "host" || d.type == "server") {
                 const nic = d.ip && d.ip != "dhcp" ? this.makeNic(d.ip) : new NIC(0, 0, new MAC("same"));
@@ -53,6 +67,8 @@ const Topology = {
                 if (d.dns) h.dnsServer = d.dns;
                 if (d.domain) h.domain = d.domain;
                 if (d.type == "server") h.startServices({ dhcp: d.dhcp, dns: d.zone });
+                h.spec = d; // what a reboot goes back to
+                if (d.name) names.push([h, d.name]);
             }
             else if (d.type == "hub") new Hub(d.x, d.y, d.ports || 4);
             else if (d.type == "switch") {
@@ -67,18 +83,14 @@ const Topology = {
             else if (d.type == "router") {
                 const r = new Router(d.x, d.y, terminal, { w: d.w });
                 d.ifs.forEach(f => r.addNic(this.makeNic(f.ip), f.side || "left"));
-                (d.routes || []).forEach(rt => {
-                    const m = rt.match(/^(\S+)\s+via\s+(\S+)$/);
-                    if (!m) return;
-                    if (m[1] == "default") r.l3.routing.addDefault(m[2]);
-                    else {
-                        const [net, cidr] = m[1].split("/");
-                        r.l3.routing.addStatic(net, parseInt(cidr), m[2]);
-                    }
-                });
+                this.applyRoutes(r, d.routes);
+                r.spec = d;
+                if (d.name) names.push([r, d.name]);
             }
         });
         spec.links.forEach(([a, b, opts]) => new Patch(this.endpoint(a), this.endpoint(b), opts || {}));
+        // own names last: the links above use the standard names
+        names.forEach(([h, n]) => h.rename(n, true));
     },
 
     all() {
