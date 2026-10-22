@@ -1,3 +1,4 @@
+// An RJ45 socket. Hub ports are plain Ports, a NIC is a Port with a MAC.
 class Port extends Clickable {
     constructor(x, y) {
         super(x, y);
@@ -6,18 +7,12 @@ class Port extends Clickable {
         this.connected = false;
         this.patch = null; // Reference to the Patch cable if connected
         this.hub = null; // Reference to the hub if attached
+        this.dir = "down"; // direction the cable leaves the socket
+        this.scale = 1;
+        this.lastTx = -1e9;
+        this.lastRx = -1e9;
+        this.stats = { tx: 0, rx: 0, drop: 0 };
         this.info.push(["Conn", function (o) { return o.connected; }]);
-    }
-
-    draw() {
-        super.draw();
-        ctx.beginPath();
-        ctx.fillStyle = this.connected ? 'green' : 'red';
-        ctx.strokeStyle = 'blue';
-        ctx.lineWidth = 2;
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
     }
 
     connect(patch) {
@@ -30,16 +25,44 @@ class Port extends Clickable {
         this.patch = null;
     }
 
+    peer() {
+        return this.patch ? this.patch.other(this) : null;
+    }
+
+    owner() {
+        return this.host || this.hub;
+    }
+
+    // point where the cable leaves the plug boot
+    anchor() {
+        const d = Gfx.dirVec(this.dir);
+        return { x: this.x + d.x * 13 * this.scale, y: this.y + d.y * 13 * this.scale };
+    }
+
+    linkUp() {
+        return this.connected && this.patch && this.patch.other(this);
+    }
+
+    activity() {
+        return Sim.time - Math.max(this.lastTx, this.lastRx) < 260;
+    }
+
     sendFrame(frame) {
         if (this.connected && this.patch) {
+            this.lastTx = Sim.time;
+            this.stats.tx++;
             Debug.log(this.id, "Send", frame);
             this.patch.sendFrame(frame, this);
         } else {
-            error(this.id, "NotConnected", this.id);
+            Debug.error(this.id, "NotConnected", this.id);
+            Sim.event("drop", `<b>${this.owner()}</b> ${this.id}: no cable plugged in, frame lost`, { frame });
+            frame.dispose();
         }
     }
 
     rcvFrame(frame) {
+        this.lastRx = Sim.time;
+        this.stats.rx++;
         Debug.log(this.id, "Receive", frame);
         if (this.hub) {
             this.hub.processFrame(frame, this);
@@ -48,6 +71,25 @@ class Port extends Clickable {
 
     attachHub(hub) {
         this.hub = hub;
+    }
+
+    // RJ45 socket + plug + link/activity LEDs
+    drawJack(ledOffset) {
+        const cable = this.patch ? this.patch.color : null;
+        Gfx.jack(this.x, this.y, this.dir, this.scale, { plug: cable });
+        if (ledOffset) {
+            const blink = this.activity() && Math.floor(Sim.time / 70) % 2 == 0;
+            Gfx.led(this.x + ledOffset[0].x, this.y + ledOffset[0].y, 2.2 * this.scale, COLORS.ledGreen, this.linkUp());
+            Gfx.led(this.x + ledOffset[1].x, this.y + ledOffset[1].y, 2.2 * this.scale, COLORS.ledAmber, blink);
+        }
+    }
+
+    hit(x, y) {
+        return Math.abs(x - this.x) < 9 * this.scale && Math.abs(y - this.y) < 9 * this.scale;
+    }
+
+    bounds() {
+        return { x: this.x - 8 * this.scale, y: this.y - 8 * this.scale, w: 16 * this.scale, h: 16 * this.scale };
     }
 
     toString() {

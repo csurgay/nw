@@ -14,6 +14,7 @@ class Terminal {
         this.prompt = Terminal.consolePrompt;
         this.textarea.value = this.prompt;
         this.textarea.value = bootlog;
+        this.booting = true;
         this.boot = new Boot(this);
         this.boot.init();
         this.host = "console";
@@ -65,7 +66,31 @@ class Terminal {
         this.historyIndex = 0;
     }
 
+    // run a command as if it had been typed (used by popup buttons and hint chips)
+    runCommand(command) {
+        if (this.booting) { // wait until the boot log has scrolled by
+            setTimeout(() => this.runCommand(command), 200);
+            return;
+        }
+        const v = this.textarea.value;
+        const p = v.lastIndexOf(this.prompt);
+        if (p >= 0 && v.indexOf("\n", p) < 0) {
+            this.textarea.value = v.substring(0, p + this.prompt.length);
+        } else if (!v.endsWith("\n")) {
+            this.newLine();
+        }
+        this.print(command);
+        this.enter(command);
+    }
+
     enter(command) {
+        if (shell.job) { // a new command interrupts a waiting ping / arping
+            shell.job.cancel(false);
+            shell.job = null;
+        }
+        if (command != "" && typeof Sim != "undefined") {
+            Sim.event("cmd", esc((shell.host ? "[" + shell.host + "] " : "") + command));
+        }
         if (command != "" && command != this.history[
             this.history.length-1]) 
         {
@@ -115,8 +140,15 @@ class Terminal {
         }
         if (evt.ctrlKey && (evt.key == 'c' || evt.key == 'C')) {
             evt.preventDefault();
-            this.print("^C\n" + this.prompt);
             this.historyIndex = 0;
+            if (shell.job) { // like real ping: Ctrl-C prints the statistics
+                const job = shell.job;
+                shell.job = null;
+                this.print("^C");
+                if (job.dst) { this.newLine(); job.cancel(true); }
+                else { job.cancel(false); this.print("\n" + this.prompt); }
+            }
+            else this.print("^C\n" + this.prompt);
         }    
         if (evt.ctrlKey && (evt.key == 'd' || evt.key == 'D')) {
             evt.preventDefault();

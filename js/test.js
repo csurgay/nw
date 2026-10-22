@@ -13,11 +13,16 @@ class Test {
         ["ssh Host2 lldpcli update", ["*", "*"], 3000],
         ["ssh Host1 lldpcli show neighbors", ["NIC2 [02:02:02:02:02:02]", "*"], 100],
         ["ssh Host1 arping blabla", ["arping: blabla: Name or service not known", "*"], 100],
-        ["ssh Host1 arping 192.168.1.234", ["*", "*"], 1000],
-        ["ssh Host1 arping 192.168.1.2", ["ARPING 192.168.1.2 from 192.168.1.1 NIC1", "*"], 3000],
-        ["", ["Unicast reply from 192.168.1.2 [02:02:02:02:02:02]", "[root@Host12 ~]# "], 3000],
+        ["ssh Host1 arping 192.168.1.234", ["ARPING 192.168.1.234 from 192.168.1.1 NIC1"], 1000],
+        ["ssh Host1 arping 192.168.1.2", ["ARPING 192.168.1.2 from 192.168.1.1 NIC1"], 100],
+        ["", ["Unicast reply from 192.168.1.2 [02:02:02:02:02:02]", "[root@Host12 ~]# "], 4000],
         ["ssh Host1 arp -a", ["? (192.168.1.2) at 02:02:02:02:02:02 [ether] on NIC1", "*"], 100],
-        ["ssh Host1 ping 192.168.1.2", ["PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.", "*"], 3000],
+        ["ssh Host1 ping -c 3 192.168.1.2", ["PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data."], 100],
+        ["", ["--- 192.168.1.2 ping statistics ---", "*", "*", "*"], 7000],
+        ["ssh Host7 ping -c 1 192.168.1.21", ["PING 192.168.1.21 (192.168.1.21) 56(84) bytes of data."], 100],
+        ["", ["--- 192.168.1.21 ping statistics ---", "*", "*", "*"], 14000],
+        ["ssh Host9 arp -a", ["[root@Host12 ~]# ssh Host9 arp -a", "*"], 100],
+        ["ssh Host11 ip neigh", ["192.168.1.10 dev NIC11 lladdr 07:07:07:07:07:07 REACHABLE", "*"], 100],
     ];
 
     constructor(terminal, shell) {
@@ -46,6 +51,8 @@ class Test {
         }
         this.failed = false;
         this.index = this.startCase;
+        Sim.setSpeed(1); // test timing assumes real-time speed
+        Sim.play();
         setTimeout(this.input.bind(this), 100);
     }
 

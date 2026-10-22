@@ -316,6 +316,7 @@ class Boot {
     }
     setPrompt() {
         this.terminal.textarea.value = Terminal.consolePrompt;
+        this.terminal.booting = false;
         setTimeout(this.terminal.callback.bind(this), 100);
     }
-}
+}

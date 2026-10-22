@@ -73,6 +73,25 @@ class IP {
         return subnet;
     }
 
+    static sameSubnet(a, b, cidr) {
+        if (!IP.isValid(String(a)) || !IP.isValid(String(b))) return false;
+        return IP.calcBinary(String(a)).substring(0, cidr) == IP.calcBinary(String(b)).substring(0, cidr);
+    }
+
+    static fromBinary(bits) {
+        let out = [];
+        for (let i = 0; i < 4; i++) out.push(parseInt(bits.substring(8 * i, 8 * i + 8), 2));
+        return out.join(".");
+    }
+
+    static broadcastOf(ip, cidr) {
+        return IP.fromBinary(IP.calcBinary(ip).substring(0, cidr).padEnd(32, "1"));
+    }
+
+    static maskOf(cidr) {
+        return IP.fromBinary("".padEnd(cidr, "1").padEnd(32, "0"));
+    }
+
     inSubnet(subnet) {
         let ret = true;
         let ipBinary = IP.calcBinary(this.ip);

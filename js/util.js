@@ -7,12 +7,12 @@ function getRandomColor() {
   return color;
 }
 
+// "stop" / "start" shell commands pause and resume the simulation clock
 function stop() {
-  ANIM = 0;
+  Sim.pause();
   Debug.log("Util", "ANIM", "Stopped")
 }
 function start() {
-  ANIM = 1;
+  Sim.play();
   Debug.log("Util", "ANIM", "Started")
-  draw();
 }

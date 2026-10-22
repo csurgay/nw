@@ -1,35 +1,239 @@
 class Host extends Clickable {
-    constructor(x,y, terminal) {
+    // opts.nicSide: where the network socket is: "right", "left" or "up"
+    constructor(x,y, terminal, opts = {}) {
         super(x,y);
         this.terminal = terminal;
         this.id = new Id("Host", this);
         this.nics = [];
+        this.nicSide = opts.nicSide || "right";
+        this.mirrored = opts.mirror != null ? opts.mirror : this.nicSide == "left"; // tower on the left side
+        this.w = 78;
+        this.h = 62;
         this.l2 = new Layer2(this);
         this.l3 = new Layer3(this);
         this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
-        this.info.push(["ARP",function(o){return o.l3.arp.enabled;}]);
-        this.button.push(new Button(this.x+150,this.y+10,"LldpOn",function(o){o.host.l2.lldpStart();},this));
-        this.button.push(new Button(this.x+150,this.y+30,"LldpDu",function(o){o.host.l2.sendLldpDu();},this));
-        this.button.push(new Button(this.x+150,this.y+50,"ArpReq",function(o){o.host.l3.sendArpRequest();},this));
     }
+
+    towerX() { return this.mirrored ? this.x : this.x + this.w - 20; }
+    monitorX() { return this.mirrored ? this.x + 24 : this.x; }
 
     addNic(nic) {
         nic.host = this;
         this.nics.push(nic);
-        nic.host = this;
+        // place the RJ45 socket on the tower
+        const tx = this.towerX();
+        if (this.nicSide == "up") { nic.x = tx + 10; nic.y = this.y + 4; }
+        else if (this.nicSide == "left") { nic.x = tx; nic.y = this.y + 44; }
+        else { nic.x = tx + 20; nic.y = this.y + 44; }
+        nic.dir = this.nicSide;
+        nic.scale = 0.78;
         nic.tlv.addValue("SystemName", this.id.toString());
         nic.tlv.addValue("SystemCapabilities", "Station");
         // 192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.10
         this.l3.routing.addRoute(nic);
     }
 
+    hasSession() {
+        return shell.host == this && this.terminal.prompt.indexOf("@" + this.id + " ") > 0;
+    }
+
+    activity() {
+        return this.nics.some(n => n.activity());
+    }
+
+    bounds() {
+        return { x: this.x, y: this.y, w: this.w, h: 92 };
+    }
+
+    hit(x, y) {
+        const b = this.bounds();
+        return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+    }
+
     draw() {
-        super.draw();
-        // host box
-        ctx.beginPath();
-        ctx.strokeStyle = "black";
-        ctx.rect(this.x, this.y, 50, 80);
+        const y = this.y;
+        const tx = this.towerX(), mx = this.monitorX();
+        const session = this.hasSession();
+        const act = this.activity();
+
+        // --- tower ---
+        Gfx.rrect(tx, y + 6, 20, 52, 3);
+        ctx.fillStyle = Gfx.vgrad(y + 6, y + 58, ["#e2e5e9", "#c4c9cf", "#a8aeb5"]);
+        ctx.fill();
+        ctx.strokeStyle = "#5d646c";
+        ctx.lineWidth = 0.8;
         ctx.stroke();
+        // drive bays
+        ctx.fillStyle = "#3c424a";
+        ctx.fillRect(tx + 3, y + 11, 14, 4);
+        ctx.fillRect(tx + 3, y + 17, 14, 4);
+        ctx.fillStyle = "#6c737b";
+        ctx.fillRect(tx + 12, y + 12.5, 3, 1);
+        // vents
+        ctx.fillStyle = "rgba(60,66,74,.55)";
+        for (let i = 0; i < 4; i++) ctx.fillRect(tx + 4, y + 36 + i * 3, 12, 1);
+        // power button & LEDs
+        ctx.beginPath();
+        ctx.arc(tx + 10, y + 28, 2.6, 0, Math.PI * 2);
+        ctx.fillStyle = "#8b9198";
+        ctx.fill();
+        Gfx.led(tx + 5, y + 52, 1.4, COLORS.ledGreen, true, 0.5);
+        Gfx.led(tx + 9, y + 52, 1.4, COLORS.ledAmber, act && Math.floor(Sim.time / 60) % 2 == 0, 0.6);
+
+        // --- monitor ---
+        Gfx.rrect(mx + 23, y + 41, 8, 7, 1);
+        ctx.fillStyle = "#3a4048";
+        ctx.fill();
+        Gfx.rrect(mx + 13, y + 47, 28, 4, 2);
+        ctx.fillStyle = Gfx.vgrad(y + 47, y + 51, ["#4b525b", "#2b3036"]);
+        ctx.fill();
+        Gfx.rrect(mx, y + 2, 54, 40, 4);
+        ctx.fillStyle = Gfx.vgrad(y + 2, y + 42, ["#3b4149", "#24282e"]);
+        ctx.fill();
+        ctx.strokeStyle = "#15181c";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // screen
+        const sx = mx + 4, sy = y + 6, sw = 46, sh = 31;
+        ctx.fillStyle = session ? Gfx.vgrad(sy, sy + sh, ["#0e2a22", "#071812"]) : Gfx.vgrad(sy, sy + sh, ["#0d1a2a", "#060d16"]);
+        ctx.fillRect(sx, sy, sw, sh);
+        // a few lines of terminal text
+        const txt = session ? "rgba(74,222,128,.95)" : "rgba(120,170,210,.45)";
+        ctx.fillStyle = txt;
+        const widths = [30, 22, 36, 16];
+        widths.forEach((lw, i) => ctx.fillRect(sx + 3, sy + 4 + i * 6, lw, 2));
+        if (session && Math.floor(performance.now() / 500) % 2 == 0) ctx.fillRect(sx + 21, sy + 22, 4, 4);
+        // screen glare
+        ctx.fillStyle = "rgba(255,255,255,.05)";
+        ctx.beginPath();
+        ctx.moveTo(sx, sy); ctx.lineTo(sx + 22, sy); ctx.lineTo(sx, sy + 20); ctx.closePath();
+        ctx.fill();
+        if (session) {
+            ctx.save();
+            ctx.shadowColor = "#4ade80";
+            ctx.shadowBlur = 12;
+            ctx.strokeStyle = "rgba(74,222,128,.7)";
+            ctx.strokeRect(sx - 0.5, sy - 0.5, sw + 1, sh + 1);
+            ctx.restore();
+        }
+        // keyboard
+        Gfx.rrect(mx + 6, y + 54, 42, 5, 1.5);
+        ctx.fillStyle = Gfx.vgrad(y + 54, y + 59, ["#d4d8dd", "#a3a9b0"]);
+        ctx.fill();
+        ctx.fillStyle = "rgba(60,66,74,.45)";
+        for (let k = 0; k < 9; k++) ctx.fillRect(mx + 8 + k * 4.4, y + 55.5, 3, 1);
+
+        // LLDP daemon badge
+        if (this.l2.lldp && this.l2.lldp.enabled) {
+            Gfx.rrect(mx + 31, y - 4, 26, 11, 5.5);
+            ctx.fillStyle = "rgba(20,14,36,.92)";
+            ctx.fill();
+            ctx.strokeStyle = COLORS.LLDP;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            Gfx.text("lldpd", mx + 44, y + 4.5, { size: 7.5, weight: 700, color: COLORS.LLDP, mono: true });
+        }
+
+        // --- network socket(s) with link/activity LEDs ---
+        this.nics.forEach(nic => {
+            const off = nic.dir == "up" ? [{ x: -6, y: 9 }, { x: 6, y: 9 }]
+                : [{ x: 0, y: -10 }, { x: 0, y: 9 }];
+            nic.drawJack(off);
+        });
+
+        // --- labels ---
+        const cx = this.x + this.w / 2;
+        Gfx.text(this.id.toString(), cx, y + 75, { size: 12, weight: 700, color: session ? "#86efac" : COLORS.label });
+        const ip = this.nics[0] && this.nics[0].ip ? this.nics[0].ip.ip : "";
+        Gfx.text(ip, cx, y + 88, { size: 10, mono: true, color: COLORS.labelDim });
+    }
+
+    // other hosts on the same Ethernet segment (through cables and hubs)
+    peers() {
+        const res = [];
+        const seenHub = new Set();
+        const walk = port => {
+            const o = port.peer();
+            if (!o) return;
+            if (o.hub) {
+                if (seenHub.has(o.hub)) return;
+                seenHub.add(o.hub);
+                o.hub.ports.forEach(hp => { if (hp != o) walk(hp); });
+            } else if (o.host && o.host != this) {
+                res.push(o);
+            }
+        };
+        this.nics.forEach(walk);
+        return res;
+    }
+
+    tooltipLines() {
+        const n = this.nics[0];
+        return [
+            `${this.id} · Linux workstation`,
+            `IP   ${n && n.ip ? n.ip.toString() : "—"}`,
+            `MAC  ${n ? n.mac : "—"}`,
+            `ARP cache ${this.l3.arp.cache.length} · LLDP ${this.l2.lldp && this.l2.lldp.enabled ? "running" : "stopped"}`,
+            this.hasSession() ? "shell open in the terminal" : "click for details",
+        ];
+    }
+
+    inspect() {
+        const ifRows = this.nics.map(n => `<tr><td class="m">${n.id}</td><td class="m">${n.mac}</td>
+            <td class="m">${n.ip ? n.ip.toString() : "—"}</td>
+            <td>${n.linkUp() ? '<span class="pill on">UP</span>' : '<span class="pill off">DOWN</span>'}</td>
+            <td class="m">${n.stats.tx}/${n.stats.rx}/${n.stats.drop}</td></tr>`).join("");
+        const arp = this.l3.arp;
+        const arpRows = arp.cache.map(e => `<tr><td class="m">${e.ip}</td><td class="m">${e.mac}</td><td class="m">${e.port}</td>
+            <td>${arp.state(e) == "REACHABLE" ? '<span class="pill on">REACHABLE</span>' : '<span class="pill warn">STALE</span>'}</td>
+            <td class="m">${Math.round((Sim.time - e.timestamp) / 1000)}s</td></tr>`).join("");
+        const lldp = this.l2.lldp;
+        const nbRows = lldp ? lldp.neighbors.map(nb => `<tr><td>${esc(nb[3] ? nb[3].getValue("SystemName") : "?")}</td>
+            <td class="m">${nb[1]}</td><td class="m">${nb[0]}</td><td class="m">${nb[4] || ""}</td></tr>`).join("") : "";
+        const pend = arp.pending.map(p => `<tr><td class="m">${p.ip}</td><td>${p.packet.getPayload() ? "ICMP " + p.packet.getPayload().getValue("Type") : "IPv4 packet"}</td></tr>`).join("");
+        const peers = this.peers().map(n => `<span class="lnk" data-host="${n.host}">${n.host}</span> <span class="mono note">${n.ip ? n.ip.ip : ""}</span>`).join(" · ");
+        return {
+            title: `${this.id}`,
+            sub: "Linux workstation · end station" + (this.hasSession() ? " · shell open" : ""),
+            badge: "PC",
+            color: COLORS.ETH,
+            sections: [
+                {
+                    h: "Network interfaces (ip addr)", html: `<table class="t"><tr><th>Dev</th><th>MAC</th><th>IPv4</th><th>Link</th><th>TX/RX/ign</th></tr>${ifRows}</table>`
+                },
+                {
+                    h: "Routing table (ip route)", html: `<pre>${esc(this.l3.routing.lines().join("\n") || "(empty)")}</pre>
+                    <p class="note">One route per connected network: “to reach 192.168.1.x, just send it out of this card”. No gateway → only the local network is reachable.</p>`
+                },
+                {
+                    h: "ARP cache (ip neigh)", html: arp.cache.length ?
+                        `<table class="t"><tr><th>IP</th><th>MAC</th><th>Dev</th><th>State</th><th>Age</th></tr>${arpRows}</table>` :
+                        `<p class="note">Empty. Before this host can send an IP packet to a neighbour, it has to learn the neighbour's MAC address with ARP.</p>`
+                },
+                ...(pend ? [{ h: "Waiting for ARP", html: `<table class="t"><tr><th>For IP</th><th>Held packet</th></tr>${pend}</table>` }] : []),
+                {
+                    h: "LLDP daemon (lldpcli show neighbors)", html: `<p>${lldp && lldp.enabled ? '<span class="pill on">lldpd running</span>' : '<span class="pill off">lldpd stopped</span>'}</p>` +
+                        (nbRows ? `<table class="t"><tr><th>Neighbour</th><th>Port</th><th>Chassis MAC</th><th>Via</th></tr>${nbRows}</table>` :
+                            `<p class="note">No neighbours known. A neighbour appears when it sends an LLDP frame (<code>lldpcli update</code>) and our lldpd is running.</p>`)
+                },
+                { h: "Same Ethernet segment", html: peers ? `<p>${peers}</p>` : `<p class="note">nobody</p>` },
+            ],
+        };
+    }
+
+    actions() {
+        const peer = this.peers()[0];
+        const target = peer && peer.ip ? peer.ip.ip : "192.168.1.2";
+        const id = this.id.toString();
+        return [
+            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "Start lldpd", cmd: `ssh ${id} systemctl start lldpd` },
+            { label: "Send LLDP", cmd: `ssh ${id} lldpcli update` },
+            { sep: true },
+            { input: target },
+            { label: "arping", tpl: `ssh ${id} arping {}` },
+            { label: "ping", tpl: `ssh ${id} ping -c 3 {}` },
+        ];
     }
 
     toString() {

@@ -7,34 +7,32 @@ class LLDP {  // Link Layer Discovery Protocol
         Debug.log(this.host.id, "Create", "LLDP");
     }
 
-    processFrame(frame) {
+    processFrame(frame, nic) {
         const [mac, portID, tlv] = [
-            frame.payload.getValue("ChassisID"), 
+            frame.payload.getValue("ChassisID"),
             frame.payload.getValue("PortID"),
-            frame.payload.getPayload()
+            frame.payload
         ];
-        let found = false;
-        this.neighbors.forEach(neighbor => {
-            if (neighbor[0] == mac) {
-                found = true;
-                neighbor[1] = portID; // Update PortID
-                neighbor[2] = Date.now(); // Update timestamp
-                neighbor[3] = tlv; // Update tlv data
-                Debug.log(this.host.id, "Update", mac + " " + portID);
-            }
-        });
-        if (!found) {
-            this.neighbors.push([mac, portID, Date.now(), tlv]);
+        const name = tlv.getValue("SystemName");
+        const via = nic ? nic.id.toString() : "";
+        const known = this.neighbors.find(n => n[0] == mac);
+        if (known) {
+            known[1] = portID; // Update PortID
+            known[2] = Sim.time; // Update timestamp
+            known[3] = tlv; // Update tlv data
+            known[4] = via;
+            Debug.log(this.host.id, "Update", mac + " " + portID);
+            Sim.event("l3", `<b>${this.host}</b> lldpd refreshes neighbour <b>${name}</b> (${portID})`, { frame, obj: this.host });
+        }
+        else {
+            this.neighbors.push([mac, portID, Sim.time, tlv, via]);
             Debug.log(this.host.id, "Add", mac + " " + portID);
+            Sim.event("l3", `<b>${this.host}</b> lldpd learns a new neighbour: <b>${name}</b> port ${portID} on ${via}`, { frame, obj: this.host });
         }
     }
 
-    remove(port, mac) {
-        this.neighbors.forEach((neighbor, index) => {
-            if (neighbor[0] == port && neighbor[1] == mac) {
-                this.neighbors.splice(index, 1);
-            }
-        });
+    remove(mac, port) {
+        this.neighbors = this.neighbors.filter(n => !(n[0] == mac && n[1] == port));
         Debug.log(this.host.id, "Remove", port + " " + mac);
     }
 
@@ -64,20 +62,21 @@ class LLDP {  // Link Layer Discovery Protocol
     }
 
     start() {
-        setTimeout(this.tick.bind(this), Math.floor(8000+Math.random()*2000));
+        Sim.after(Math.floor(8000 + Math.random() * 2000), this.tick.bind(this));
     }
 
     tick() {
         if (this.enabled) {
-            this.neighbors.forEach(neighbor => {
-                const [port, mac, timestamp] = neighbor;
-                if (Date.now() - timestamp > 120000) { // 2 minutes timeout
+            this.neighbors.slice().forEach(neighbor => {
+                const [mac, port, timestamp, tlv] = neighbor;
+                const ttl = (tlv && tlv.getValue("TTL") || 120) * 1000;
+                if (Sim.time - timestamp > ttl) { // TTL expired
                     Debug.log(this.host.id, "Timeout", port + " " + mac);
-                    this.remove(port, mac);
+                    Sim.event("info", `<b>${this.host}</b> lldpd forgets neighbour ${port}: TTL expired`, { proto: "LLDP", obj: this.host });
+                    this.remove(mac, port);
                 }
             });
-            this.showNeighbors();
-            setTimeout(this.tick.bind(this), 8000 + Math.random() * 2000);
+            Sim.after(8000 + Math.random() * 2000, this.tick.bind(this));
         }
     }
 }

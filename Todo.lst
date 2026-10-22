@@ -1,13 +1,13 @@
 Done
 ====
 2025-07-20 Hover and info in tooltip
+2026-10-22 Routing via table, not ports[0]
+2026-10-22 ARP required at L2 sendFrame (IP packets wait in an ARP queue)
+2026-10-22 arping and ping wait for reply with no prompt (Ctrl-C prints ping statistics)
+2026-10-22 datagram log képernyőre (Event log panel)
+2026-10-22 Hardware drawings, popups with frame dissection + hex dump, play/pause/step
 
 
 Todo
 ====
-2025-07-22 Routing via table, not ports[0]
-2025-07-29 ARP required at L2 sendFrame
-2025-07-29 nwCanvas resize at drag event
-2025-07-30 arping and ping wait for reply with no prompt
 2025-08-18 test script terminal output chaos fix
-2025-08-18 datagram log képernyőre

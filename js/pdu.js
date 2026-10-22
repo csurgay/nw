@@ -141,8 +141,10 @@ class ArpPacket extends PDU {
 }
 
 class IpPacket extends PDU {
+    static nextIdent = 0x1c46;
     constructor(protocol, srcIP, dstIP, payload) {
         super("IpPacket");
+        this.ident = IpPacket.nextIdent++ & 0xffff; // IPv4 Identification field
         this.addHeaderField("Version");
         this.addLookup("Version", new Lookup("IpVersion", {
             "IPv4": "0x0800"
@@ -167,7 +169,7 @@ class IpPacket extends PDU {
 }
 
 class IcmpPacket extends PDU {
-    constructor(type, seq) {
+    constructor(type, seq, ident = 0) {
         super("IcmpPacket");
         this.addHeaderField("Type");
         this.addLookup("Type", new Lookup("IcmpTypes", {
@@ -175,6 +177,8 @@ class IcmpPacket extends PDU {
             "EchoReply": 0x00,
         }));
         this.addValue("Type", type);
+        this.addHeaderField("Identifier");
+        this.addValue("Identifier", ident);
         this.addHeaderField("Seq");
         this.addValue("Seq", seq);
     }
@@ -190,4 +194,4 @@ class RoutingEntry extends PDU {
         this.addHeaderField("Metric");
         this.addHeaderField("Flags");
     }
-}
+}
