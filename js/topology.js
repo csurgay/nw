@@ -43,14 +43,27 @@ const Topology = {
 
     build(spec) {
         spec.devices.forEach(d => {
-            if (d.type == "host") {
-                const nic = this.makeNic(d.ip);
-                const h = new Host(d.x, d.y, terminal, { nicSide: d.nic || "right", mirror: d.mirror });
+            if (d.type == "host" || d.type == "server") {
+                const nic = d.ip && d.ip != "dhcp" ? this.makeNic(d.ip) : new NIC(0, 0, new MAC("same"));
+                const C = d.type == "server" ? Server : Host;
+                const h = new C(d.x, d.y, terminal, { nicSide: d.nic || "right", mirror: d.mirror });
                 h.addNic(nic);
+                h.useDhcp = d.ip == "dhcp";
                 if (d.gw) h.l3.routing.addDefault(d.gw);
+                if (d.dns) h.dnsServer = d.dns;
+                if (d.domain) h.domain = d.domain;
+                if (d.type == "server") h.startServices({ dhcp: d.dhcp, dns: d.zone });
             }
             else if (d.type == "hub") new Hub(d.x, d.y, d.ports || 4);
-            else if (d.type == "switch") new Switch(d.x, d.y, d.ports || 4);
+            else if (d.type == "switch") {
+                const sw = new Switch(d.x, d.y, d.ports || 4);
+                Object.entries(d.vlans || {}).forEach(([n, v]) => {
+                    const p = sw.ports[parseInt(n) - 1];
+                    if (!p) return;
+                    if (v == "trunk") p.trunk = true;
+                    else p.vlan = parseInt(v);
+                });
+            }
             else if (d.type == "router") {
                 const r = new Router(d.x, d.y, terminal, { w: d.w });
                 d.ifs.forEach(f => r.addNic(this.makeNic(f.ip), f.side || "left"));
@@ -68,48 +81,77 @@ const Topology = {
         spec.links.forEach(([a, b, opts]) => new Patch(this.endpoint(a), this.endpoint(b), opts || {}));
     },
 
+    all() {
+        return TOPOLOGIES.concat(typeof Editor != "undefined" ? Editor.mine() : []);
+    },
+
+    // "6 · A router joins two networks"
+    // localized: the menu and lab bar; not localized: shell messages (the tests read them)
+    title(spec, localized) {
+        const i = this.all().indexOf(spec);
+        return (i >= 0 && !spec.mine ? (i + 1) + " · " : "") + (localized ? Lang.t(spec, "title") : spec.title);
+    },
+
     load(id, opts = {}) {
-        const spec = TOPOLOGIES.find(t => t.id == id) || TOPOLOGIES[0];
+        const spec = this.all().find(t => t.id == id) || this.all()[0];
+        this.loadSpec(spec, opts);
+    },
+
+    loadSpec(spec, opts = {}) {
         this.reset();
+        Vfs.BOOT = new Date(); // the lab machines "boot" now
+        if (typeof Editor != "undefined") Editor.edited = false;
         this.build(spec);
         this.current = spec;
         App.zones = spec.zones || [];
         App.fit();
         App.setTries(spec.tries || []);
         this.syncUI();
-        try { history.replaceState(null, "", "#lab=" + spec.id); } catch (e) { /* file:// may refuse */ }
-        Sim.event("info", `Lab loaded: <b>${esc(spec.title)}</b>`);
+        if (spec.id != "new") try { history.replaceState(null, "", "#lab=" + spec.id); } catch (e) { /* file:// may refuse */ }
+        Sim.event("info", `Lab loaded: <b>${esc(this.title(spec))}</b>`);
         if (opts.fromShell && !terminal.booting) {
-            terminal.println("Loaded lab: " + spec.title);
+            terminal.println("Loaded lab: " + this.title(spec));
         }
     },
 
     fromHash() {
         const m = (location.hash || "").match(/lab=([\w-]+)/);
-        return m && TOPOLOGIES.some(t => t.id == m[1]) ? m[1] : null;
+        return m && this.all().some(t => t.id == m[1]) ? m[1] : null;
     },
 
     initUI() {
         const sel = document.getElementById("labSelect");
-        sel.innerHTML = TOPOLOGIES.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join("");
+        this.fillSelect();
         const go = id => { if (id && (!this.current || id != this.current.id)) terminal.runCommand("lab " + id); };
         sel.addEventListener("change", () => go(sel.value));
         const step = d => {
-            const i = TOPOLOGIES.findIndex(t => t == this.current);
-            const t = TOPOLOGIES[i + d];
+            const all = this.all(), i = all.findIndex(t => t.id == this.current.id);
+            const t = all[i + d];
             if (t) go(t.id);
         };
         document.getElementById("labPrev").addEventListener("click", () => step(-1));
         document.getElementById("labNext").addEventListener("click", () => step(1));
     },
 
+    fillSelect() {
+        const sel = document.getElementById("labSelect");
+        const mine = typeof Editor != "undefined" ? Editor.mine() : [];
+        const hu = Lang.cur == "hu";
+        sel.innerHTML = `<optgroup label="${hu ? "Leckék" : "Lessons"}">` + TOPOLOGIES.map(t => `<option value="${t.id}">${esc(this.title(t, true))}</option>`).join("") + `</optgroup>` +
+            (mine.length ? `<optgroup label="${hu ? "Saját hálózataim" : "My networks"}">` + mine.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join("") + `</optgroup>` : "") +
+            (this.current && this.current.id == "new" ? `<option value="new">New network</option>` : "");
+    },
+
     syncUI() {
         const sel = document.getElementById("labSelect");
         if (!sel || !this.current) return;
+        if (this.current.id == "new" && !sel.querySelector('option[value="new"]')) this.fillSelect();
         sel.value = this.current.id;
-        document.getElementById("labGoal").textContent = this.current.goal || "";
-        const i = TOPOLOGIES.indexOf(this.current);
+        const g = document.getElementById("labGoal");
+        g.textContent = Lang.t(this.current, "goal") || "";
+        Lexicon.linkify(g);
+        const all = this.all(), i = all.findIndex(t => t.id == this.current.id);
         document.getElementById("labPrev").disabled = i <= 0;
-        document.getElementById("labNext").disabled = i >= TOPOLOGIES.length - 1;
+        document.getElementById("labNext").disabled = i < 0 || i >= all.length - 1;
     },
 };

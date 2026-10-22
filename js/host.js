@@ -12,20 +12,36 @@ class Host extends Clickable {
         this.h = 62;
         this.l2 = new Layer2(this);
         this.l3 = new Layer3(this);
+        this.udp = new Udp(this);
+        this.dhcpc = new DhcpClient(this);
+        this.resolver = new Resolver(this);
+        this.dnsServer = null; // nameserver from /etc/resolv.conf
+        this.domain = null; // search domain
+        this.useDhcp = false;
         this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
     }
 
     towerX() { return this.mirrored ? this.x : this.x + this.w - 20; }
     monitorX() { return this.mirrored ? this.x + 24 : this.x; }
 
-    addNic(nic) {
-        nic.host = this;
-        this.nics.push(nic);
-        // place the RJ45 socket on the tower
+    // where the RJ45 socket sits on the tower
+    placeNic(nic) {
         const tx = this.towerX();
         if (this.nicSide == "up") { nic.x = tx + 10; nic.y = this.y + 4; }
         else if (this.nicSide == "left") { nic.x = tx; nic.y = this.y + 44; }
         else { nic.x = tx + 20; nic.y = this.y + 44; }
+    }
+
+    ipLabel() {
+        const n = this.nics[0];
+        if (n && n.ip) return n.ip.ip;
+        return this.dhcpPending ? "DHCP…" : "no IP";
+    }
+
+    addNic(nic) {
+        nic.host = this;
+        this.nics.push(nic);
+        this.placeNic(nic);
         nic.dir = this.nicSide;
         nic.scale = 0.78;
         nic.tlv.addValue("SystemName", this.id.toString());
@@ -145,8 +161,8 @@ class Host extends Clickable {
         // --- labels ---
         const cx = this.x + this.w / 2;
         Gfx.text(this.id.toString(), cx, y + 75, { size: 12, weight: 700, color: session ? "#86efac" : COLORS.label });
-        const ip = this.nics[0] && this.nics[0].ip ? this.nics[0].ip.ip : "";
-        Gfx.text(ip, cx, y + 88, { size: 10, mono: true, color: COLORS.labelDim });
+        const ip = this.ipLabel();
+        Gfx.text(ip, cx, y + 88, { size: 10, mono: true, color: this.nics[0] && this.nics[0].ip ? COLORS.labelDim : COLORS.ARP });
     }
 
     // other hosts on the same Ethernet segment (through cables and hubs)
@@ -191,7 +207,7 @@ class Host extends Clickable {
         const lldp = this.l2.lldp;
         const nbRows = lldp ? lldp.neighbors.map(nb => `<tr><td>${esc(nb[3] ? nb[3].getValue("SystemName") : "?")}</td>
             <td class="m">${nb[1]}</td><td class="m">${nb[0]}</td><td class="m">${nb[4] || ""}</td></tr>`).join("") : "";
-        const pend = arp.pending.map(p => `<tr><td class="m">${p.ip}</td><td>${p.packet.getPayload() ? "ICMP " + p.packet.getPayload().getValue("Type") : "IPv4 packet"}</td></tr>`).join("");
+        const pend = arp.pending.map(p => `<tr><td class="m">${p.ip}</td><td>${p.packet.getValue("Protocol")} to ${p.packet.getValue("DstIP")}</td></tr>`).join("");
         const peers = this.peers().map(n => `<span class="lnk" data-host="${n.host}">${n.host}</span> <span class="mono note">${n.ip ? n.ip.ip : ""}</span>`).join(" · ");
         return {
             title: `${this.id}`,
@@ -217,6 +233,12 @@ class Host extends Clickable {
                         (nbRows ? `<table class="t"><tr><th>Neighbour</th><th>Port</th><th>Chassis MAC</th><th>Via</th></tr>${nbRows}</table>` :
                             `<p class="note">No neighbours known. A neighbour appears when it sends an LLDP frame (<code>lldpcli update</code>) and our lldpd is running.</p>`)
                 },
+                {
+                    h: "Name service (/etc/resolv.conf)", html: this.dnsServer ?
+                        `<pre>${this.domain ? "search " + esc(this.domain) + "\n" : ""}nameserver ${esc(this.dnsServer)}</pre>` +
+                        (this.lease ? `<p class="note">Address leased from DHCP server ${this.lease.server} for ${this.lease.time} s.</p>` : "") :
+                        `<p class="note">No DNS server set — this computer only understands IP addresses, not names.${this.useDhcp && !(this.nics[0] && this.nics[0].ip) ? " Run <code>dhclient</code> to get an address, gateway and DNS server automatically." : ""}</p>`
+                },
                 { h: "Same Ethernet segment", html: peers ? `<p>${peers}</p>` : `<p class="note">nobody</p>` },
             ],
         };
@@ -226,15 +248,19 @@ class Host extends Clickable {
         const peer = this.peers()[0];
         const target = peer && peer.ip ? peer.ip.ip : "192.168.1.2";
         const id = this.id.toString();
+        const n = this.nics[0];
         return [
             { label: "Open shell", cmd: `ssh ${id}` },
+            ...(this.useDhcp || !(n && n.ip) ? [{ label: "dhclient", cmd: `ssh ${id} dhclient` }] : []),
             { label: "Start lldpd", cmd: `ssh ${id} systemctl start lldpd` },
             { label: "Send LLDP", cmd: `ssh ${id} lldpcli update` },
             { sep: true },
-            { input: target },
+            { input: target, title: "IP address or name" },
             { label: "arping", tpl: `ssh ${id} arping {}` },
             { label: "ping", tpl: `ssh ${id} ping -c 3 {}` },
             { label: "traceroute", tpl: `ssh ${id} traceroute {}` },
+            ...(n ? [{ sep: true }, { input: n.ip ? n.ip.toString() : "192.168.1.50/24", title: "address/prefix for " + n.id },
+                { label: "Set IP", tpl: `ssh ${id} ip addr replace {} dev ${n.id}` }] : []),
         ];
     }
 

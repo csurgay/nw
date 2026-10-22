@@ -91,6 +91,19 @@ class Hub extends Clickable {
         this.ports.forEach((port, i) => {
             port.drawJack([{ x: -5, y: -15 }, { x: 5, y: -15 }]);
             Gfx.text(String(i + 1), port.x + 12, port.y + 4, { size: 8, weight: 700, color: "#9aa6b2" });
+            if (this.vlanAware && (port.trunk || port.vlan != 1 || this.showVlans)) {
+                // VLAN marker above the port: colour = VLAN, striped = trunk
+                const bx = port.x - 9, by = this.y + 3, bw = 18, bh = 7;
+                if (port.trunk) {
+                    const vs = this.vlans();
+                    vs.forEach((v, k) => { ctx.fillStyle = vlanColor(v); ctx.fillRect(bx + k * bw / vs.length, by, bw / vs.length, bh); });
+                    Gfx.text("T", port.x, by + 6.3, { size: 6.5, weight: 900, color: "#111" });
+                } else {
+                    ctx.fillStyle = vlanColor(port.vlan);
+                    ctx.fillRect(bx, by, bw, bh);
+                    Gfx.text(String(port.vlan), port.x, by + 6.3, { size: 6.5, weight: 900, color: "#111" });
+                }
+            }
         });
     }
 
@@ -151,12 +164,28 @@ class Switch extends Hub {
     constructor(x, y, n = 4) {
         super(x, y, n, 'Switch');
         this.style = { face: ["#2f4d68", "#253e55", "#1c3044"], brand: "NW-SW " + n, sub: "LEARNING SWITCH", badge: "SW" };
-        this.macTable = []; // {mac, port, t}
+        this.macTable = []; // {mac, vlan, port, t}
+        this.vlanAware = true;
         this.stats = { forwarded: 0, flooded: 0, filtered: 0, learned: 0 };
     }
 
-    entry(mac) {
-        const e = this.macTable.find(e => e.mac == mac);
+    // VLAN numbers in use on this switch
+    vlans() {
+        const s = new Set(this.ports.filter(p => !p.trunk).map(p => p.vlan));
+        if (!s.size) s.add(1);
+        return [...s].sort((a, b) => a - b);
+    }
+
+    get showVlans() {
+        return this.vlans().length > 1 || this.ports.some(p => p.trunk);
+    }
+
+    vtxt(vid) {
+        return this.showVlans ? ` in VLAN ${vid}` : "";
+    }
+
+    entry(mac, vid = 1) {
+        const e = this.macTable.find(e => e.mac == mac && e.vlan == vid);
         if (e && Sim.time - e.t > Switch.AGING_MS) {
             this.macTable = this.macTable.filter(x => x != e);
             return null;
@@ -164,13 +193,13 @@ class Switch extends Hub {
         return e;
     }
 
-    learn(mac, port, frame) {
+    learn(mac, port, frame, vid = 1) {
         if (parseInt(mac.slice(0, 2), 16) & 1) return; // never learn group addresses
-        const e = this.entry(mac);
+        const e = this.entry(mac, vid);
         if (!e) {
-            this.macTable.push({ mac, port, t: Sim.time });
+            this.macTable.push({ mac, vlan: vid, port, t: Sim.time });
             this.stats.learned++;
-            Sim.event("sw", `<b>${this}</b> learns: ${mac} lives behind port ${this.portNo(port)} (new MAC table entry)`, { frame, obj: this });
+            Sim.event("sw", `<b>${this}</b> learns: ${mac} lives behind port ${this.portNo(port)}${this.vtxt(vid)} (new MAC table entry)`, { frame, obj: this });
         } else {
             if (e.port != port) {
                 Sim.event("sw", `<b>${this}</b> ${mac} moved from port ${this.portNo(e.port)} to port ${this.portNo(port)}`, { frame, obj: this });
@@ -180,11 +209,30 @@ class Switch extends Hub {
         }
     }
 
+    // copy the frame out of each port; trunks get an 802.1Q tag, access ports get it untagged
+    emitVlan(frame, outs, vid) {
+        outs.forEach(port => {
+            const c = frame.copy();
+            c.vlan = port.trunk && vid != 1 ? vid : null;
+            if (c.vlan != frame.vlan) c._wire = null;
+            port.sendFrame(c);
+        });
+    }
+
     processFrame(frame, sourcePort) {
         const src = String(frame.macSrc).toLowerCase(), dst = String(frame.macDst).toLowerCase();
-        this.learn(src, sourcePort, frame);
-        const others = this.ports.filter(p => p.connected && p != sourcePort);
         const inP = this.portNo(sourcePort);
+        if (!sourcePort.trunk && frame.vlan) {
+            Sim.event("sw", `<b>${this}</b> port ${inP} is an access port — a tagged frame is not allowed there, dropped`, { frame, obj: this });
+            frame.dispose("dropped");
+            return;
+        }
+        const vid = sourcePort.trunk ? (frame.vlan || 1) : sourcePort.vlan;
+        this.learn(src, sourcePort, frame, vid);
+        // only ports of the same VLAN (and trunks) take part
+        const others = this.ports.filter(p => p.connected && p != sourcePort && (p.trunk || p.vlan == vid));
+        const vt = this.vtxt(vid);
+        if (frame.vlan && sourcePort.trunk) frame.log(`${this} read the 802.1Q tag: VLAN ${vid}`);
 
         if (dst == LLDP.MULTICAST) {
             frame.log(`${this} kept it: bridges never forward LLDP frames`);
@@ -195,10 +243,15 @@ class Switch extends Hub {
         if (parseInt(dst.slice(0, 2), 16) & 1) { // broadcast / multicast
             this.stats.flooded++;
             frame.log(`${this} flooded it (broadcast) out of ${this.portList(others)}`);
-            Sim.event("sw", `<b>${this}</b> port ${inP}: ${dst == ARP.BROADCAST ? "broadcast" : "multicast"} → floods it to ${this.portList(others)}`, { frame, obj: this });
-            this.emit(frame, others);
+            if (!others.length) {
+                Sim.event("sw", `<b>${this}</b> port ${inP}: broadcast${vt}, but no other port is in that VLAN — nobody else hears it`, { frame, obj: this });
+                frame.dispose("dropped");
+                return;
+            }
+            Sim.event("sw", `<b>${this}</b> port ${inP}: ${dst == ARP.BROADCAST ? "broadcast" : "multicast"}${vt} → floods it to ${this.portList(others)}`, { frame, obj: this });
+            this.emitVlan(frame, others, vid);
         } else {
-            const e = this.entry(dst);
+            const e = this.entry(dst, vid);
             if (e && e.port == sourcePort) {
                 this.stats.filtered++;
                 frame.log(`${this} filtered it: destination is on the same port`);
@@ -209,21 +262,38 @@ class Switch extends Hub {
             if (e && e.port.connected) {
                 this.stats.forwarded++;
                 frame.log(`${this} forwarded it to port ${this.portNo(e.port)} only (MAC table hit)`);
-                Sim.event("sw", `<b>${this}</b> MAC table: ${dst} → port ${this.portNo(e.port)}, forwards it there only`, { frame, obj: this });
-                this.emit(frame, [e.port]);
+                Sim.event("sw", `<b>${this}</b> MAC table: ${dst}${vt} → port ${this.portNo(e.port)}, forwards it there only`, { frame, obj: this });
+                this.emitVlan(frame, [e.port], vid);
             } else {
                 this.stats.flooded++;
                 frame.log(`${this} flooded it: ${dst} not in its MAC table yet`);
-                Sim.event("sw", `<b>${this}</b> doesn't know where ${dst} is yet (unknown unicast) → floods it to ${this.portList(others)}`, { frame, obj: this });
-                this.emit(frame, others);
+                if (!others.length) {
+                    Sim.event("sw", `<b>${this}</b> ${dst} unknown${vt}, and no other port is in that VLAN — dropped`, { frame, obj: this });
+                    frame.dispose("dropped");
+                    return;
+                }
+                Sim.event("sw", `<b>${this}</b> doesn't know where ${dst} is yet${vt} (unknown unicast) → floods it to ${this.portList(others)}`, { frame, obj: this });
+                this.emitVlan(frame, others, vid);
             }
         }
         frame.dispose("repeated");
     }
 
+    // a VLAN select in the popup changed
+    onInput(act, value, el) {
+        if (act != "vlan") return;
+        const p = this.ports[+el.dataset.port];
+        if (!p) return;
+        if (value == "trunk") { p.trunk = true; }
+        else { p.trunk = false; p.vlan = parseInt(value); }
+        this.macTable = this.macTable.filter(e => e.port != p);
+        Sim.event("info", `<b>${this}</b> port ${this.portNo(p)} is now ${p.trunk ? "a trunk (all VLANs, tagged)" : "in VLAN " + p.vlan}`, { obj: this });
+        if (typeof Editor != "undefined") Editor.changed();
+    }
+
     tooltipLines() {
         return [
-            `${this.id} · ${this.ports.length}-port learning switch`,
+            `${this.id} · ${this.ports.length}-port learning switch` + (this.showVlans ? ` · VLANs ${this.vlans().join(", ")}` : ""),
             `MAC table ${this.macTable.length} entries`,
             `forwarded ${this.stats.forwarded} · flooded ${this.stats.flooded} · filtered ${this.stats.filtered}`,
             `Layer 2 device: sends frames only where the MAC lives`,
@@ -232,7 +302,14 @@ class Switch extends Hub {
 
     inspect() {
         const rows = this.macTable.filter(e => Sim.time - e.t <= Switch.AGING_MS).map(e =>
-            `<tr><td class="m">${e.mac}</td><td class="m">${this.portNo(e.port)}</td><td class="m">${Math.round((Sim.time - e.t) / 1000)}s</td></tr>`).join("");
+            `<tr><td class="m">${e.mac}</td><td class="m"><span style="color:${vlanColor(e.vlan)}">${e.vlan}</span></td><td class="m">${this.portNo(e.port)}</td><td class="m">${Math.round((Sim.time - e.t) / 1000)}s</td></tr>`).join("");
+        const opts = p => [1, 10, 20, 30, 40].map(v => `<option value="${v}"${!p.trunk && p.vlan == v ? " selected" : ""}>VLAN ${v}</option>`).join("") +
+            `<option value="trunk"${p.trunk ? " selected" : ""}>trunk (all, tagged)</option>`;
+        const vrows = this.ports.map((p, i) => {
+            const peer = p.peer();
+            return `<tr><td class="m">${i + 1}</td><td><select class="vsel" data-act="vlan" data-port="${i}" style="--c:${p.trunk ? "#ccc" : vlanColor(p.vlan)}">${opts(p)}</select></td>
+                <td>${peer ? (peer.hub ? `${peer.hub} port ${peer.hub.portNo(peer)}` : `${peer.host} ${peer.id}`) : "—"}</td></tr>`;
+        }).join("");
         return {
             title: `${this.id}`,
             sub: `${this.ports.length}-port Ethernet switch (learning bridge)`,
@@ -244,11 +321,15 @@ class Switch extends Hub {
                     <p>Then it looks up the <b>destination MAC</b>: if it knows the port, the frame goes <b>only there</b>; if not (or for broadcasts), it <b>floods</b> the frame to all other ports, just like a hub. Each port is its own collision domain, but all ports share one <b>broadcast domain</b>.</p>`
                 },
                 {
-                    h: "MAC table (bridge fdb)", html: rows ? `<table class="t"><tr><th>MAC address</th><th>Port</th><th>Age</th></tr>${rows}</table>
+                    h: "MAC table (bridge fdb)", html: rows ? `<table class="t"><tr><th>MAC address</th><th>VLAN</th><th>Port</th><th>Age</th></tr>${rows}</table>
                     <p class="note">Entries are forgotten after ${Switch.AGING_MS / 1000} s without traffic (aging).</p>` :
                         `<p class="note">Empty — the switch has not seen any frames yet. Send something!</p>`
                 },
                 { h: "Ports", html: `<table class="t"><tr><th>#</th><th>Link</th><th>Connected to</th><th>In</th><th>Out</th></tr>${this.portRows()}</table>` },
+                {
+                    h: "VLANs (802.1Q)", html: `<table class="t"><tr><th>Port</th><th>VLAN</th><th>Connected to</th></tr>${vrows}</table>
+                    <p class="note">An <b>access port</b> belongs to one VLAN: frames stay inside it, as if the switch were cut into separate switches. A <b>trunk</b> carries every VLAN to another switch, each frame marked with a 4-byte 802.1Q tag.</p>`
+                },
                 {
                     h: "Counters", html: `<table class="t kv"><tr><td>Forwarded to one port</td><td class="m">${this.stats.forwarded}</td></tr>
                     <tr><td>Flooded</td><td class="m">${this.stats.flooded}</td></tr><tr><td>Filtered</td><td class="m">${this.stats.filtered}</td></tr>

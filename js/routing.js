@@ -7,7 +7,13 @@ class Routing {
 
     // connected network of an interface ("proto kernel scope link")
     addRoute(nic) {
+        if (!nic.ip) return;
         this.table.push({ net: nic.ip.subnet, cidr: nic.ip.cidr, nic, via: null, src: nic.ip.ip, proto: "kernel" });
+    }
+
+    // an interface lost its address: its connected route and routes via it disappear
+    removeNic(nic) {
+        this.table = this.table.filter(r => r.nic != nic);
     }
 
     // the interface whose network contains this IP

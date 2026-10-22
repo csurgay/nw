@@ -12,6 +12,7 @@ class Id {
         'Hub': 0,
         'Switch': 0,
         'Router': 0,
+        'Server': 0,
         'Host': 0,
         'Frame': 0,
         'MAC': 0,

@@ -91,7 +91,7 @@ class Router extends Host {
             const off = { left: [{ x: 10, y: -5 }, { x: 10, y: 5 }], right: [{ x: -10, y: -5 }, { x: -10, y: 5 }],
                 up: [{ x: -6, y: 10 }, { x: 6, y: 10 }], down: [{ x: -6, y: -10 }, { x: 6, y: -10 }] }[nic.dir];
             nic.drawJack(off);
-            const ip = nic.ip ? nic.ip.toString() : "";
+            const ip = nic.ip ? nic.ip.toString() : nic.id + ": no IP";
             if (nic.dir == "left") Gfx.text(ip, nic.x - 4, nic.y - 13, { size: 9, mono: true, align: "right", color: "#9fd8b5" });
             if (nic.dir == "right") Gfx.text(ip, nic.x + 4, nic.y - 13, { size: 9, mono: true, align: "left", color: "#9fd8b5" });
             if (nic.dir == "up") Gfx.text(ip, nic.x + 12, nic.y - 6, { size: 9, mono: true, align: "left", color: "#9fd8b5" });
@@ -146,6 +146,8 @@ class Router extends Host {
             { input: this.nics[0] && this.nics[0].ip ? this.nics[0].ip.ip.replace(/\.\d+$/, ".10") : "" },
             { label: "ping", tpl: `ssh ${id} ping -c 3 {}` },
             { label: "traceroute", tpl: `ssh ${id} traceroute {}` },
+            ...this.nics.flatMap(n => [{ sep: true }, { input: n.ip ? n.ip.toString() : "", title: "address/prefix for " + n.id },
+                { label: "Set " + n.id, tpl: `ssh ${id} ip addr replace {} dev ${n.id}` }]),
         ];
     }
 }

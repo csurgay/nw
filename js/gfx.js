@@ -4,6 +4,10 @@ const COLORS = {
     ICMP: "#34d399",
     LLDP: "#a78bfa",
     IPv4: "#60a5fa",
+    UDP: "#e2e8f0",
+    DHCP: "#fb7185",
+    DNS: "#fde047",
+    VLAN: "#f472b6",
     ETH: "#38bdf8",
     FCS: "#94a3b8",
     PAD: "#64748b",
@@ -16,6 +20,12 @@ const COLORS = {
     label: "#d7e0ea",
     labelDim: "#7f91a6",
 };
+
+// a stable colour for every VLAN number
+function vlanColor(v) {
+    const fixed = { 1: "#94a3b8", 10: "#f472b6", 20: "#38bdf8", 30: "#facc15", 40: "#4ade80", 50: "#fb923c" };
+    return fixed[v] || `hsl(${(v * 67) % 360} 80% 65%)`;
+}
 
 const Gfx = {
     rrect(x, y, w, h, r) {

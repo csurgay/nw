@@ -79,7 +79,7 @@ class EventLog {
     }
 
     static protoColor(proto) {
-        return { ARP: "var(--arp)", ICMP: "var(--icmp)", LLDP: "var(--lldp)", IPv4: "var(--ipv4)", CMD: "var(--ok)", INFO: "var(--muted)" }[proto] || "var(--muted)";
+        return { ARP: "var(--arp)", ICMP: "var(--icmp)", LLDP: "var(--lldp)", IPv4: "var(--ipv4)", DHCP: "var(--dhcp)", DNS: "var(--dns)", UDP: "var(--udp)", CMD: "var(--ok)", INFO: "var(--muted)" }[proto] || "var(--muted)";
     }
 
     static add(e) {
@@ -97,6 +97,7 @@ class EventLog {
         if (e.frame || e.obj) {
             row.addEventListener("click", ev => Inspector.open(e.frame || e.obj, { x: ev.clientX - 420, y: ev.clientY - 60 }));
         }
+        if (typeof Lexicon != "undefined") Lexicon.linkify(row.querySelector(".x"));
         EventLog.el.appendChild(row);
         while (EventLog.el.children.length > EventLog.MAX) EventLog.el.removeChild(EventLog.el.firstChild);
         if (atBottom) EventLog.el.scrollTop = EventLog.el.scrollHeight;

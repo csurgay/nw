@@ -84,6 +84,10 @@ class IP {
         return out.join(".");
     }
 
+    static cidrOf(mask) {
+        return IP.calcBinary(mask).replace(/0+$/, "").length;
+    }
+
     static networkOf(ip, cidr) {
         return IP.fromBinary(IP.calcBinary(ip).substring(0, cidr).padEnd(32, "0"));
     }

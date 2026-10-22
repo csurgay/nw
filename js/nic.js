@@ -36,6 +36,15 @@ class NIC extends Port {
         this.tlv.addValue("MgmtIP", ip.ip);
     }
 
+    // change the address later (ip addr add / flush, DHCP); keeps the routing table in step
+    setIP(ip) {
+        if (this.host) this.host.l3.routing.removeNic(this);
+        this.ip = ip;
+        if (ip) this.tlv.addValue("MgmtIP", ip.ip);
+        else delete this.tlv.headerValues["MgmtIP"];
+        if (ip && this.host) this.host.l3.routing.addRoute(this);
+    }
+
     getIP() {
         Debug.log(this.id, "IP", this.ip.toString());
     }

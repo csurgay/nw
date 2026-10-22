@@ -59,6 +59,13 @@ class Layer2 {
     }
 
     rcvFrame(frame, port) {
+        if (frame.vlan && frame.vlan != 1) { // came in on a trunk: Linux without a VLAN interface drops it
+            port.stats.drop++;
+            frame.log(`${this.host} ${port.id} dropped it: it carries VLAN tag ${frame.vlan}`);
+            Sim.event("drop", `<b>${this.host}</b> ${port.id} drops a frame tagged with VLAN ${frame.vlan} — it has no VLAN interface`, { frame });
+            frame.dispose("dropped");
+            return;
+        }
         const why = this.acceptReason(frame, port);
         if (!why) {
             port.stats.drop++;
@@ -101,7 +108,7 @@ class Layer2 {
         }
         else if (etherType == 'IPv4') {
             const hop = nextHop || payload.getValue("DstIP");
-            macTarget = this.host.l3.arp.getMAC(hop);
+            macTarget = hop == "255.255.255.255" ? ARP.BROADCAST : this.host.l3.arp.getMAC(hop);
             if (!macTarget) {
                 // no MAC known yet: hold the packet and resolve with ARP first
                 this.host.l3.arp.resolve(nic, payload, hop);

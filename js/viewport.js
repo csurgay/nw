@@ -26,10 +26,19 @@ const App = {
             nwCanvas.style.cursor = this.hover ? "pointer" : "default";
         });
         nwCanvas.addEventListener("mouseleave", () => { this.hover = null; this.mx = -1; });
+        nwCanvas.addEventListener("mousedown", ev => {
+            const p = this.eventPoint(ev);
+            if (Editor.mousedown(p, this.pick(p.x, p.y))) ev.preventDefault();
+        });
+        window.addEventListener("mousemove", ev => {
+            if (Editor.on) Editor.mousemove(this.eventPoint(ev));
+        });
+        window.addEventListener("mouseup", () => { this.suppressClick = Editor.mouseup(); });
         nwCanvas.addEventListener("click", ev => {
-            const r = nwCanvas.getBoundingClientRect();
-            const p = this.toWorld(ev.clientX - r.left, ev.clientY - r.top);
+            const p = this.eventPoint(ev);
             const obj = this.pick(p.x, p.y);
+            if (this.suppressClick) { this.suppressClick = false; return; }
+            if (Editor.click(p, obj)) return;
             if (!obj) return;
             if (obj instanceof Frame && Sim.running) {
                 Sim.pause(); // freeze the wire so the frame can be studied
@@ -67,6 +76,11 @@ const App = {
         this.resize();
     },
 
+    eventPoint(ev) {
+        const r = nwCanvas.getBoundingClientRect();
+        return this.toWorld(ev.clientX - r.left, ev.clientY - r.top);
+    },
+
     toWorld(x, y) {
         return { x: (x - this.ox) / this.scale, y: (y - this.oy) / this.scale };
     },
@@ -77,7 +91,7 @@ const App = {
 
     // every box on the canvas: hubs, switches, hosts, routers
     devices() {
-        return [...this.list("Hub"), ...this.list("Switch"), ...this.list("Host"), ...this.list("Router")];
+        return [...this.list("Hub"), ...this.list("Switch"), ...this.list("Host"), ...this.list("Server"), ...this.list("Router")];
     },
 
     // topmost first: frames, sockets, hosts, hubs, cables
@@ -139,6 +153,7 @@ const App = {
         if (hov && !(hov instanceof Frame)) outline(hov, false);
 
         this.list("Patch").forEach(p => p.drawFrames(hov));
+        Editor.drawOverlay();
 
         // tooltip in screen space
         if (hov && hov.tooltipLines && this.mx >= 0) {

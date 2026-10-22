@@ -60,6 +60,10 @@ class Inspector {
             if (t.dataset.host) Inspector.open(Id.find(t.dataset.host), { x: ev.clientX + 20, y: ev.clientY - 40 });
         });
 
+        el.addEventListener("change", ev => {
+            const t = ev.target.closest("[data-act]");
+            if (t && obj.onInput) { obj.onInput(t.dataset.act, t.value, t); Inspector.render(w); }
+        });
         if (obj.actions) Inspector.buildActions(w, obj.actions());
         Inspector.render(w, data);
         Inspector.front(w);
@@ -97,6 +101,7 @@ class Inspector {
             if (rec.html !== s.html) {
                 rec.b.innerHTML = s.html;
                 rec.html = s.html;
+                if (typeof Lexicon != "undefined") Lexicon.linkify(rec.b);
             }
         });
     }
@@ -115,26 +120,32 @@ class Inspector {
                 input = document.createElement("input");
                 input.value = a.input;
                 input.spellcheck = false;
-                input.title = "Destination IP address";
+                input.title = a.title || "Destination IP address";
                 f.appendChild(input);
             } else {
                 const b = document.createElement("button");
+                const myInput = input; // each button uses the input box before it
                 b.className = "act";
                 b.textContent = a.label;
-                b.title = (a.cmd || a.tpl || "").replace("{}", "<ip>");
+                b.title = (a.cmd || a.tpl || "").replace("{}", "<…>");
+                if (myInput) b.dataset.forInput = "1";
                 b.addEventListener("click", () => {
-                    const cmd = a.cmd || a.tpl.replace("{}", (input ? input.value.trim() : ""));
+                    const cmd = a.cmd || a.tpl.replace("{}", (myInput ? myInput.value.trim() : ""));
                     terminal.runCommand(cmd);
                 });
                 f.appendChild(b);
             }
         });
-        if (input) {
-            input.addEventListener("keydown", ev => {
+        f.querySelectorAll("input").forEach(inp => {
+            inp.addEventListener("keydown", ev => {
                 ev.stopPropagation();
-                if (ev.key == "Enter") f.querySelectorAll(".act")[f.querySelectorAll(".act").length - 1].click();
+                if (ev.key != "Enter") return;
+                // Enter runs the first button that belongs to this input
+                let n = inp.nextElementSibling;
+                while (n && !n.classList.contains("act")) n = n.nextElementSibling;
+                if (n) n.click();
             });
-        }
+        });
         w.el.appendChild(f);
     }
 
@@ -178,10 +189,10 @@ class Inspector {
             if (fieldIdx != null) {
                 const f = wire.fields[fieldIdx];
                 w.el.querySelector(`.F[data-d="${fieldIdx}"]`)?.classList.add("hl");
-                if (ex) ex.innerHTML = `${f.desc}<div class="note mono" style="margin-top:5px">bytes ${f.start}–${f.start + f.len - 1} · ${f.len} byte${f.len > 1 ? "s" : ""} · ${esc(f.layer.name)}</div>`;
+                if (ex) { ex.innerHTML = `${f.desc}<div class="note mono" style="margin-top:5px">bytes ${f.start}–${f.start + f.len - 1} · ${f.len} byte${f.len > 1 ? "s" : ""} · ${esc(f.layer.name)}</div>`; Lexicon.linkify(ex); }
             } else if (ex) {
                 const L = wire.layers.find(L => L.start == s);
-                if (L) ex.innerHTML = `<b>${esc(L.name)}</b> — ${L.desc}<div class="note mono" style="margin-top:5px">bytes ${s}–${s + l - 1} · ${l} bytes</div>`;
+                if (L) { ex.innerHTML = `<b>${esc(L.name)}</b> — ${L.desc}<div class="note mono" style="margin-top:5px">bytes ${s}–${s + l - 1} · ${l} bytes</div>`; Lexicon.linkify(ex); }
             }
         };
         w.el.addEventListener("mouseover", ev => {

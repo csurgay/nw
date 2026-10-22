@@ -56,6 +56,19 @@ class Wire {
         if (frame.etherType == "LLDP") {
             return "LLDP " + p.getValue("SystemName") + " / " + p.getValue("PortID") + "  TTL " + (p.getValue("TTL") || 120);
         }
+        if (frame.etherType == "IPv4" && p.getValue("Protocol") == "UDP") {
+            const d = p.getPayload(), app = d.getPayload();
+            if (app && app.kind == "DHCP") {
+                const t = app.type[0] + app.type.slice(1).toLowerCase();
+                return "DHCP " + t + " - Transaction ID " + Wire.hex(app.xid, 8) + (app.yiaddr != "0.0.0.0" ? "  (" + app.yiaddr + ")" : "");
+            }
+            if (app && app.kind == "DNS") {
+                if (!app.qr) return "Standard query " + Wire.hex(app.id, 4) + " A " + app.qname;
+                if (app.rcode == 3) return "Standard query response " + Wire.hex(app.id, 4) + " No such name A " + app.qname;
+                return "Standard query response " + Wire.hex(app.id, 4) + " A " + app.qname + " A " + app.answers.map(a => a.ip).join(", ");
+            }
+            return "UDP " + d.getValue("SrcPort") + " → " + d.getValue("DstPort");
+        }
         if (frame.etherType == "IPv4") {
             const icmp = p.getPayload();
             if (p.getValue("Protocol") == "ICMP" && icmp && icmp.getValue("Type") == "TimeExceeded")
@@ -101,6 +114,17 @@ class Wire {
         field("Source", Wire.mac(src), src,
             "<b>Source MAC</b> — the hardware address of the sending NIC. Receivers learn it, " +
             "so they know where to send the answer.");
+        if (frame.vlan) {
+            end();
+            begin("802.1Q VLAN tag", "vlan", COLORS.VLAN,
+                "A 4-byte label squeezed into the Ethernet header between switches (on a trunk), saying which VLAN the frame belongs to.");
+            field("TPID", Wire.u16(0x8100), "0x8100 (802.1Q)",
+                "<b>Tag protocol identifier</b> — 0x8100 sits where the EtherType normally is and says: <i>a VLAN tag follows</i>.");
+            field("TCI", Wire.u16(frame.vlan & 0x0fff), "priority 0, VLAN " + frame.vlan,
+                "<b>Tag control information</b> — 3 bits priority, 1 bit DEI, and 12 bits <b>VLAN ID</b> (1–4094). Here: VLAN " + frame.vlan + ". The last switch removes the tag before the frame reaches a computer.");
+            end();
+            begin("Ethernet II (type)", "eth", COLORS.ETH, "The rest of the Ethernet header.");
+        }
         field("Type", Wire.u16(et), Wire.hex(et, 4) + " (" + frame.etherType + ")", Wire.etherDesc(frame.etherType));
         end();
 
@@ -183,23 +207,107 @@ class Wire {
         return { bytes, total, proto, ttl, ident, sum };
     }
 
+    // the bytes after the IP header
+    static l4Bytes(p) {
+        if (!p.getPayload()) return [];
+        if (p.getValue("Protocol") == "UDP") return Wire.udpParts(p).bytes;
+        return Wire.icmpParts(p.getPayload()).bytes;
+    }
+
     // a whole IPv4 packet as bytes (used inside ICMP error messages)
     static ipv4Bytes(p) {
-        const ic = p.getPayload() ? Wire.icmpParts(p.getPayload()).bytes : [];
-        return [...Wire.ipHeader(p, ic.length).bytes, ...ic];
+        const l4 = Wire.l4Bytes(p);
+        return [...Wire.ipHeader(p, l4.length).bytes, ...l4];
+    }
+
+    static ipStr(a) { return a && IP.isValid(String(a)) ? String(a) : "0.0.0.0"; }
+
+    // UDP header + application data; fields are [name, bytes, value, desc]
+    static udpParts(p) {
+        const d = p.getPayload(), app = d.getPayload();
+        const appF = app && app.kind == "DHCP" ? Wire.dhcpFields(app) : app && app.kind == "DNS" ? Wire.dnsFields(app) : [];
+        const appBytes = [].concat(...appF.map(f => f[1]));
+        const len = 8 + appBytes.length;
+        const sp = d.getValue("SrcPort"), dp = d.getValue("DstPort");
+        const pseudo = [...Wire.ip(Wire.ipStr(p.getValue("SrcIP"))), ...Wire.ip(Wire.ipStr(p.getValue("DstIP"))), 0, 17, ...Wire.u16(len)];
+        const noSum = [...Wire.u16(sp), ...Wire.u16(dp), ...Wire.u16(len), 0, 0, ...appBytes];
+        let sum = Wire.checksum([...pseudo, ...noSum]);
+        if (sum == 0) sum = 0xffff;
+        const bytes = noSum.slice();
+        bytes[6] = sum >> 8; bytes[7] = sum & 255;
+        return { sp, dp, len, sum, appF, bytes, app };
+    }
+
+    static dhcpFields(m) {
+        const ip = Wire.ip, opt = (code, data) => [code, data.length, ...data];
+        const typeDesc = { DISCOVER: "client looks for a server", OFFER: "server offers an address", REQUEST: "client asks for the offered address", ACK: "server confirms", NAK: "server refuses" };
+        const f = [
+            ["Message type (op)", [m.op], m.op == 1 ? "1 (boot request)" : "2 (boot reply)", "<b>op</b> 1 = from the client, 2 = from the server. DHCP grew out of the older BOOTP protocol, that's why the header looks so old-fashioned."],
+            ["Hardware type", [1], "1 (Ethernet)", "<b>Hardware type</b> 1 = Ethernet."],
+            ["Hardware addr length", [6], "6", "A MAC address is 6 bytes long."],
+            ["Hops", [0], "0", "<b>Hops</b> — used by DHCP relay agents on routers. 0 here."],
+            ["Transaction ID", Wire.u32(m.xid), Wire.hex(m.xid, 8), "<b>Transaction ID</b> — a random number the client picks. All four messages of one DORA dialog carry the same ID, so the client knows the answers are for it."],
+            ["Seconds", [0, 0], "0", "Seconds since the client started asking."],
+            ["Flags", [0x80, 0], "Broadcast", "<b>Broadcast flag</b> — the client has no IP address yet, so it asks the server to answer with a broadcast that it can surely receive."],
+            ["Client IP (ciaddr)", ip(Wire.ipStr(m.ciaddr)), m.ciaddr, "<b>ciaddr</b> — the client's current address; 0.0.0.0 because it has none yet."],
+            ["Your IP (yiaddr)", ip(Wire.ipStr(m.yiaddr)), m.yiaddr, "<b>yiaddr</b> — “your” IP: the address the server gives to the client."],
+            ["Server IP (siaddr)", ip(Wire.ipStr(m.siaddr)), m.siaddr, "<b>siaddr</b> — the DHCP server's address."],
+            ["Relay agent IP", [0, 0, 0, 0], "0.0.0.0", "<b>giaddr</b> — filled in by a DHCP relay on a router; unused here."],
+            ["Client MAC (chaddr)", [...Wire.mac(m.chaddr), ...new Array(10).fill(0)], m.chaddr, "<b>chaddr</b> — the client's MAC address (+10 bytes padding). The server uses it to remember who got which address."],
+            ["Server name", new Array(64).fill(0), "(64 empty bytes)", "Old BOOTP field for a server name — empty."],
+            ["Boot file name", new Array(128).fill(0), "(128 empty bytes)", "Old BOOTP field for a boot file (used when computers start from the network) — empty."],
+            ["Magic cookie", [0x63, 0x82, 0x53, 0x63], "DHCP", "<b>Magic cookie</b> 63 82 53 63 — says: DHCP options follow."],
+            ["Option 53: message type", opt(53, [DhcpMessage.TYPES[m.type]]), "DHCP " + m.type, "<b>DHCP message type</b> — " + m.type + ": " + (typeDesc[m.type] || "") + ". Discover → Offer → Request → Ack (“DORA”)."],
+        ];
+        if (m.opts.requested) f.push(["Option 50: requested IP", opt(50, ip(m.opts.requested)), m.opts.requested, "The address the client would like to get."]);
+        if (m.opts.serverId) f.push(["Option 54: server ID", opt(54, ip(m.opts.serverId)), m.opts.serverId, "Which DHCP server this is about — if there are several, everybody knows whose offer was chosen."]);
+        if (m.opts.lease) f.push(["Option 51: lease time", opt(51, Wire.u32(m.opts.lease)), m.opts.lease + " s", "<b>Lease time</b> — the address is borrowed, not given forever. The client must renew it in time."]);
+        if (m.opts.mask) f.push(["Option 1: subnet mask", opt(1, ip(m.opts.mask)), m.opts.mask, "The <b>netmask</b>: which addresses are in the local network."]);
+        if (m.opts.router) f.push(["Option 3: router", opt(3, ip(m.opts.router)), m.opts.router, "The <b>default gateway</b> — where to send packets for other networks."]);
+        if (m.opts.dns) f.push(["Option 6: DNS server", opt(6, ip(m.opts.dns)), m.opts.dns, "The <b>DNS server</b> that turns names into IP addresses."]);
+        if (m.opts.domain) f.push(["Option 15: domain name", opt(15, Wire.ascii(m.opts.domain)), m.opts.domain, "The <b>search domain</b>: “host1” will be looked up as “host1." + esc(m.opts.domain) + "”."]);
+        f.push(["Option 255: end", [255], "end", "End of the options."]);
+        return f;
+    }
+
+    static dnsName(n) {
+        const out = [];
+        n.split(".").filter(x => x).forEach(l => out.push(l.length, ...Wire.ascii(l)));
+        out.push(0);
+        return out;
+    }
+
+    static dnsFields(m) {
+        const flags = m.qr ? 0x8180 | (m.rcode & 15) : 0x0100;
+        const f = [
+            ["Transaction ID", Wire.u16(m.id), Wire.hex(m.id, 4), "<b>ID</b> — the question and its answer carry the same number, so the asker can match them."],
+            ["Flags", Wire.u16(flags), Wire.hex(flags, 4) + (m.qr ? (m.rcode == 3 ? " (response, no such name)" : " (response, no error)") : " (standard query, recursion desired)"),
+                "<b>Flags</b> — the first bit says question (0) or answer (1); the last 4 bits are the result code: 0 = OK, 3 = NXDOMAIN (no such name)."],
+            ["Questions", Wire.u16(1), "1", "How many questions follow."],
+            ["Answer RRs", Wire.u16(m.answers.length), String(m.answers.length), "How many answers (resource records) follow."],
+            ["Authority RRs", Wire.u16(0), "0", "Records about which server is responsible — none here."],
+            ["Additional RRs", Wire.u16(0), "0", "Extra records — none here."],
+            ["Query name", Wire.dnsName(m.qname), m.qname, "<b>The name</b>, written as labels: each part starts with its length (e.g. 5 h o s t 1, 3 l a b, 0)."],
+            ["Query type / class", [0, 1, 0, 1], "A (IPv4 address), IN", "<b>Type A</b> = “give me the IPv4 address”. Class IN = Internet."],
+        ];
+        m.answers.forEach(a => f.push(["Answer: " + a.name, [0xc0, 0x0c, 0, 1, 0, 1, ...Wire.u32(a.ttl), 0, 4, ...Wire.ip(a.ip)],
+            a.ip + " (TTL " + a.ttl + " s)", "<b>The answer</b>: name (as a 2-byte pointer c0 0c back to the question), type A, class IN, how long it may be cached (TTL), and the 4-byte IPv4 address <b>" + a.ip + "</b>."]));
+        return f;
     }
 
     static encodeIpv4(p, begin, field, end) {
-        const icmp = p.getPayload();
+        const isUdp = p.getValue("Protocol") == "UDP";
+        const icmp = isUdp ? null : p.getPayload();
         const ic = icmp ? Wire.icmpParts(icmp) : null;
-        const H = Wire.ipHeader(p, ic ? ic.bytes.length : 0);
+        const U = isUdp ? Wire.udpParts(p) : null;
+        const H = Wire.ipHeader(p, ic ? ic.bytes.length : U ? U.bytes.length : 0);
 
         begin("Internet Protocol v4", "ip", COLORS.IPv4,
             "Layer 3. The IP header carries the logical addresses; routers use them to forward packets between networks.");
         field("Version / IHL", [0x45], "4 / 20 bytes",
             "<b>0x45</b>: the high 4 bits say IP <b>version 4</b>, the low 4 bits the header length in 32-bit words (5 × 4 = 20 bytes).");
         field("DSCP / ECN", [0], "0x00", "<b>Differentiated services</b> — priority marking for quality of service. 0 = normal.");
-        field("Total length", Wire.u16(H.total), H.total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + (H.total - 20) + " bytes of ICMP).");
+        field("Total length", Wire.u16(H.total), H.total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + (H.total - 20) + " bytes of " + p.getValue("Protocol") + ").");
         field("Identification", Wire.u16(H.ident), Wire.hex(H.ident, 4), "<b>Identification</b> — a counter, used to put fragments of the same packet back together. Routers don't change it.");
         field("Flags / Fragment", [0x40, 0], "Don't fragment",
             "<b>Flags</b>: DF = don't fragment. Fragment offset 0 — this packet is not split up.");
@@ -211,6 +319,24 @@ class Wire {
         field("Destination address", Wire.ip(p.getValue("DstIP")), p.getValue("DstIP"), "<b>Destination IP</b> — where the packet should end up, maybe many networks away. Stays the same all the way, while the MAC addresses change at every router.");
         end();
 
+        if (U) {
+            begin("User Datagram Protocol", "udp", COLORS.UDP, "Layer 4. UDP adds port numbers, so the packet reaches the right program on the computer.");
+            const svc = { 67: "DHCP server", 68: "DHCP client", 53: "DNS" };
+            field("Source port", Wire.u16(U.sp), U.sp + (svc[U.sp] ? " (" + svc[U.sp] + ")" : ""), "<b>Source port</b> — which program sent it. The answer will go back to this port.");
+            field("Destination port", Wire.u16(U.dp), U.dp + (svc[U.dp] ? " (" + svc[U.dp] + ")" : ""), "<b>Destination port</b> — which program should get it: 67 = DHCP server, 68 = DHCP client, 53 = DNS server.");
+            field("Length", Wire.u16(U.len), U.len + " bytes", "<b>Length</b> of the UDP header (8 bytes) plus the data.");
+            field("Checksum", Wire.u16(U.sum), Wire.hex(U.sum, 4), "<b>Checksum</b> over the UDP data and a “pseudo header” with the IP addresses.");
+            end();
+            if (U.appF.length) {
+                const dh = U.app.kind == "DHCP";
+                begin(dh ? "DHCP" : "DNS", dh ? "dhcp" : "dns", dh ? COLORS.DHCP : COLORS.DNS,
+                    dh ? "Dynamic Host Configuration Protocol — gives a computer its IP address, gateway and DNS server automatically." :
+                        "Domain Name System — turns names like host1.lab into IP addresses.");
+                U.appF.forEach(([n, b, v, d]) => field(n, b, v, d));
+                end();
+            }
+            return;
+        }
         if (!ic) return;
         const names = { 8: "Echo request", 0: "Echo reply", 3: "Destination unreachable", 11: "Time exceeded" };
         begin("ICMP", "icmp", COLORS.ICMP, "Internet Control Message Protocol — used by ping and traceroute, and for error reports.");

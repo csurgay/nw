@@ -8,6 +8,8 @@ class Port extends Clickable {
         this.patch = null; // Reference to the Patch cable if connected
         this.hub = null; // Reference to the hub if attached
         this.dir = "down"; // direction the cable leaves the socket
+        this.vlan = 1; // switch port: access VLAN
+        this.trunk = false; // switch port: carries all VLANs with 802.1Q tags
         this.scale = 1;
         this.lastTx = -1e9;
         this.lastRx = -1e9;

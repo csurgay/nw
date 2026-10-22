@@ -10,6 +10,8 @@
     <script src="js/id.js" defer></script>
     <script src="js/terminal.js" defer></script>
     <script src="js/shell.js" defer></script>
+    <script src="js/fs.js" defer></script>
+    <script src="js/coreutils.js" defer></script>
     <script src="js/test.js" defer></script>
     <script src="js/init.js" defer></script>
     <script src="js/util.js" defer></script>
@@ -31,17 +33,22 @@
     <script src="js/routing.js" defer></script>
     <script src="js/frame.js" defer></script>
     <script src="js/pdu.js" defer></script>
+    <script src="js/udp.js" defer></script>
     <script src="js/ip.js" defer></script>
     <script src="js/port.js" defer></script>
     <script src="js/nic.js" defer></script>
     <script src="js/layer3.js" defer></script>
     <script src="js/host.js" defer></script>
     <script src="js/router.js" defer></script>
+    <script src="js/server.js" defer></script>
     <script src="js/patch.js" defer></script>
     <script src="js/hub.js" defer></script>
     <script src="js/viewport.js" defer></script>
     <script src="js/topologies.js" defer></script>
     <script src="js/topology.js" defer></script>
+    <script src="js/editor.js" defer></script>
+    <script src="js/lexicon.js" defer></script>
+    <script src="js/lexicon-data.js" defer></script>
     <script src="js/event.js" defer></script>
     <script src="js/main.js" defer></script>
 </head>
@@ -67,6 +74,8 @@
             </label>
             <div class="clock"><span id="simState" class="state run">running</span><span id="simTime">t = 0.0 s</span></div>
         </div>
+        <button class="ctl" id="btnLex" title="Illustrated lexicon of every term"><span>📖</span> Lexicon</button>
+        <span class="lang-sw" title="Language of the lexicon and the lessons"><button data-lang="en">EN</button><button data-lang="hu">HU</button></span>
         <div class="legend">
             <span class="chip" style="--c:var(--arp)">ARP</span>
             <span class="chip" style="--c:var(--icmp)">ICMP</span>
@@ -82,9 +91,12 @@
                 <select id="labSelect" title="Example networks, from simple to complex"></select>
                 <button class="labnav" id="labNext" title="Next lab">›</button>
                 <p class="labgoal" id="labGoal"></p>
+                <button class="ctl ctl-sm" id="btnEdit" title="Change this network: add, move, cable and delete devices">✎ Edit</button>
             </div>
             <div class="canvas-wrap" id="canvasWrap">
                 <canvas id="nwCanvas" width="1000" height="600"></canvas>
+                <div class="editbar" id="editbar" hidden></div>
+                <div class="edithint" id="editHint"></div>
                 <div class="stage-hint">Hover for a quick look · click any device, cable or frame to inspect it</div>
             </div>
         </section>
@@ -106,6 +118,7 @@
     </main>
 
     <div id="popups"></div>
+    <div id="lexicon" class="lexicon" hidden></div>
 </body>
 
 </html>

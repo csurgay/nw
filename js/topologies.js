@@ -1,4 +1,5 @@
 // Example networks, from the simplest to more complex ones.
+// The lab number shown in the menu is the position in this list.
 // Devices are numbered in the order they are listed (Host1, Host2…, Hub1…, Switch1…, Router1…).
 // Link ends: "Host3" (its first NIC), "Router1:2" (2nd interface), "Switch1:4" (port 4).
 // Host:   { type:"host", x, y, nic:"right|left|up", mirror, ip:"a.b.c.d/nn", gw }
@@ -42,8 +43,10 @@ function twoRouterLab(id, title, goal, loop, tries) {
 const TOPOLOGIES = [
     {
         id: "p2p",
-        title: "1 · Two PCs and one cable",
+        title: "Two PCs and one cable",
         goal: "The smallest network. Before Host1 can ping Host2 it must learn Host2's MAC address: watch the ARP request (broadcast) and the ARP reply, then the ping.",
+        title_hu: "Két gép, egy kábel",
+        goal_hu: "A legkisebb hálózat. Mielőtt a Host1 pingelhetné a Host2-t, meg kell tudnia a Host2 MAC-címét: figyeld az ARP-kérést (broadcast) és az ARP-választ, csak utána jön a ping.",
         devices: [
             { type: "host", x: 300, y: 250, nic: "right", ip: "192.168.1.1/24" },
             { type: "host", x: 652, y: 250, nic: "left", ip: "192.168.1.2/24" },
@@ -60,8 +63,10 @@ const TOPOLOGIES = [
     },
     {
         id: "hub",
-        title: "2 · A hub: everybody hears everything",
+        title: "A hub: everybody hears everything",
         goal: "A hub repeats every frame to every port. Ping from Host1 to Host3 and watch Host2 and Host4: their network cards receive the frames too, but throw them away because the destination MAC is not theirs.",
+        title_hu: "Hub: mindenki mindent hall",
+        goal_hu: "A hub minden keretet minden portjára kiküld. Pingelj a Host1-ről a Host3-ra, és figyeld a Host2-t és a Host4-et: az ő kártyájuk is megkapja a kereteket, de eldobja, mert a cél MAC-cím nem az övék.",
         devices: [
             { type: "hub", x: 380, y: 140, ports: 4 },
             { type: "host", x: 340, y: 300, nic: "up", ip: "192.168.1.1/24" },
@@ -82,8 +87,10 @@ const TOPOLOGIES = [
     },
     {
         id: "switch",
-        title: "3 · A switch learns MAC addresses",
+        title: "A switch learns MAC addresses",
         goal: "Same four PCs, but on a switch. The first frames are flooded like on a hub — meanwhile the switch learns which MAC is behind which port. Afterwards it sends each frame only to the right port. Open Switch1 to watch its MAC table grow.",
+        title_hu: "A switch megtanulja a MAC-címeket",
+        goal_hu: "Ugyanaz a négy gép, de switchen. Az első kereteket elárasztja, mint egy hub — közben megtanulja, melyik MAC-cím melyik port mögött van. Utána minden keretet csak a jó portra küld. Nyisd meg a Switch1-et, és figyeld, ahogy nő a MAC-táblája.",
         devices: [
             { type: "switch", x: 380, y: 140, ports: 4 },
             { type: "host", x: 340, y: 300, nic: "up", ip: "192.168.1.1/24" },
@@ -103,8 +110,10 @@ const TOPOLOGIES = [
     },
     {
         id: "hub-vs-switch",
-        title: "4 · Hub and switch side by side",
+        title: "Hub and switch side by side",
         goal: "Two separate little networks. Run the same ping on both and compare: on the hub every PC gets every frame, on the switch only the first (ARP broadcast and unknown) frames are flooded.",
+        title_hu: "Hub és switch egymás mellett",
+        goal_hu: "Két külön kis hálózat. Futtasd ugyanazt a pinget mindkettőn, és hasonlítsd össze: a hubon minden gép minden keretet megkap, a switchen csak az első (ARP broadcast és ismeretlen címzettű) kereteket árasztja el.",
         devices: [
             { type: "hub", x: 60, y: 140, ports: 4 },
             { type: "host", x: 60, y: 300, nic: "up", ip: "192.168.1.1/24" },
@@ -131,8 +140,10 @@ const TOPOLOGIES = [
     },
     {
         id: "two-switches",
-        title: "5 · Two switches with an uplink",
+        title: "Two switches with an uplink",
         goal: "A bigger LAN made of two switches. Notice that Switch1 learns all of Switch2's PCs behind one single port: the uplink (port 4).",
+        title_hu: "Két switch összekötve",
+        goal_hu: "Egy nagyobb helyi hálózat két switchből. Figyeld meg: a Switch1 a Switch2 összes gépét egyetlen port mögött tanulja meg — az összekötő (uplink) porton, a 4-esen.",
         devices: [
             { type: "switch", x: 72, y: 122, ports: 4 },
             { type: "host", x: 40, y: 250, nic: "up", ip: "192.168.1.11/24" },
@@ -156,9 +167,64 @@ const TOPOLOGIES = [
         ],
     },
     {
+        id: "vlan",
+        title: "VLANs: one switch, two worlds",
+        goal: "Ports 1–2 are in VLAN 10 (pink), ports 3–4 in VLAN 20 (blue). All four PCs are in the same IP network, yet Host1 can only reach Host2: the switch never lets a frame cross from one VLAN to the other — not even a broadcast.",
+        title_hu: "VLAN-ok: egy switch, két világ",
+        goal_hu: "Az 1–2. port a 10-es VLAN-ban (rózsaszín), a 3–4. port a 20-asban (kék). Mind a négy gép ugyanabban az IP-hálózatban van, mégis a Host1 csak a Host2-t éri el: a switch egyetlen keretet sem enged át egyik VLAN-ból a másikba — még a broadcastot sem.",
+        devices: [
+            { type: "switch", x: 380, y: 120, ports: 4, vlans: { 1: 10, 2: 10, 3: 20, 4: 20 } },
+            { type: "host", x: 340, y: 280, nic: "up", ip: "192.168.1.1/24" },
+            { type: "host", x: 430, y: 280, nic: "up", ip: "192.168.1.2/24" },
+            { type: "host", x: 520, y: 280, nic: "up", ip: "192.168.1.3/24" },
+            { type: "host", x: 610, y: 280, nic: "up", ip: "192.168.1.4/24" },
+        ],
+        links: [["Host1", "Switch1:1"], ["Host2", "Switch1:2"], ["Host3", "Switch1:3"], ["Host4", "Switch1:4"]],
+        zones: [
+            { x: 316, y: 250, w: 196, h: 140, label: "VLAN 10" },
+            { x: 496, y: 250, w: 196, h: 140, label: "VLAN 20", align: "right" },
+        ],
+        tries: [
+            ["same VLAN", "ssh Host1 ping -c 2 192.168.1.2"],
+            ["other VLAN", "ssh Host1 ping -c 1 192.168.1.3"],
+            ["VLAN 20", "ssh Host4 ping -c 2 192.168.1.3"],
+            ["ARP cache", "ssh Host3 ip neigh"],
+        ],
+    },
+    {
+        id: "vlan-trunk",
+        title: "A VLAN trunk between two switches",
+        goal: "Two VLANs spread over two switches. One cable (the trunk, port 4 ↔ port 1) carries both: every frame on it gets a small 802.1Q tag with its VLAN number — look for the “V10” and “V20” badges, then open a frame and find the tag in the bytes.",
+        title_hu: "VLAN-trunk két switch között",
+        goal_hu: "Két VLAN két switchen. Egyetlen kábel (a trunk, 4-es ↔ 1-es port) viszi mindkettőt: rajta minden keret kap egy kis 802.1Q címkét a VLAN számával — keresd a „V10” és „V20” jelvényeket, aztán nyiss ki egy keretet, és keresd meg a címkét a bájtok között.",
+        devices: [
+            { type: "switch", x: 72, y: 122, ports: 4, vlans: { 1: 10, 2: 20, 3: 10, 4: "trunk" } },
+            { type: "host", x: 40, y: 250, nic: "up", ip: "192.168.10.11/24" },
+            { type: "host", x: 126, y: 250, nic: "up", ip: "192.168.20.11/24" },
+            { type: "host", x: 212, y: 250, nic: "up", ip: "192.168.10.12/24" },
+            { type: "switch", x: 612, y: 122, ports: 4, vlans: { 1: "trunk", 2: 10, 3: 20, 4: 20 } },
+            { type: "host", x: 772, y: 250, nic: "up", mirror: true, ip: "192.168.10.21/24" },
+            { type: "host", x: 858, y: 250, nic: "up", mirror: true, ip: "192.168.20.21/24" },
+            { type: "host", x: 944, y: 250, nic: "up", mirror: true, ip: "192.168.20.22/24" },
+        ],
+        links: [
+            ["Host1", "Switch1:1"], ["Host2", "Switch1:2"], ["Host3", "Switch1:3"],
+            ["Host4", "Switch2:2"], ["Host5", "Switch2:3"], ["Host6", "Switch2:4"],
+            ["Switch1:4", "Switch2:1", { color: COLORS.uplink, sag: 40, kind: "Cat5e trunk cable (802.1Q, all VLANs)" }],
+        ],
+        zones: [{ x: 16, y: 100, w: 1014, h: 260, label: "VLAN 10 = 192.168.10.0/24 · VLAN 20 = 192.168.20.0/24" }],
+        tries: [
+            ["VLAN 10", "ssh Host1 ping -c 2 192.168.10.21"],
+            ["VLAN 20", "ssh Host2 ping -c 2 192.168.20.22"],
+            ["local", "ssh Host1 ping -c 1 192.168.10.12"],
+        ],
+    },
+    {
         id: "router",
-        title: "6 · A router joins two networks",
+        title: "A router joins two networks",
         goal: "Two LANs with different network addresses. Host1 sees that 192.168.2.10 is not in its own network, so it sends the packet to its default gateway (the router). Watch the router lower the TTL and wrap the packet in a new Ethernet frame — the MAC addresses change, the IP addresses don't.",
+        title_hu: "A router két hálózatot köt össze",
+        goal_hu: "Két helyi hálózat különböző címekkel. A Host1 látja, hogy a 192.168.2.10 nincs a saját hálózatában, ezért az alapértelmezett átjárójának (a routernek) küldi a csomagot. Figyeld, ahogy a router csökkenti a TTL-t, és új Ethernet-keretbe csomagolja a csomagot — a MAC-címek kicserélődnek, az IP-címek nem.",
         devices: [
             { type: "switch", x: 60, y: 140, ports: 4 },
             { type: "host", x: 60, y: 270, nic: "up", ip: "192.168.1.10/24", gw: "192.168.1.1" },
@@ -188,7 +254,7 @@ const TOPOLOGIES = [
             ["dead host", "ssh Host1 ping -c 1 192.168.2.99"],
         ],
     },
-    twoRouterLab("two-routers", "7 · Two routers: traceroute",
+    twoRouterLab("two-routers", "Two routers: traceroute",
         "Three networks in a row. Each router needs a route to the far LAN (ssh Router1 ip route). traceroute sends pings with TTL 1, 2, 3… — every router where the TTL runs out answers with “time exceeded”, and so reveals itself.",
         false, [
             ["traceroute", "ssh Host1 traceroute 192.168.2.10"],
@@ -197,7 +263,7 @@ const TOPOLOGIES = [
             ["R2 routes", "ssh Router2 ip route"],
             ["TTL 2", "ssh Host1 ping -c 1 -t 2 192.168.2.10"],
         ]),
-    twoRouterLab("routing-loop", "8 · A routing loop — why TTL exists",
+    twoRouterLab("routing-loop", "A routing loop — why TTL exists",
         "A configuration mistake: each router's default route points to the other one. A packet to an unknown network bounces between them until its TTL runs out. Without TTL it would circle forever.",
         true, [
             ["loop (TTL 6)", "ssh Host1 ping -c 1 -t 6 172.16.0.1"],
@@ -206,9 +272,116 @@ const TOPOLOGIES = [
             ["normal ping", "ssh Host1 ping -c 1 192.168.2.10"],
         ]),
     {
+        id: "inter-vlan",
+        title: "Routing between VLANs",
+        goal: "VLAN 10 and VLAN 20 are separate networks now (192.168.10.0/24 and 192.168.20.0/24). The router has one leg in each VLAN, so Host1 can reach Host2 — but only through the router: watch the same packet cross the switch twice, once in each VLAN.",
+        title_hu: "Útválasztás VLAN-ok között",
+        goal_hu: "A 10-es és a 20-as VLAN most két külön hálózat (192.168.10.0/24 és 192.168.20.0/24). A routernek mindkét VLAN-ban van egy lába, így a Host1 eléri a Host2-t — de csak a routeren át: figyeld, ahogy ugyanaz a csomag kétszer megy át a switchen, egyszer mindkét VLAN-ban.",
+        devices: [
+            { type: "switch", x: 300, y: 110, ports: 4, vlans: { 1: 10, 2: 20, 3: 10, 4: 20 } },
+            { type: "host", x: 250, y: 260, nic: "up", ip: "192.168.10.11/24", gw: "192.168.10.1" },
+            { type: "host", x: 340, y: 260, nic: "up", ip: "192.168.20.11/24", gw: "192.168.20.1" },
+            { type: "router", x: 600, y: 250, ifs: [{ ip: "192.168.10.1/24", side: "left" }, { ip: "192.168.20.1/24", side: "left" }] },
+        ],
+        links: [["Host1", "Switch1:1"], ["Host2", "Switch1:2"], ["Switch1:3", "Router1:1"], ["Switch1:4", "Router1:2"]],
+        zones: [{ x: 220, y: 86, w: 560, h: 290, label: "VLAN 10 = 192.168.10.0/24 · VLAN 20 = 192.168.20.0/24" }],
+        tries: [
+            ["ping", "ssh Host1 ping -c 2 192.168.20.11"],
+            ["traceroute", "ssh Host1 traceroute 192.168.20.11"],
+            ["router", "ssh Router1 ip route"],
+        ],
+    },
+    {
+        id: "dhcp",
+        title: "DHCP: addresses for free",
+        goal: "The three PCs have no IP address yet. Type dhclient on one of them and watch the four DHCP messages: Discover, Offer, Request, Ack (“DORA”). As the PC has no address, it has to shout (broadcast) — and the server answers with a broadcast too.",
+        title_hu: "DHCP: címek ingyen",
+        goal_hu: "A három gépnek még nincs IP-címe. Írd be valamelyiken: dhclient, és figyeld a négy DHCP-üzenetet: Discover, Offer, Request, Ack („DORA”). Mivel a gépnek nincs címe, kiabálnia kell (broadcast) — és a szerver is broadcasttal válaszol.",
+        devices: [
+            { type: "switch", x: 380, y: 120, ports: 4 },
+            { type: "server", x: 300, y: 270, nic: "up", ip: "192.168.1.2/24", dns: "192.168.1.2", domain: "lab",
+              dhcp: { range: "192.168.1.100-192.168.1.150", router: "192.168.1.1", dns: "192.168.1.2", domain: "lab", lease: 3600 },
+              zone: { domain: "lab", records: { server: "192.168.1.2" } } },
+            { type: "host", x: 430, y: 270, nic: "up", ip: "dhcp" },
+            { type: "host", x: 520, y: 270, nic: "up", ip: "dhcp" },
+            { type: "host", x: 610, y: 270, nic: "up", ip: "dhcp" },
+        ],
+        links: [["Server1", "Switch1:1"], ["Host1", "Switch1:2"], ["Host2", "Switch1:3"], ["Host3", "Switch1:4"]],
+        zones: [{ x: 270, y: 96, w: 450, h: 300, label: "192.168.1.0/24 — addresses from DHCP" }],
+        tries: [
+            ["dhclient", "ssh Host1 dhclient"],
+            ["address", "ssh Host1 ip addr"],
+            ["resolv.conf", "ssh Host1 cat /etc/resolv.conf"],
+            ["leases", "ssh Server1 cat /var/lib/dhcpd/dhcpd.leases"],
+            ["all PCs", "for i in {2..3}; do ssh Host$i dhclient; done"],
+            ["ping server", "ssh Host1 ping -c 2 server"],
+        ],
+    },
+    {
+        id: "dns",
+        title: "DNS: names instead of numbers",
+        goal: "People remember names, computers need numbers. Each PC knows the DNS server's address. Ask “ping host3” and watch: first a DNS question goes to the server (UDP port 53), the answer brings the IP address, and only then can the ping start.",
+        title_hu: "DNS: nevek számok helyett",
+        goal_hu: "Az emberek neveket jegyeznek meg, a gépeknek számok kellenek. Minden gép tudja a DNS-szerver címét. Kérd: „ping host3”, és figyeld: előbb egy DNS-kérdés megy a szerverhez (UDP 53-as port), a válasz hozza az IP-címet, és csak utána indulhat a ping.",
+        devices: [
+            { type: "switch", x: 380, y: 120, ports: 4 },
+            { type: "server", x: 300, y: 270, nic: "up", ip: "192.168.1.2/24", dns: "192.168.1.2", domain: "lab",
+              zone: { domain: "lab", records: { server: "192.168.1.2", host1: "192.168.1.11", host2: "192.168.1.12", host3: "192.168.1.13", www: "192.168.1.2" } } },
+            { type: "host", x: 430, y: 270, nic: "up", ip: "192.168.1.11/24", dns: "192.168.1.2", domain: "lab" },
+            { type: "host", x: 520, y: 270, nic: "up", ip: "192.168.1.12/24", dns: "192.168.1.2", domain: "lab" },
+            { type: "host", x: 610, y: 270, nic: "up", ip: "192.168.1.13/24", dns: "192.168.1.2", domain: "lab" },
+        ],
+        links: [["Server1", "Switch1:1"], ["Host1", "Switch1:2"], ["Host2", "Switch1:3"], ["Host3", "Switch1:4"]],
+        zones: [{ x: 270, y: 96, w: 450, h: 300, label: "zone “lab” — host1.lab, host2.lab, host3.lab, www.lab" }],
+        tries: [
+            ["host", "ssh Host1 host host3"],
+            ["nslookup", "ssh Host1 nslookup www.lab"],
+            ["ping name", "ssh Host1 ping -c 2 host3"],
+            ["unknown", "ssh Host1 host nobody"],
+            ["zone file", "ssh Server1 cat /var/named/lab.zone"],
+        ],
+    },
+    {
+        id: "office",
+        title: "A small office network",
+        goal: "Everything together. The PCs get their address, gateway and DNS server by DHCP. Then a name (www) is turned into an IP address by DNS, and the router carries the packets to the server room network.",
+        title_hu: "Egy kis irodai hálózat",
+        goal_hu: "Minden együtt. A gépek DHCP-vel kapnak címet, átjárót és DNS-szervert. Aztán a DNS egy nevet (www) IP-címmé alakít, a router pedig átviszi a csomagokat a szerverterem hálózatába.",
+        devices: [
+            { type: "switch", x: 40, y: 100, ports: 4 },
+            { type: "server", x: 40, y: 230, nic: "up", ip: "192.168.1.2/24", gw: "192.168.1.1", dns: "192.168.1.2", domain: "lab",
+              dhcp: { range: "192.168.1.100-192.168.1.150", router: "192.168.1.1", dns: "192.168.1.2", domain: "lab", lease: 3600 },
+              zone: { domain: "lab", records: { server: "192.168.1.2", gw: "192.168.1.1", www: "10.0.0.80", files: "10.0.0.20" } } },
+            { type: "host", x: 126, y: 230, nic: "up", ip: "dhcp" },
+            { type: "host", x: 212, y: 230, nic: "up", ip: "dhcp" },
+            { type: "switch", x: 640, y: 100, ports: 4 },
+            { type: "server", x: 760, y: 230, nic: "up", ip: "10.0.0.80/24", gw: "10.0.0.1" },
+            { type: "server", x: 846, y: 230, nic: "up", ip: "10.0.0.20/24", gw: "10.0.0.1" },
+            { type: "router", x: 420, y: 330, ifs: [{ ip: "192.168.1.1/24", side: "left" }, { ip: "10.0.0.1/24", side: "right" }] },
+        ],
+        links: [
+            ["Server1", "Switch1:1"], ["Host1", "Switch1:2"], ["Host2", "Switch1:3"], ["Switch1:4", "Router1:1"],
+            ["Switch2:1", "Router1:2"], ["Server2", "Switch2:2"], ["Server3", "Switch2:3"],
+        ],
+        zones: [
+            { x: 16, y: 80, w: 330, h: 262, label: "office LAN — 192.168.1.0/24" },
+            { x: 620, y: 80, w: 330, h: 262, label: "server room — 10.0.0.0/24", align: "right" },
+        ],
+        tries: [
+            ["dhclient", "ssh Host1 dhclient"],
+            ["ping www", "ssh Host1 ping -c 2 www"],
+            ["traceroute", "ssh Host1 traceroute www"],
+            ["host", "ssh Host1 host files"],
+            ["Host2 too", "ssh Host2 dhclient"],
+            ["routes", "ssh Host1 ip route"],
+        ],
+    },
+    {
         id: "classic",
-        title: "9 · The original lab (used by the test suite)",
+        title: "The original lab (used by the test suite)",
         goal: "Three point-to-point links and two hubs joined by an uplink, all in 192.168.1.0/24. Run “test” in the terminal to check the simulator.",
+        title_hu: "Az eredeti labor (a tesztek ezt használják)",
+        goal_hu: "Három pont-pont kapcsolat és két hub összekötve, mind a 192.168.1.0/24-ben. Írd be a terminálba: „test”, és a szimulátor ellenőrzi magát.",
         devices: [
             { type: "host", x: 160, y: 300, nic: "right", ip: "192.168.1.1/24" },
             { type: "host", x: 792, y: 300, nic: "left", ip: "192.168.1.2/24" },
@@ -246,3 +419,5 @@ const TOPOLOGIES = [
         ],
     },
 ];
+Object.assign(TOPOLOGIES.find(t => t.id == "two-routers"), { title_hu: "Két router: traceroute", goal_hu: "Három hálózat egymás után. Mindkét routernek kell útvonal a túlsó hálózathoz (ssh Router1 ip route). A traceroute 1, 2, 3… TTL-lel küld pingeket — minden router, ahol lejár a TTL, „time exceeded”-et válaszol, és ezzel lebukik." });
+Object.assign(TOPOLOGIES.find(t => t.id == "routing-loop"), { title_hu: "Útválasztási hurok — ezért van TTL", goal_hu: "Egy beállítási hiba: mindkét router alapértelmezett útvonala a másikra mutat. Egy ismeretlen hálózatba tartó csomag ide-oda pattog köztük, amíg el nem fogy a TTL-je. TTL nélkül örökké keringene." });

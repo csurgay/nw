@@ -8,7 +8,12 @@ class Layer3 {
     }
 
     isLocal(ip) {
-        return this.host.nics.some(n => n.ip && n.ip.ip == ip);
+        return ip == "255.255.255.255" || this.host.nics.some(n => n.ip && n.ip.ip == ip);
+    }
+
+    // limited broadcast (255.255.255.255) leaves on the given card, no routing, no ARP
+    sendBroadcast(nic, packet) {
+        this.host.l2.sendFrame(nic, 'IPv4', packet, "255.255.255.255");
     }
 
     sendArpRequest(ip, nic) {
@@ -52,6 +57,9 @@ class Layer3 {
         if (protocol == 'ICMP') {
             this.icmp.processIcmpPayload(payload, nic, frame);
         }
+        else if (protocol == 'UDP') {
+            this.host.udp.receive(payload, nic, frame);
+        }
     }
 
     // Router: decrement TTL, look up the next hop, build a new frame
@@ -90,7 +98,8 @@ class Layer3 {
         const icmp = new IcmpPacket(type, 0, 0);
         icmp.code = code;
         icmp.orig = orig;
-        const nic = inNic || this.routing.route(orig.getValue("SrcIP")) || this.host.nics[0];
+        const nic = inNic && inNic.ip ? inNic : (this.routing.route(orig.getValue("SrcIP")) || this.host.nics.find(n => n.ip));
+        if (!nic) return;
         const pkt = new IpPacket("ICMP", nic.ip.ip, orig.getValue("SrcIP"), icmp);
         this.sendIp(pkt);
     }

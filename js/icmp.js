@@ -8,7 +8,7 @@ class ICMP {
 
     static errText(icmp) {
         if (icmp.getValue("Type") == "TimeExceeded") return "Time to live exceeded";
-        return icmp.code == 1 ? "Destination Host Unreachable" : "Destination Net Unreachable";
+        return icmp.code == 1 ? "Destination Host Unreachable" : icmp.code == 3 ? "Destination Port Unreachable" : "Destination Net Unreachable";
     }
 
     processIcmpPayload(payload, nic, frame) {
@@ -99,17 +99,38 @@ class ICMP {
             shell.t.println("ping: usage error: Destination address required");
             return true;
         }
-        if (!IP.isValid(dst)) {
-            shell.t.println("ping: " + dst + ": Name or service not known");
-            return true;
-        }
+        return this.withName(shell, "ping", dst, ip => this.startPing(shell, dst, ip, count, interval, ttl));
+    }
+
+    // resolve a name first (DNS), then go on; returns the showPrompt flag
+    withName(shell, cmd, name, go) {
+        if (IP.isValid(name)) return go(name);
+        const t = this.host.terminal;
+        const pend = { active: true };
+        let req = null;
+        pend.cancel = () => { pend.active = false; if (req) req.cancel(); };
+        shell.job = pend;
+        req = this.host.resolver.resolve(name, (ip, err) => {
+            if (!pend.active) return;
+            pend.active = false;
+            if (shell.job == pend) shell.job = null;
+            if (!ip) {
+                if (err) { t.println(cmd + ": " + name + ": " + err); t.showPrompt(); }
+                return;
+            }
+            if (go(ip)) t.showPrompt();
+        });
+        return !pend.active ? (shell.job == pend ? (shell.job = null, true) : false) : false;
+    }
+
+    startPing(shell, name, dst, count, interval, ttl) {
         if (!this.host.l3.routing.lookup(dst)) {
             shell.t.println("ping: connect: Network is unreachable");
             return true;
         }
-        shell.t.println("PING " + dst + " (" + dst + ") 56(84) bytes of data.");
+        shell.t.println("PING " + name + " (" + dst + ") 56(84) bytes of data.");
         const job = {
-            kind: "ping", dst, count, interval, ttl, active: true, ident: Math.floor(Math.random() * 65535) + 1,
+            kind: "ping", dst, name, count, interval, ttl, active: true, ident: Math.floor(Math.random() * 65535) + 1,
             sent: 0, recv: 0, errors: 0, rtts: [], sentAt: {}, got: {}, start: Sim.time, timer: null,
         };
         job.cancel = (printStats) => {
@@ -142,15 +163,15 @@ class ICMP {
             shell.t.println("Usage: traceroute [-I] [-m max_ttl] host");
             return true;
         }
-        if (!IP.isValid(dst)) {
-            shell.t.println(dst + ": Name or service not known");
-            return true;
-        }
+        return this.withName(shell, "traceroute", dst, ip => this.startTrace(shell, dst, ip, max));
+    }
+
+    startTrace(shell, name, dst, max) {
         if (!this.host.l3.routing.lookup(dst)) {
             shell.t.println("connect: Network is unreachable");
             return true;
         }
-        shell.t.println("traceroute to " + dst + " (" + dst + "), " + max + " hops max, 60 byte packets");
+        shell.t.println("traceroute to " + name + " (" + dst + "), " + max + " hops max, 60 byte packets");
         const job = {
             kind: "trace", dst, max, hop: 0, active: true, ident: Math.floor(Math.random() * 65535) + 1,
             sentAt: {}, timer: null, start: Sim.time,
@@ -210,7 +231,7 @@ class ICMP {
         const t = this.host.terminal;
         const loss = job.sent ? Math.round(100 * (job.sent - job.recv) / job.sent) : 0;
         t.println("");
-        t.println("--- " + job.dst + " ping statistics ---");
+        t.println("--- " + (job.name || job.dst) + " ping statistics ---");
         t.println(job.sent + " packets transmitted, " + job.recv + " received, " +
             (job.errors ? "+" + job.errors + " errors, " : "") + loss + "% packet loss, time " +
             Math.round((job.sentAt[job.sent] || job.start) - job.start) + "ms");

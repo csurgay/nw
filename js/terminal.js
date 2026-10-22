@@ -62,7 +62,8 @@ class Terminal {
 
     quitToConsole() {
         this.host = "console";
-        this.prompt = Terminal.consolePrompt;
+        if (typeof shell != "undefined" && shell.toConsole) shell.toConsole();
+        else this.prompt = Terminal.consolePrompt;
         this.historyIndex = 0;
     }
 

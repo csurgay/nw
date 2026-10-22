@@ -31,12 +31,24 @@ class Frame extends Drawable {
         frame.history = this.history.slice();
         frame.copyOf = this;
         frame._wire = this._wire;
+        frame.vlan = this.vlan;
         return frame;
     }
 
     proto() {
-        if (this.etherType == "IPv4") return this.payload.getValue("Protocol") == "ICMP" ? "ICMP" : "IPv4";
+        if (this.etherType == "IPv4") {
+            const pr = this.payload.getValue("Protocol");
+            if (pr == "UDP") {
+                const app = this.payload.getPayload() && this.payload.getPayload().getPayload();
+                return app && app.kind ? app.kind : "UDP";
+            }
+            return pr == "ICMP" ? "ICMP" : "IPv4";
+        }
         return this.etherType;
+    }
+
+    app() { // DHCP / DNS message inside UDP
+        return this.payload.getPayload().getPayload();
     }
 
     color() {
@@ -60,6 +72,8 @@ class Frame extends Drawable {
     }
 
     isReply() {
+        if (this.proto() == "DHCP") return this.app().op == 2;
+        if (this.proto() == "DNS") return this.app().qr;
         if (this.etherType == "ARP") return this.payload.getValue("OpCode") == "ArpReply";
         if (this.proto() == "ICMP") return this.payload.getPayload().getValue("Type") == "EchoReply";
         return false;
@@ -69,6 +83,8 @@ class Frame extends Drawable {
     label() {
         const p = this.proto();
         if (p == "ARP") return this.isReply() ? "ARP reply" : "ARP who-has";
+        if (p == "DHCP") return "DHCP " + this.app().type.toLowerCase();
+        if (p == "DNS") return this.app().qr ? "DNS answer" : "DNS query";
         if (p == "ICMP" && this.isError()) return this.payload.getPayload().getValue("Type") == "TimeExceeded" ? "TTL exceeded" : "unreachable";
         if (p == "ICMP") return (this.isReply() ? "pong #" : "ping #") + this.payload.getPayload().getValue("Seq");
         return p;
@@ -118,6 +134,17 @@ class Frame extends Drawable {
         // reply marker / request marker
         Gfx.text(this.isError() ? "!" : this.isReply() ? "↩" : (this.proto() == "LLDP" ? "i" : "?"), x + 2 * s, y + 4 * s,
             { size: 10 * s, weight: 800, color: "rgba(10,15,20,.85)" });
+        // 802.1Q tag on a trunk: a coloured badge
+        if (this.vlan) {
+            const vc = vlanColor(this.vlan);
+            Gfx.rrect(x - w / 2 - 4, y + h / 2 - 2, 26, 11, 3);
+            ctx.fillStyle = "rgba(10,15,22,.92)";
+            ctx.fill();
+            ctx.strokeStyle = vc;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            Gfx.text("V" + this.vlan, x - w / 2 + 9, y + h / 2 + 6.5, { size: 8, weight: 800, color: vc, mono: true });
+        }
         // label above
         const lbl = this.label();
         ctx.font = "700 10px Inter, system-ui, sans-serif";
@@ -141,7 +168,7 @@ class Frame extends Drawable {
         return [
             `${this.id} · ${this.proto()} ${this.isError() ? "error" : this.isReply() ? "reply" : this.proto() == "LLDP" ? "advertisement" : "request"}`,
             this.infoText(),
-            `dst ${this.macDst}`,
+            `dst ${this.macDst}` + (this.vlan ? `   VLAN ${this.vlan} (802.1Q tag)` : ""),
             `src ${this.macSrc}`,
             `${this.wire().bytes.length} bytes · click to dissect`,
         ];
