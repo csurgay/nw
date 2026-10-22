@@ -91,13 +91,20 @@ class Router extends Host {
             const off = { left: [{ x: 10, y: -5 }, { x: 10, y: 5 }], right: [{ x: -10, y: -5 }, { x: -10, y: 5 }],
                 up: [{ x: -6, y: 10 }, { x: 6, y: 10 }], down: [{ x: -6, y: -10 }, { x: 6, y: -10 }] }[nic.dir];
             nic.drawJack(off);
-            const ip = nic.ip ? nic.ip.toString() : nic.id + ": no IP";
-            if (nic.dir == "left") Gfx.text(ip, nic.x - 4, nic.y - 13, { size: 9, mono: true, align: "right", color: "#9fd8b5" });
-            if (nic.dir == "right") Gfx.text(ip, nic.x + 4, nic.y - 13, { size: 9, mono: true, align: "left", color: "#9fd8b5" });
-            if (nic.dir == "up") Gfx.text(ip, nic.x + 12, nic.y - 6, { size: 9, mono: true, align: "left", color: "#9fd8b5" });
-            if (nic.dir == "down") Gfx.text(ip, nic.x + 12, nic.y + 14, { size: 9, mono: true, align: "left", color: "#9fd8b5" });
         });
         Gfx.text(this.id.toString(), cx, y + h + 16, { size: 12, weight: 700, color: session ? "#86efac" : COLORS.label });
+    }
+
+    // interface addresses: drawn after the cables so a cable never hides them
+    drawLabels() {
+        this.nics.forEach(nic => {
+            const ip = nic.ip ? nic.ip.toString() : nic.id + ": no IP";
+            const o = { size: 9, mono: true, align: "left", color: "#9fd8b5", halo: true };
+            if (nic.dir == "left") Gfx.text(ip, nic.x - 4, nic.y - 13, Object.assign(o, { align: "right" }));
+            if (nic.dir == "right") Gfx.text(ip, nic.x + 4, nic.y - 13, o);
+            if (nic.dir == "up") Gfx.text(ip, nic.x + 12, nic.y - 6, o);
+            if (nic.dir == "down") Gfx.text(ip, nic.x + 12, nic.y + 14, o);
+        });
     }
 
     tooltipLines() {

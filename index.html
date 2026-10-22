@@ -12,6 +12,7 @@
     <script src="js/shell.js" defer></script>
     <script src="js/fs.js" defer></script>
     <script src="js/coreutils.js" defer></script>
+    <script src="js/complete.js" defer></script>
     <script src="js/test.js" defer></script>
     <script src="js/init.js" defer></script>
     <script src="js/util.js" defer></script>
@@ -97,7 +98,12 @@
                 <canvas id="nwCanvas" width="1000" height="600"></canvas>
                 <div class="editbar" id="editbar" hidden></div>
                 <div class="edithint" id="editHint"></div>
-                <div class="stage-hint">Hover for a quick look · click any device, cable or frame to inspect it</div>
+                <div class="zoomctl" id="zoomCtl">
+                    <button data-z="out" title="Zoom out (Ctrl + mouse wheel)">−</button>
+                    <button data-z="fit" id="zoomPct" title="Show the whole network (or double-click the background)">100%</button>
+                    <button data-z="in" title="Zoom in (Ctrl + mouse wheel)">+</button>
+                </div>
+                <div class="stage-hint">Hover for a quick look · click to inspect · drag to move the picture · Ctrl + wheel to zoom</div>
             </div>
         </section>
 

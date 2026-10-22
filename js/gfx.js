@@ -67,6 +67,12 @@ const Gfx = {
             (opts.mono ? "ui-monospace, Menlo, Consolas, monospace" : "Inter, system-ui, sans-serif");
         ctx.textAlign = opts.align || "center";
         ctx.textBaseline = opts.base || "alphabetic";
+        if (opts.halo) { // dark outline: stays readable on top of a cable
+            ctx.lineWidth = 3.5;
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = "rgba(14,20,28,.92)";
+            ctx.strokeText(str, x, y);
+        }
         ctx.fillStyle = opts.color || COLORS.label;
         ctx.fillText(str, x, y);
     },

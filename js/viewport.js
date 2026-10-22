@@ -11,6 +11,9 @@ const App = {
     mx: -1, my: -1,       // mouse in screen (css) pixels relative to the canvas
     last: 0,
     zones: [],
+    uz: 1,                // the user's zoom (Ctrl + wheel) on top of the fitted view
+    px: 0, py: 0,         // the user's panning (drag), in screen pixels
+    pan: null,            // drag in progress
 
     init() {
         this.stage = document.getElementById("canvasWrap");
@@ -23,17 +26,52 @@ const App = {
             const p = this.toWorld(this.mx, this.my);
             mouse.moveTo(p.x, p.y);
             this.hover = this.pick(p.x, p.y);
-            nwCanvas.style.cursor = this.hover ? "pointer" : "default";
+            if (!this.pan) nwCanvas.style.cursor = this.hover ? "pointer" : "grab";
         });
         nwCanvas.addEventListener("mouseleave", () => { this.hover = null; this.mx = -1; });
         nwCanvas.addEventListener("mousedown", ev => {
+            if (ev.button != 0) return;
             const p = this.eventPoint(ev);
-            if (Editor.mousedown(p, this.pick(p.x, p.y))) ev.preventDefault();
+            if (Editor.mousedown(p, this.pick(p.x, p.y))) { ev.preventDefault(); return; }
+            // anything else: dragging moves the whole picture
+            this.pan = { x: ev.clientX, y: ev.clientY, px: this.px, py: this.py, moved: false };
+            ev.preventDefault();
         });
         window.addEventListener("mousemove", ev => {
+            if (this.pan) {
+                const dx = ev.clientX - this.pan.x, dy = ev.clientY - this.pan.y;
+                if (!this.pan.moved && Math.hypot(dx, dy) < 4) return;
+                this.pan.moved = true;
+                this.px = this.pan.px + dx;
+                this.py = this.pan.py + dy;
+                this.applyView();
+                nwCanvas.style.cursor = "grabbing";
+                return;
+            }
             if (Editor.on) Editor.mousemove(this.eventPoint(ev));
         });
-        window.addEventListener("mouseup", () => { this.suppressClick = Editor.mouseup(); });
+        window.addEventListener("mouseup", () => {
+            if (this.pan) {
+                this.suppressClick = this.pan.moved;
+                this.pan = null;
+                nwCanvas.style.cursor = this.hover ? "pointer" : "grab";
+                return;
+            }
+            this.suppressClick = Editor.mouseup();
+        });
+        // Ctrl + wheel (or a pinch on a touchpad) zooms around the mouse pointer
+        nwCanvas.addEventListener("wheel", ev => {
+            if (!ev.ctrlKey && !ev.metaKey) return;
+            ev.preventDefault();
+            const r = nwCanvas.getBoundingClientRect();
+            const f = Math.exp(-ev.deltaY * (ev.deltaMode == 1 ? 0.05 : 0.0015));
+            this.zoomAt(ev.clientX - r.left, ev.clientY - r.top, f);
+        }, { passive: false });
+        // double click on the empty background: show the whole network again
+        nwCanvas.addEventListener("dblclick", ev => {
+            const p = this.eventPoint(ev);
+            if (!this.pick(p.x, p.y) && !Editor.on) this.resetView();
+        });
         nwCanvas.addEventListener("click", ev => {
             const p = this.eventPoint(ev);
             const obj = this.pick(p.x, p.y);
@@ -44,6 +82,12 @@ const App = {
                 Sim.pause(); // freeze the wire so the frame can be studied
             }
             Inspector.open(obj, { x: ev.clientX + 18, y: ev.clientY - 30 });
+        });
+        document.getElementById("zoomCtl").addEventListener("click", ev => {
+            const b = ev.target.closest("button");
+            if (!b) return;
+            if (b.dataset.z == "fit") return this.resetView();
+            this.zoomAt(this.cw / 2, this.ch / 2, b.dataset.z == "in" ? 1.25 : 0.8);
         });
         this.initControls();
         requestAnimationFrame(t => this.loop(t));
@@ -56,9 +100,35 @@ const App = {
         nwCanvas.height = Math.round(r.height * this.dpr);
         this.cw = r.width; this.ch = r.height;
         const v = this.view || { x: 0, y: 0, w: this.W, h: this.H };
-        this.scale = Math.min(r.width / v.w, (r.height - 24) / v.h);
-        this.ox = (r.width - v.w * this.scale) / 2 - v.x * this.scale;
-        this.oy = Math.max(4, (r.height - 24 - v.h * this.scale) / 2) - v.y * this.scale;
+        this.bs = Math.min(r.width / v.w, (r.height - 24) / v.h);
+        this.bx = (r.width - v.w * this.bs) / 2 - v.x * this.bs;
+        this.by = Math.max(4, (r.height - 24 - v.h * this.bs) / 2) - v.y * this.bs;
+        this.applyView();
+    },
+
+    // fitted view, then the user's zoom and pan on top: screen = fitted * uz + pan
+    applyView() {
+        this.scale = this.bs * this.uz;
+        this.ox = this.bx * this.uz + this.px;
+        this.oy = this.by * this.uz + this.py;
+        const pct = document.getElementById("zoomPct");
+        if (pct) pct.textContent = Math.round(this.uz * 100) + "%";
+    },
+
+    // zoom by f keeping the point under (sx, sy) in place
+    zoomAt(sx, sy, f) {
+        const uz = Math.min(8, Math.max(0.2, this.uz * f));
+        f = uz / this.uz;
+        this.px = sx - (sx - this.px) * f;
+        this.py = sy - (sy - this.py) * f;
+        this.uz = uz;
+        this.applyView();
+    },
+
+    resetView() {
+        this.uz = 1;
+        this.px = this.py = 0;
+        this.applyView();
     },
 
     // zoom to the current network: bounding box of devices and zones
@@ -67,6 +137,8 @@ const App = {
         const add = b => { if (!b) return; x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); };
         this.devices().forEach(d => add(d.bounds()));
         this.zones.forEach(add);
+        this.uz = 1;
+        this.px = this.py = 0;
         if (x0 > x1) { this.view = null; return this.resize(); }
         const m = 24;
         x0 -= m; y0 -= m; x1 += m; y1 += m;
@@ -141,8 +213,11 @@ const App = {
 
         this.drawZones();
         const hov = this.hover;
-        this.list("Patch").forEach(p => p.drawCable(hov == p));
+        // devices first, then the cables: a cable hangs in front of the panel
+        // from the plug down, it is not hidden behind the box
         this.devices().forEach(h => h.draw());
+        this.list("Patch").forEach(p => p.drawCable(hov == p));
+        this.devices().forEach(h => { if (h.drawLabels) h.drawLabels(); });
 
         // outline for hovered object and for objects with an open popup
         const outline = (o, strong) => {

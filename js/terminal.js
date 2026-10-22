@@ -104,6 +104,26 @@ class Terminal {
         this.historyIndex = 0;
     }
 
+    // TAB: complete the word; TAB TAB: show what could come here
+    tab() {
+        if (this.booting || typeof Completion == "undefined") return;
+        const v = this.textarea.value;
+        const start = v.lastIndexOf(this.prompt) + this.prompt.length;
+        const line = v.substring(start);
+        const r = Completion.complete(shell, line);
+        if (r.line != line) {
+            this.textarea.value = v.substring(0, start) + r.line;
+            this.lastTab = r.list.length > 1 ? r.line : null; // still several: the next TAB lists them
+        }
+        else if (r.list.length && this.lastTab === line) {
+            this.textarea.value += "\n" + Coreutils.columns(r.list) + "\n" + this.prompt + line;
+            this.lastTab = null;
+        }
+        else this.lastTab = line;
+        this.textarea.selectionStart = this.textarea.selectionEnd = this.textarea.value.length;
+        this.showBottom();
+    }
+
     lastLines() {
         let lines = this.textarea.value.split("\n");
         let l = lines.length;
@@ -115,6 +135,12 @@ class Terminal {
     }
 
     keypress(evt) {
+        if (evt.key == "Tab") {
+            evt.preventDefault();
+            this.tab();
+            return;
+        }
+        if (evt.key != "Shift") this.lastTab = null;
         if (["ArrowUp","ArrowDown","Control"].includes(evt.key)) evt.preventDefault();
         if (evt.key == "ArrowLeft") {
             if (this.textarea.selectionStart - 

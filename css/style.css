@@ -431,3 +431,17 @@ select.vsel option { color: var(--text); background: #0b1016; }
     .lex-body { flex-direction: column; }
     .lex-nav { width: auto; max-height: 34%; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* ---------- zoom buttons ---------- */
+.zoomctl {
+    position: absolute; right: 12px; top: 10px; z-index: 4; display: flex;
+    border: 1px solid var(--line2); border-radius: 8px; overflow: hidden;
+    background: rgba(15, 22, 31, .9); box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+.zoomctl button {
+    background: transparent; border: 0; color: var(--muted); cursor: pointer;
+    height: 28px; min-width: 28px; padding: 0 7px; font: 600 13px var(--mono);
+}
+.zoomctl button + button { border-left: 1px solid var(--line2); }
+.zoomctl button:hover { background: #1c2735; color: #fff; }
+#zoomPct { min-width: 52px; font-size: 11px; }
