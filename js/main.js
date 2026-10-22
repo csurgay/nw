@@ -3,6 +3,7 @@ Lang.init();
 Lexicon.init(LEXICON);
 EventLog.init(document.getElementById("eventLog"));
 App.init();
+Layout.init();
 Topology.initUI();
 Editor.initUI();
 Lang.onChange(() => { Topology.fillSelect(); Topology.syncUI(); });

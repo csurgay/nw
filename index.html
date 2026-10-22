@@ -51,6 +51,7 @@
     <script src="js/lexicon.js" defer></script>
     <script src="js/lexicon-data.js" defer></script>
     <script src="js/event.js" defer></script>
+    <script src="js/layout.js" defer></script>
     <script src="js/main.js" defer></script>
 </head>
 
@@ -107,12 +108,14 @@
             </div>
         </section>
 
-        <aside class="side">
+        <div class="vsplit" id="splitV" title="Drag to make the terminal wider or narrower · double-click: default"></div>
+        <aside class="side" id="side">
             <div class="panel panel-term">
                 <div class="panel-h"><span class="dot"></span>Terminal<span class="panel-note">real Linux commands</span></div>
                 <textarea id="nwConsole" spellcheck="false" autocomplete="off"></textarea>
                 <div class="tries" id="tries"></div>
             </div>
+            <div class="hsplit" id="splitH" title="Drag to share the height between terminal and event log · double-click: default"></div>
             <div class="panel panel-log">
                 <div class="panel-h"><span class="dot dot-log"></span>Event log
                     <span class="panel-note" id="logCount"></span>

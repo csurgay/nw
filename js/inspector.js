@@ -126,12 +126,18 @@ class Inspector {
                 const b = document.createElement("button");
                 const myInput = input; // each button uses the input box before it
                 b.className = "act";
-                b.textContent = a.label;
-                b.title = (a.cmd || a.tpl || "").replace("{}", "<…>");
+                const val = v => typeof v == "function" ? v() : v;
+                const label = () => {
+                    b.textContent = val(a.label);
+                    b.title = (val(a.cmd) || a.tpl || "").replace("{}", "<…>");
+                };
+                label();
+                if (typeof a.label == "function") (w.live = w.live || []).push(label);
                 if (myInput) b.dataset.forInput = "1";
                 b.addEventListener("click", () => {
-                    const cmd = a.cmd || a.tpl.replace("{}", (myInput ? myInput.value.trim() : ""));
+                    const cmd = val(a.cmd) || a.tpl.replace("{}", (myInput ? myInput.value.trim() : ""));
                     terminal.runCommand(cmd);
+                    label();
                 });
                 f.appendChild(b);
             }
@@ -214,6 +220,9 @@ class Inspector {
     static tick(now) {
         if (now - Inspector.lastRefresh < 250) return;
         Inspector.lastRefresh = now;
-        Inspector.wins.forEach(w => Inspector.render(w));
+        Inspector.wins.forEach(w => {
+            Inspector.render(w);
+            if (w.live) w.live.forEach(f => f());
+        });
     }
 }

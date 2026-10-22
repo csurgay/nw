@@ -244,6 +244,8 @@ class Host extends Clickable {
         };
     }
 
+    lldpOn() { return !!(this.l2.lldp && this.l2.lldp.enabled); }
+
     actions() {
         const peer = this.peers()[0];
         const target = peer && peer.ip ? peer.ip.ip : "192.168.1.2";
@@ -252,7 +254,10 @@ class Host extends Clickable {
         return [
             { label: "Open shell", cmd: `ssh ${id}` },
             ...(this.useDhcp || !(n && n.ip) ? [{ label: "dhclient", cmd: `ssh ${id} dhclient` }] : []),
-            { label: "Start lldpd", cmd: `ssh ${id} systemctl start lldpd` },
+            {   // one button that follows the state of the daemon
+                label: () => this.lldpOn() ? "Stop lldpd" : "Start lldpd",
+                cmd: () => `ssh ${id} systemctl ${this.lldpOn() ? "stop" : "start"} lldpd`,
+            },
             { label: "Send LLDP", cmd: `ssh ${id} lldpcli update` },
             { sep: true },
             { input: target, title: "IP address or name" },
