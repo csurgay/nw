@@ -29,8 +29,9 @@ class Shell {
         };
     }
 
-    // [root@Host1 etc]#  — shows the last part of the current directory
+    // [root@host1 etc]#  — shows the last part of the current directory
     updatePrompt() {
+        if (this.host && this.host.cli) { this.t.prompt = this.host.cli.prompt(); return; } // IOS-style switch
         const home = this.host ? "/root" : "/home/admin";
         const dir = this.cwd == home ? "~" : this.cwd == "/" ? "/" : Vfs.base(this.cwd);
         this.t.prompt = this.host ? `[root@${this.host.id} ${dir}]# ` : `[admin@console ${dir}]$ `;
@@ -243,13 +244,18 @@ class Shell {
     // commands that only make sense on a host, not on the admin console
     needHost(name) {
         if (this.host) return false;
-        this.t.println(name + ": you are on the admin console — log in to a host first, e.g.  ssh Host1");
+        this.t.println(name + ": you are on the admin console — log in to a host first, e.g.  ssh host1");
         return true;
     }
 
     parse(cmd) {
         let showPrompt = true;
-        if (!/^\s*for\s/.test(cmd)) {
+        // logged in to an IOS-style switch: its own command line takes every line
+        if (this.host && this.host.cli) return this.host.cli.exec(this, cmd);
+        // "ssh switch1 show vlan | include 10": the whole line belongs to the IOS-style switch
+        const toIos = cmd.match(/^\s*ssh\s+(\S+)\s+\S/);
+        const iosTarget = toIos && Id.find(toIos[1].replace(/^root@/, ""));
+        if (!/^\s*for\s/.test(cmd) && !(iosTarget && iosTarget.cli)) {
             const list = this.splitList(cmd);
             if (list.length > 1) return this.runList(list);
             let segs = this.splitUnquoted(cmd, "|");
@@ -261,6 +267,11 @@ class Shell {
         let command = this.tokenize(cmd.trim());
         this.status = 0;
         Debug.log("Shell", "parse", command);
+        // a Linux switch: bridge, ip link ... are its own; ls, cat, ps ... the normal ones
+        if (this.host && this.host.managed == "linux") {
+            const r = LinuxSwitch.exec(this, command);
+            if (r !== undefined) return r;
+        }
         if (command[0] == "exit") { if (this.host) this.t.quitToConsole(); else this.t.println("logout — (this is the admin console: it stays open)"); }
         else if (command[0] == "start") start();
         else if (command[0] == "stop") stop();
@@ -301,7 +312,12 @@ class Shell {
             else {
                 let h = command[1].replace(/^root@/, "");
                 let o = Id.find(h);
-                if (o==null || !(o instanceof Host)) {
+                if (o && o instanceof Hub && !o.managed) {
+                    this.t.println("ssh: connect to host "+h+" port 22: Connection refused   (" + h + " is " +
+                        (o instanceof Switch ? "an unmanaged switch" : "a hub") + ": there is nothing inside to log in to)");
+                    this.status = 255;
+                }
+                else if (o==null || !(o instanceof Host || o instanceof Switch)) {
                     this.t.println("ssh: Could not resolve hostname "+h+": Name or service not known");
                     this.status = 255;
                 }
@@ -314,6 +330,10 @@ class Shell {
                     this.host = o;
                     this.cwd = "/root";
                     this.oldCwd = null;
+                    if (o.cli) {
+                        o.cli.reset();
+                        this.t.println(`\n${o.id} — IOS-style command line. Type ? for help, enable for the privileged mode.\n`);
+                    }
                     this.updatePrompt();
                 }
                 else {
@@ -322,8 +342,13 @@ class Shell {
                     this.host = o;
                     this.cwd = "/root";
                     this.oneShot = (this.oneShot || 0) + 1;
+                    const cliMode = o.cli ? o.cli.mode : null;
+                    if (o.cli) o.cli.mode = "exec"; // a single command arrives in user mode
                     try { showPrompt = this.parse(cmd.trim().replace(/^ssh\s+\S+\s+/, "")); }
-                    finally { this.oneShot--; }
+                    finally {
+                        this.oneShot--;
+                        if (o.cli) { o.cli.mode = cliMode; o.cli.ask = null; }
+                    }
                     this.host = saved.host;
                     this.cwd = saved.cwd;
                     this.oldCwd = saved.oldCwd;
@@ -546,7 +571,7 @@ class Shell {
     help() {
         this.t.println([
             "Commands in this lab:",
-            "  ssh HostN [command]          log in to a host (or run one command there)",
+            "  ssh hostN [command]          log in to a host (or run one command there)",
             "  exit                         back to the admin console",
             "  ip addr | ip route | ip neigh   interfaces, routing table, ARP cache",
             "  arp -a                       ARP cache, old style",
@@ -564,11 +589,14 @@ class Shell {
             "  echo hello > /tmp/a.txt · touch · mkdir · rm    in your home folder and /tmp",
             "  reboot                       restart this machine (on the console: the console)",
             "  hostnamectl set-hostname Web1   rename the machine (hostname Web1: until reboot)",
+            "  sysctl -w net.ipv4.ip_forward=0   switch routing off (or on) on a router",
+            "  ssh switch1                  a managed switch: Linux (bridge fdb show, bridge vlan show)",
+            "                               or IOS-style (enable, show vlan brief, configure terminal, ?)",
             "  ip route add default via 192.168.1.1",
             "  lab [name|number]            list or load an example network",
             "  systemctl start|stop|status lldpd",
             "  lldpcli update | show neighbors | show chassis",
-            "  for i in {1..12}; do ssh Host$i <cmd>; done",
+            "  for i in {1..12}; do ssh host$i <cmd>; done",
             "  clear (or Ctrl-L), test",
         ].join("\n"));
     }

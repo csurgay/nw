@@ -46,6 +46,8 @@ class Port extends Clickable {
         if (!o) return false;
         // a rebooting machine has its card off: no link light on either end
         if ((this.host && this.host.down) || (o.host && o.host.down)) return false;
+        // a switch that reboots, or a switch port that was switched off
+        if ((this.hub && this.hub.down) || (o.hub && o.hub.down) || this.adminDown || o.adminDown) return false;
         return o;
     }
 

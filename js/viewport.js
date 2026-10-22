@@ -48,16 +48,16 @@ const App = {
                 nwCanvas.style.cursor = "grabbing";
                 return;
             }
-            if (Editor.on) Editor.mousemove(this.eventPoint(ev));
+            if (Editor.on) Editor.mousemove(this.eventPoint(ev), ev);
         });
-        window.addEventListener("mouseup", () => {
+        window.addEventListener("mouseup", ev => {
             if (this.pan) {
                 this.suppressClick = this.pan.moved;
                 this.pan = null;
                 nwCanvas.style.cursor = this.hover ? "pointer" : "grab";
                 return;
             }
-            this.suppressClick = Editor.mouseup();
+            this.suppressClick = Editor.mouseup(ev);
         });
         // Ctrl + wheel (or a pinch on a touchpad) zooms around the mouse pointer
         nwCanvas.addEventListener("wheel", ev => {

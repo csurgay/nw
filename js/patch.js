@@ -168,6 +168,7 @@ class Patch extends Clickable {
     }
 
     endName(port) {
+        if (port.hub && port.hub.portName) return `${port.hub} ${port.hub.portName(port)}`;
         return port.hub ? `${port.hub} port ${port.hub.ports.indexOf(port) + 1}` : `${port.host} ${port.id}`;
     }
 

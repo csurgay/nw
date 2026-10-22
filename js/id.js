@@ -43,23 +43,29 @@ class Id {
     }
 
     toString() {
-        return this.name || this.type+this.seq; // name: set by hostname / hostnamectl
+        return this.name || this.defaultName(); // name: set by hostname / hostnamectl
     }
+
+    // machines and network boxes are called like on a real network: host1, router2, switch1
+    static LOWER = ["Host", "Router", "Server", "Switch", "Hub"];
 
     defaultName() {
-        return this.type+this.seq;
+        return (Id.LOWER.includes(this.type) ? this.type.toLowerCase() : this.type) + this.seq;
     }
 
+    // host names are not case sensitive (ssh HOST1 reaches host1), an exact match wins
     static find(name) {
-        let ret;
+        let ret, loose;
+        const low = String(name).toLowerCase();
         for (let k in Id.list) {
             Id.list[k].forEach(item => {
-                if (name==item.id.toString()) {
-                    ret = item;
-                }
+                if (!item || !item.id) return;
+                const n = item.id.toString();
+                if (name == n) ret = item;
+                else if (low == n.toLowerCase()) loose = loose || item;
             })    
         }
-        return ret;
+        return ret || loose;
     }
 
     static remove(object) {

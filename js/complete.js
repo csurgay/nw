@@ -9,6 +9,7 @@ const Completion = {
 
     // line: everything after the prompt -> { line: completed line, list: [shown words] }
     complete(sh, line) {
+        if (sh.host && sh.host.cli) return sh.host.cli.complete(line);
         const cut = Math.max(line.lastIndexOf("|"), line.lastIndexOf(";"), line.lastIndexOf("&"));
         let rest = line.substring(cut + 1).replace(/^\s*(do\s+)?/, "");
         const words = rest.split(/\s+/);
@@ -48,7 +49,27 @@ const Completion = {
                     return this.w(this.hostNames().map(h => at + h));
                 }
                 return this.onHost(sh, prev[1], () => this.candidates(sh, prev.slice(2), cur));
-            case "ip": return this.ip(sh, prev, cur);
+            case "ip":
+                if (sh.host instanceof Switch) {
+                    if (n == 1) return this.w(["link", "addr"]);
+                    if (n == 2 && prev[1] == "link") return this.w(["set", "show"]);
+                    if (n == 3 && prev[2] == "set") return this.w(this.nics(sh));
+                    if (n == 4 && prev[2] == "set") return this.w(["up", "down"]);
+                    return [];
+                }
+                return this.ip(sh, prev, cur);
+            case "bridge":
+                if (n == 1) return this.w(["fdb", "vlan", "link"]);
+                if (n == 2) return this.w(prev[1] == "vlan" ? ["show", "add", "del"] : ["show"]);
+                if (last == "dev") return this.w(this.nics(sh));
+                if (prev[1] == "vlan" && (prev[2] == "add" || prev[2] == "del")) {
+                    if (!prev.includes("dev")) return this.w(["dev"]);
+                    if (!prev.includes("vid")) return this.w(["vid"]);
+                    if (last != "vid") return this.w(["pvid", "untagged"]);
+                }
+                return [];
+            case "ethtool": return n == 1 ? this.w(this.nics(sh)) : [];
+            case "sysctl": return this.w(["-w", "net.ipv4.ip_forward", "net.ipv4.ip_forward=1", "net.ipv4.ip_forward=0"]);
             case "systemctl":
                 if (n == 1) return this.w(["start", "stop", "restart", "status", "is-active", "reboot"]);
                 if (n == 2) return this.w(["lldpd", "dhcpd", "named"]);
@@ -101,11 +122,13 @@ const Completion = {
 
     commands() {
         const skip = new Set(["true", "false", "la", "ll"]);
-        return [...this.SHELL_CMDS, ...Object.keys(Coreutils.cmds).filter(c => !skip.has(c)), "ll", "la"];
+        const sw = typeof shell != "undefined" && shell.host instanceof Switch ? ["bridge", "ethtool"] : [];
+        return [...this.SHELL_CMDS, ...Object.keys(Coreutils.cmds).filter(c => !skip.has(c)), "ll", "la", ...sw];
     },
 
     hostNames() {
-        return ["Host", "Server", "Router"].flatMap(t => (Id.list[t] || []).map(o => o.id.toString()));
+        return [...["Host", "Server", "Router"].flatMap(t => (Id.list[t] || []).map(o => o.id.toString())),
+            ...(Id.list.Switch || []).filter(s => s.managed).map(s => s.id.toString())];
     },
 
     machines() {
@@ -113,6 +136,7 @@ const Completion = {
     },
 
     nics(sh) {
+        if (sh.host instanceof Switch) return sh.host.ports.map(p => sh.host.portName(p));
         return sh.host ? sh.host.nics.map(n => n.id.toString()) : [];
     },
 
@@ -134,7 +158,7 @@ const Completion = {
         return out;
     },
 
-    // complete as if we were logged in to that machine (ssh Host2 cat /etc/<TAB>)
+    // complete as if we were logged in to that machine (ssh host2 cat /etc/<TAB>)
     onHost(sh, name, fn) {
         const o = Id.find((name || "").replace(/^root@/, ""));
         if (!o || !(o instanceof Host)) return [];

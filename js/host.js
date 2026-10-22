@@ -309,6 +309,7 @@ class Host extends Clickable {
         this.resolver = new Resolver(this);
         this.lease = null;
         this.dhcpPending = false;
+        this.forwarding = this instanceof Router; // sysctl changes are not saved
         const parse = v => { if (!v || v == "dhcp") return null; const [ip, c] = v.split("/"); return new IP(ip, parseInt(c || 24)); };
         if (s) {
             const ips = s.ifs ? s.ifs.map(f => f.ip) : [s.ip];

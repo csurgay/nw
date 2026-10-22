@@ -163,6 +163,12 @@ const Fig = {
 
 // Hungarian versions of the texts inside the figures
 const FIG_HU = {
+    "plug and play": "bedugod és megy", "no login · one network": "nincs belépés · egy hálózat",
+    "VLANs · name": "VLAN-ok · név", "MAC table · reboot": "MAC-tábla · reboot",
+    "② ip route  ③ ip_forward=1": "② ip route  ③ ip_forward=1", "④ gateway": "④ átjáró", "⑤ ping · traceroute": "⑤ ping · traceroute",
+    "br0 — the bridge is the switch": "br0 — a bridge maga a switch",
+    "user mode: look": "felhasználói mód: nézelődés", "privileged: show, save": "privilegizált: show, mentés", "configure": "beállítás", "one port": "egy port",
+    "memory · in use now": "memória · most ezt használja", "NVRAM · saved": "NVRAM · elmentve", "not saved + reload = gone": "nincs mentve + reload = elveszett",
     "→ one way": "→ egyik irány", "← the other way": "← másik irány", "for PC3": "a PC3-nak",
     "MAC table": "MAC-tábla", "only here!": "csak ide!", "same IP addresses, new MACs": "ugyanazok az IP-címek, új MAC-címek",
     "an address, please!": "kérek egy címet!", "who is www?": "ki az a www?",
@@ -170,7 +176,7 @@ const FIG_HU = {
     "last bit 0 = one card (unicast) · 1 = group": "utolsó bit 0 = egy kártya (unicast) · 1 = csoport",
     "ff:ff:ff:ff:ff:ff = everybody (broadcast)": "ff:ff:ff:ff:ff:ff = mindenki (broadcast)",
     "network: 192.168.1  (/24 = first 24 bits)": "hálózat: 192.168.1  (/24 = első 24 bit)", "computer: 10": "gép: 10",
-    "Host1 = 192.168.1.10 · Host2 = 192.168.1.11 · same network": "Host1 = 192.168.1.10 · Host2 = 192.168.1.11 · azonos hálózat",
+    "host1 = 192.168.1.10 · host2 = 192.168.1.11 · same network": "host1 = 192.168.1.10 · host2 = 192.168.1.11 · azonos hálózat",
     "24 ones = network part": "24 egyes = hálózat rész", "8 zeros = computers": "8 nulla = gépek",
     "192.168.1.0 = the network · 192.168.1.255 = broadcast · 1 … 254 = computers": "192.168.1.0 = a hálózat · 192.168.1.255 = broadcast · 1 … 254 = gépek",
     "other": "többi", "networks": "hálózat",
@@ -184,7 +190,7 @@ const FIG_HU = {
     "2 bytes": "2 bájt", "8-byte header, then the message (DNS, DHCP…)": "8 bájtos fejléc, utána az üzenet (DNS, DHCP…)",
     "new PC": "új gép", "no IP yet": "még nincs IP", "DHCP server": "DHCP-szerver", "DNS server": "DNS-szerver",
     "1) what is www.lab?": "1) mi a www.lab címe?", "3) now ping 10.0.0.80": "3) most jöhet a ping",
-    "I am Host1, port NIC1": "Host1 vagyok, NIC1 port", "I am Host2, port NIC2": "Host2 vagyok, NIC2 port",
+    "I am host1, port NIC1": "host1 vagyok, NIC1 port", "I am host2, port NIC2": "host2 vagyok, NIC2 port",
     "on the cable": "a kábelen", "opened up": "kinyitva",
     "the blue IP packet stays the same, the frames change": "a kék IP-csomag ugyanaz marad, a keretek cserélődnek",
     "DNS question": "DNS-kérdés", "frame bytes …": "a keret bájtjai …", "receiver: calculate again →": "a fogadó újraszámolja →",

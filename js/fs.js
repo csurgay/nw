@@ -147,6 +147,7 @@ class Vfs {
         const name = h ? h.id.toString() : "console";
         const isRouter = h && h.forwarding;
         const isServer = h && typeof Server != "undefined" && h instanceof Server;
+        const isSwitch = h && typeof Switch != "undefined" && h instanceof Switch;
         const live = { mtime: now };
 
         const bins = {};
@@ -162,8 +163,8 @@ class Vfs {
             "redhat-release": L("netlab-release"),
             "netlab-release": F(`${Vfs.OS} release ${Vfs.VER} (Blue Wire)`),
             "machine-id": F(Array.from({ length: 32 }, (_, i) => "0123456789abcdef"[(Vfs.fakeSize((h ? h.id.defaultName() : "console") + i * 7919) >> 3) & 15]).join("")),
-            "motd": F(h ? `\nWelcome to ${name}!\nThis is a ${isRouter ? "router: it passes packets between networks" : isServer ? "server: other machines ask it for things" : "computer on the lab network"}.\nType  help  to see what you can do here.\n`
-                : "\nWelcome to the admin console.\nThis machine is not on the lab network: log in to one with  ssh Host1\n"),
+            "motd": F(h ? `\nWelcome to ${name}!\nThis is a ${isSwitch ? "managed switch running Linux: its ports are swp1, swp2 ... (try  bridge fdb show)" : isRouter ? "router: it passes packets between networks" : isServer ? "server: other machines ask it for things" : "computer on the lab network"}.\nType  help  to see what you can do here.\n`
+                : "\nWelcome to the admin console.\nThis machine is not on the lab network: log in to one with  ssh host1\n"),
             "passwd": F(this.passwd(isServer)),
             "group": F("root:x:0:\nbin:x:1:\ndaemon:x:2:\nwheel:x:10:admin\n" + (isServer ? (h.dhcpd ? "dhcpd:x:177:\n" : "") + (h.named ? "named:x:25:\n" : "") : "") + (h ? "" : "admin:x:1000:\n")),
             "shadow": F("root:!locked::0:99999:7:::\nbin:*:19000:0:99999:7:::\n" + (h ? "" : "admin:$6$lab$Ze5mE3sQqzY...:20000:0:99999:7:::\n"), { mode: "----------", priv: true }),
@@ -181,6 +182,10 @@ class Vfs {
                 }),
             }),
         };
+        if (isSwitch) {
+            delete etc.sysconfig;
+            etc["network"] = D({ "interfaces": F(() => LinuxSwitch.interfaces(h), live) });
+        }
         if (isRouter) etc["sysctl.d"] = D({ "90-router.conf": F("# a router passes packets that are not for itself\nnet.ipv4.ip_forward = 1") });
         if (h && h.dhcpd) etc["dhcp"] = D({ "dhcpd.conf": F(() => this.dhcpdConf()) });
         if (h && h.named) etc["named.conf"] = F(`options {\n    directory "/var/named";\n    listen-on port 53 { any; };\n};\nzone "${h.named.domain}" IN {\n    type master;\n    file "${h.named.domain}.zone";\n};`);
@@ -196,7 +201,7 @@ class Vfs {
             "meminfo": P(() => "MemTotal:        2015232 kB\nMemFree:         1372160 kB\nMemAvailable:    1599488 kB\nBuffers:            2048 kB\nCached:           302592 kB\nSwapTotal:       2097148 kB\nSwapFree:        2097148 kB"),
             "net": D({
                 "arp": P(() => "IP address       HW type     Flags       HW address            Mask     Device\n" +
-                    (h ? h.l3.arp.cache.map(e => `${String(e.ip).padEnd(17)}0x1         0x2         ${String(e.mac).padEnd(22)}*        ${e.port}`).join("\n") : "")),
+                    (h && h.l3 ? h.l3.arp.cache.map(e => `${String(e.ip).padEnd(17)}0x1         0x2         ${String(e.mac).padEnd(22)}*        ${e.port}`).join("\n") : "")),
                 "dev": P(() => "Inter-|   Receive    |  Transmit\n face |   packets    |   packets\n    lo:          0            0\n" +
                     (h ? h.nics.map(n => `${String(n.id).padStart(6)}: ${String(n.stats.rx).padStart(10)}   ${String(n.stats.tx).padStart(10)}`).join("\n") : "")),
             }, { proc: true }),
@@ -206,6 +211,16 @@ class Vfs {
         // /sys/class/net: one folder per network card
         const sysnet = () => {
             const o = { "lo": D({ "address": P(() => "00:00:00:00:00:00"), "operstate": P(() => "unknown"), "mtu": P(() => "65536") }, { proc: true }) };
+            if (isSwitch) {
+                o["br0"] = D({ "address": P(() => LinuxSwitch.mac(h, 0)), "operstate": P(() => "up"), "bridge": D({ "vlan_filtering": P(() => "1"), "ageing_time": P(() => String(Switch.AGING_MS / 10)) }, { proc: true }) }, { proc: true });
+                h.ports.forEach((p, i) => o["swp" + (i + 1)] = D({
+                    "address": P(() => LinuxSwitch.mac(h, i + 1)),
+                    "operstate": P(() => p.linkUp() ? "up" : "down"),
+                    "carrier": P(() => p.linkUp() ? "1" : "0"),
+                    "master": { t: "l", to: "../br0", mode: "lrwxrwxrwx" },
+                    "statistics": D({ "rx_packets": P(() => String(p.stats.rx)), "tx_packets": P(() => String(p.stats.tx)) }, { proc: true }),
+                }, { proc: true }));
+            }
             if (h) h.nics.forEach(n => o[n.id] = D({
                 "address": P(() => String(n.mac)),
                 "operstate": P(() => n.linkUp() ? "up" : "down"),
@@ -228,13 +243,13 @@ class Vfs {
             ".bash_history": F(hist, { mode: "-rw-------", mtime: now }),
             ".ssh": D({ "authorized_keys": F("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL4b admin@console", { mode: "-rw-------" }) }, { mode: "drwx------" }),
             "anaconda-ks.cfg": F("# Kickstart file: how this machine was installed\nlang en_US.UTF-8\nkeyboard us\ntimezone Europe/Budapest\nrootpw --lock\n%packages\n@core\n%end", { mode: "-rw-------" }),
-            "README.txt": F(() => this.readme(isRouter, isServer)),
+            "README.txt": F(() => isSwitch ? this.switchReadme() : this.readme(isRouter, isServer)),
         }, { mode: "dr-xr-x---", priv: true });
         const home = h ? {} : {
             "admin": D({
                 ".bashrc": F("# .bashrc\nalias ll='ls -l'"),
                 ".bash_history": F(hist, { mode: "-rw-------", mtime: now, owner: "admin" }),
-                "notes.txt": F("Things to try:\n  lab               list the example networks\n  ssh Host1         log in to a lab computer\n  ls -la /etc       look around (the network settings live here)\n  help              all commands", { owner: "admin" }),
+                "notes.txt": F("Things to try:\n  lab               list the example networks\n  ssh host1         log in to a lab computer\n  ls -la /etc       look around (the network settings live here)\n  help              all commands", { owner: "admin" }),
             }, { mode: "drwx------", owner: "admin" }),
         };
 
@@ -319,6 +334,22 @@ class Vfs {
         const l = this.host.lease;
         return `lease {\n  interface "${this.host.nics[0].id}";\n  fixed-address ${l.ip};\n  option dhcp-server-identifier ${l.server};\n` +
             (this.host.dnsServer ? `  option domain-name-servers ${this.host.dnsServer};\n` : "") + `  option dhcp-lease-time ${l.time};\n}`;
+    }
+
+    switchReadme() {
+        const n = this.host.id.toString();
+        return `Hi! You are logged in to ${n}, a managed switch that runs Linux.\n\n` +
+            "Each front port is a network interface: swp1, swp2 ...\n" +
+            "All of them belong to one VLAN-aware bridge, br0 — the bridge IS the switch.\n\n" +
+            "  bridge fdb show                    the MAC table (which MAC is behind which port)\n" +
+            "  bridge vlan show                   which port is in which VLAN\n" +
+            "  bridge vlan add dev swp3 vid 20 pvid untagged   put swp3 into VLAN 20\n" +
+            "  bridge vlan add dev swp4 vid 20    make swp4 a trunk (tagged)\n" +
+            "  ip link set swp2 down              switch a port off (up = on again)\n" +
+            "  ethtool swp1                       is a cable plugged in?\n" +
+            "  cat /etc/network/interfaces        the configuration as a file\n" +
+            "  hostnamectl set-hostname core-sw   give it a name\n" +
+            "  reboot                             start again (the MAC table is empty after it)";
     }
 
     readme(isRouter, isServer) {

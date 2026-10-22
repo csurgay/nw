@@ -23,7 +23,7 @@ const Topology = {
         App.hover = null;
     },
 
-    // "Host3" -> first NIC, "Router1:2" -> 2nd interface, "Hub1:4" -> port 4
+    // "host3" -> first NIC, "router1:2" -> 2nd interface, "hub1:4" -> port 4
     endpoint(ref) {
         const [name, num] = ref.split(":");
         const o = Id.find(name);
@@ -72,13 +72,16 @@ const Topology = {
             }
             else if (d.type == "hub") new Hub(d.x, d.y, d.ports || 4);
             else if (d.type == "switch") {
-                const sw = new Switch(d.x, d.y, d.ports || 4);
-                Object.entries(d.vlans || {}).forEach(([n, v]) => {
+                const sw = new Switch(d.x, d.y, d.ports || 4, d.managed);
+                // VLANs need a managed switch: an unmanaged one keeps every port in one network
+                if (sw.managed) Object.entries(d.vlans || {}).forEach(([n, v]) => {
                     const p = sw.ports[parseInt(n) - 1];
-                    if (!p) return;
-                    if (v == "trunk") p.trunk = true;
-                    else p.vlan = parseInt(v);
+                    if (p) sw.setPortVlan(p, v, true);
                 });
+                if (sw.managed) Object.entries(d.descs || {}).forEach(([n, t]) => { const p = sw.ports[parseInt(n) - 1]; if (p) p.desc = t; });
+                sw.spec = d;
+                if (d.name) names.push([sw, d.name]);
+                sw.ready = true;
             }
             else if (d.type == "router") {
                 const r = new Router(d.x, d.y, terminal, { w: d.w });
@@ -91,6 +94,8 @@ const Topology = {
         spec.links.forEach(([a, b, opts]) => new Patch(this.endpoint(a), this.endpoint(b), opts || {}));
         // own names last: the links above use the standard names
         names.forEach(([h, n]) => h.rename(n, true));
+        // what a managed switch has saved: its configuration right now
+        (Id.list.Switch || []).forEach(sw => { if (sw.ready) { sw.saveStartup(); sw.ready = false; } });
     },
 
     all() {

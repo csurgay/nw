@@ -4,7 +4,7 @@ const Coreutils = {
     BIN: ["bash", "cat", "date", "df", "echo", "env", "false", "file", "free", "grep", "head", "host", "hostname", "id",
         "less", "ls", "lldpcli", "man", "mkdir", "more", "netstat", "nslookup", "ping", "printenv", "ps", "pwd", "rm", "rmdir", "sort",
         "ss", "ssh", "su", "sudo", "systemctl", "tail", "touch", "traceroute", "tree", "true", "uname", "uniq", "uptime",
-        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl"],
+        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl", "sysctl"],
     SBIN: ["arp", "arping", "dhclient", "dhcpd", "ifconfig", "ip", "lldpd", "named", "sshd", "reboot", "shutdown", "poweroff", "halt", "init"],
 
     // commands that read text and may sit behind a |
@@ -216,7 +216,8 @@ const Coreutils = {
         ];
         if (h) {
             p.push({ pid: 702, user: "root", tty: "?", cmd: "sshd: /usr/sbin/sshd -D [listener]", rss: 7800 });
-            if (h.l2.lldp && h.l2.lldp.enabled) p.push({ pid: 745, user: "root", tty: "?", cmd: "lldpd: monitor.", rss: 3100 });
+            if (h instanceof Switch) p.push({ pid: 690, user: "root", tty: "?", cmd: "/usr/sbin/switchd -vx", rss: 21000 });
+            if (h.l2 && h.l2.lldp && h.l2.lldp.enabled) p.push({ pid: 745, user: "root", tty: "?", cmd: "lldpd: monitor.", rss: 3100 });
             if (h.dhcpd) p.push({ pid: 812, user: "dhcpd", tty: "?", cmd: "/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf", rss: 11200 });
             if (h.named) p.push({ pid: 830, user: "named", tty: "?", cmd: "/usr/sbin/named -u named -c /etc/named.conf", rss: 48000 });
             if (h.dhcpPending) p.push({ pid: 960, user: "root", tty: "?", cmd: "/usr/sbin/dhclient " + h.nics[0].id, rss: 5200 });
@@ -233,7 +234,7 @@ const Coreutils = {
         if (!h) return [];
         const s = [{ proto: "tcp", state: "LISTEN", local: "0.0.0.0:22", prog: "sshd", pid: 702 }];
         const known = { 67: ["dhcpd", 812], 68: ["dhclient", 960], 53: ["named", 830] };
-        Object.keys(h.udp.sockets).map(Number).sort((a, b) => a - b).forEach(port => {
+        Object.keys(h.udp ? h.udp.sockets : {}).map(Number).sort((a, b) => a - b).forEach(port => {
             const k = known[port] || ["resolver", 1201];
             const nic = h.nics.find(n => n.ip);
             const addr = port == 53 && nic ? nic.ip.ip : "0.0.0.0";
@@ -476,7 +477,7 @@ const Coreutils = {
             const sub = o.rest[0] || "status";
             if (sub == "set-hostname" || sub == "hostname") {
                 if (!o.rest[1]) return Coreutils.err(sh, sub == "hostname" ? (h ? h.id.toString() : "console") : "Too few arguments.");
-                if (!h) return Coreutils.err(sh, "Could not set static hostname: Access denied\n(Only root can do this: log in to a lab machine with  ssh Host1)");
+                if (!h) return Coreutils.err(sh, "Could not set static hostname: Access denied\n(Only root can do this: log in to a lab machine with  ssh host1)");
                 const e = h.rename(o.rest[1], !o.long.has("transient"));
                 if (e) Coreutils.err(sh, e.replace(/^hostname:/, "hostnamectl:"));
                 return;
@@ -484,10 +485,32 @@ const Coreutils = {
             if (sub != "status") return Coreutils.err(sh, `Unknown command verb '${sub}'.`);
             const name = h ? h.id.toString() : "console";
             const stat = h ? (h.persistName || h.id.defaultName()) : "console";
-            const kind = !h ? ["computer-desktop", "desktop 🖥️"] : h.forwarding ? ["network-wired", "router 📶"] : h.dhcpd || h.named ? ["computer-server", "server 🖳"] : ["computer-desktop", "desktop 🖥️"];
+            const kind = !h ? ["computer-desktop", "desktop 🖥️"] : h instanceof Switch ? ["network-wired", "switch 🔀"] : h.forwarding ? ["network-wired", "router 📶"] : h.dhcpd || h.named ? ["computer-server", "server 🖳"] : ["computer-desktop", "desktop 🖥️"];
             Coreutils.out(sh, ` Static hostname: ${stat}\n` + (stat != name ? `Transient hostname: ${name}\n` : "") +
                 `       Icon name: ${kind[0]}\n         Chassis: ${kind[1]}\n      Machine ID: ${sh.vfs().read(sh.vfs().lookup("/etc/machine-id").node)}\n` +
                 `Operating System: ${Vfs.OS} ${Vfs.VER} (Blue Wire)\n          Kernel: Linux ${Vfs.KERNEL}\n    Architecture: x86-64`);
+        },
+
+        // only one setting is really wired up: whether this machine routes (forwards) packets
+        sysctl(sh, a) {
+            const h = sh.host;
+            const KEY = "net.ipv4.ip_forward";
+            const o = Coreutils.opts(a);
+            const arg = o.rest[0];
+            if (!arg && !o.f.has("a")) return Coreutils.err(sh, "usage: sysctl [-w] net.ipv4.ip_forward[=0|1]");
+            const cur = () => h && h.forwarding ? 1 : 0;
+            if (o.f.has("a")) return Coreutils.out(sh, `kernel.hostname = ${h ? h.id : "console"}\nkernel.osrelease = ${Vfs.KERNEL}\n${KEY} = ${cur()}\nnet.ipv4.ip_default_ttl = 64`);
+            const [k, v] = arg.split("=");
+            if (k != KEY) return Coreutils.err(sh, `sysctl: cannot stat /proc/sys/${k.replace(/\./g, "/")}: No such file or directory   (in this lab: ${KEY})`);
+            if (v == null) return Coreutils.out(sh, `${KEY} = ${cur()}`);
+            if (!h || h instanceof Switch) return Coreutils.err(sh, `sysctl: permission denied on key "${KEY}"` + (h ? "" : " (log in to a lab machine)"));
+            if (v != "0" && v != "1") return Coreutils.err(sh, `sysctl: setting key "${KEY}": Invalid argument`);
+            const on = v == "1";
+            if (on != h.forwarding) {
+                h.forwarding = on;
+                Sim.event("info", `<b>${h}</b> ${on ? "now passes on packets that are not for itself — it routes" : "stops passing on packets for others: it is no longer a router (packets for other networks are dropped)"}`, { obj: h });
+            }
+            Coreutils.out(sh, `${KEY} = ${v}`);
         },
 
         reboot(sh) {
@@ -592,7 +615,7 @@ const Coreutils = {
         },
 
         ss(sh, a, name) {
-            if (!sh.host) return Coreutils.err(sh, `${name}: the admin console has no network here — log in to a host first, e.g.  ssh Host1`);
+            if (!sh.host) return Coreutils.err(sh, `${name}: the admin console has no network here — log in to a host first, e.g.  ssh host1`);
             const o = Coreutils.opts(a);
             let s = Coreutils.sockets(sh);
             if (o.f.has("t") != o.f.has("u")) s = s.filter(x => x.proto == (o.f.has("t") ? "tcp" : "udp"));
@@ -608,7 +631,8 @@ const Coreutils = {
         netstat(sh, a) { return Coreutils.cmds.ss(sh, a, "netstat"); },
 
         ifconfig(sh, a) {
-            if (!sh.host) return Coreutils.err(sh, "ifconfig: the admin console has no lab network card — log in to a host first, e.g.  ssh Host1");
+            if (!sh.host) return Coreutils.err(sh, "ifconfig: the admin console has no lab network card — log in to a host first, e.g.  ssh host1");
+            if (sh.host instanceof Switch) return Coreutils.out(sh, LinuxSwitch.ifconfig(sh.host, a.find(x => !x.startsWith("-"))));
             const h = sh.host;
             const want = a.find(x => !x.startsWith("-"));
             const blocks = h.nics.filter(n => !want || String(n.id) == want).map(n => {
@@ -649,11 +673,11 @@ const Coreutils = {
         sudo(sh, a) {
             if (!a.length) return Coreutils.err(sh, "usage: sudo command");
             if (sh.host) return sh.parse(a.join(" "));
-            Coreutils.err(sh, "admin is not in the sudoers file.  This incident will be reported.\n(Here you become root by logging in to a lab machine:  ssh Host1)");
+            Coreutils.err(sh, "admin is not in the sudoers file.  This incident will be reported.\n(Here you become root by logging in to a lab machine:  ssh host1)");
         },
         su(sh) {
             if (sh.host) return;
-            Coreutils.err(sh, "Password:\nsu: Authentication failure\n(Log in to a lab machine instead:  ssh Host1)");
+            Coreutils.err(sh, "Password:\nsu: Authentication failure\n(Log in to a lab machine instead:  ssh host1)");
         },
         logout(sh) { return sh.parse("exit"); },
         true() { },

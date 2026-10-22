@@ -80,7 +80,7 @@ class Hub extends Clickable {
         // brand area
         Gfx.text(this.style.brand, x + 22, y + 21, { align: "left", weight: 800, size: 12, color: "#e8edf2" });
         Gfx.text(this.style.sub, x + 22, y + 33, { align: "left", weight: 600, size: 7.5, color: "#9aa6b2" });
-        Gfx.text(this.id.toString(), x + 22, y + 45, { align: "left", weight: 700, size: 9, color: COLORS.select, mono: true });
+        Gfx.text(this.id.toString(), x + 22, y + 45, { align: "left", weight: 700, size: 9, color: this.hasSession && this.hasSession() ? "#86efac" : COLORS.select, mono: true });
         // power LED
         Gfx.led(x + 112, y + 14, 2.6, COLORS.ledGreen, true, 0.7);
         Gfx.text("PWR", x + 112, y + 27, { size: 6.5, weight: 700, color: "#9aa6b2" });
@@ -114,8 +114,8 @@ class Hub extends Clickable {
     portRows() {
         return this.ports.map((p, i) => {
             const peer = p.peer();
-            return `<tr${p.activity() ? ' class="hl"' : ""}><td class="m">${i + 1}</td>
-                <td>${p.linkUp() ? '<span class="pill on">link</span>' : '<span class="pill off">empty</span>'}</td>
+            return `<tr${p.activity() ? ' class="hl"' : ""}><td class="m">${this.portName ? this.portName(p) : i + 1}</td>
+                <td>${p.adminDown ? '<span class="pill off">off</span>' : p.linkUp() ? '<span class="pill on">link</span>' : '<span class="pill off">empty</span>'}</td>
                 <td>${peer ? (peer.hub ? `${peer.hub} port ${peer.hub.portNo(peer)}` : `${peer.host} ${peer.id}`) : "—"}</td>
                 <td class="m">${p.stats.rx}</td><td class="m">${p.stats.tx}</td></tr>`;
         }).join("");
@@ -158,15 +158,109 @@ class Hub4 extends Hub {
 // A learning switch (transparent bridge, IEEE 802.1D):
 // it remembers on which port each source MAC was seen and forwards
 // unicast frames only to that port.
+// managed: null = unmanaged (plug and play, nothing to configure, no VLANs),
+// "linux" = a Linux switch OS (ssh in, bridge / ip link commands),
+// "cisco" = an IOS-style command line (enable, configure terminal, show ...).
 class Switch extends Hub {
     static AGING_MS = 300000; // Linux bridge / most switches: 300 s
+    static KINDS = {
+        null: { face: ["#3d4f60", "#324252", "#283644"], brand: "NW-SW", sub: "UNMANAGED SWITCH", what: "unmanaged switch" },
+        linux: { face: ["#24524a", "#1d433c", "#163530"], brand: "NW-LX", sub: "MANAGED · LINUX", what: "managed switch, Linux" },
+        cisco: { face: ["#27466e", "#1f3a5c", "#182e4a"], brand: "NW-IOS", sub: "MANAGED · IOS CLI", what: "managed switch, IOS-style CLI" },
+    };
 
-    constructor(x, y, n = 4) {
+    constructor(x, y, n = 4, managed = null) {
         super(x, y, n, 'Switch');
-        this.style = { face: ["#2f4d68", "#253e55", "#1c3044"], brand: "NW-SW " + n, sub: "LEARNING SWITCH", badge: "SW" };
+        this.managed = managed || null;
+        const k = Switch.KINDS[this.managed];
+        this.style = { face: k.face, brand: k.brand + " " + n, sub: k.sub, badge: "SW" };
         this.macTable = []; // {mac, vlan, port, t}
-        this.vlanAware = true;
+        this.vlanAware = !!this.managed; // only a managed switch can do VLANs
+        this.vlanNames = { 1: "default" };
         this.stats = { forwarded: 0, flooded: 0, filtered: 0, learned: 0 };
+        this.cli = this.managed == "cisco" ? new IosCli(this) : null;
+    }
+
+    get nics() { return []; } // no IP stack: it is managed from the console (out of band)
+
+    // swp1 on Linux, Gi0/1 on the IOS-style switch, "port 1" otherwise
+    portName(p, long) {
+        const n = this.portNo(p);
+        if (this.managed == "linux") return "swp" + n;
+        if (this.managed == "cisco") return (long ? "GigabitEthernet0/" : "Gi0/") + n;
+        return "port " + n;
+    }
+
+    findPort(name) {
+        const m = String(name || "").match(/(\d+)$/);
+        return m ? this.ports[parseInt(m[1]) - 1] || null : null;
+    }
+
+    // ---- configuration that a reboot goes back to
+    snapshot() {
+        return {
+            name: this.id.name || null,
+            ports: this.ports.map(p => ({ vlan: p.vlan, trunk: p.trunk, down: !!p.adminDown, desc: p.desc || "" })),
+            vlanNames: Object.assign({}, this.vlanNames),
+        };
+    }
+
+    applySnapshot(s) {
+        s.ports.forEach((c, i) => {
+            const p = this.ports[i];
+            if (!p) return;
+            p.vlan = c.vlan; p.trunk = c.trunk; p.adminDown = c.down; p.desc = c.desc;
+        });
+        this.vlanNames = Object.assign({}, s.vlanNames);
+        this.id.name = s.name || null;
+    }
+
+    saveStartup() {
+        this.startup = this.snapshot();
+        this.persistName = this.id.name || null;
+    }
+
+    modified() {
+        return JSON.stringify(this.snapshot()) != JSON.stringify(this.startup);
+    }
+
+    // one place that changes a port: popup, bridge vlan, switchport ...
+    setPortVlan(p, value, quiet) {
+        if (value == "trunk") p.trunk = true;
+        else { p.trunk = false; p.vlan = parseInt(value); }
+        if (!p.trunk && !this.vlanNames[p.vlan]) this.vlanNames[p.vlan] = "VLAN" + String(p.vlan).padStart(4, "0");
+        this.macTable = this.macTable.filter(e => e.port != p);
+        if (quiet) return;
+        Sim.event("info", `<b>${this}</b> ${this.portName(p)} is now ${p.trunk ? "a trunk (all VLANs, tagged)" : "in VLAN " + p.vlan}`, { obj: this });
+        if (typeof Editor != "undefined") Editor.changed();
+    }
+
+    setPortDown(p, down) {
+        p.adminDown = down;
+        if (down) this.macTable = this.macTable.filter(e => e.port != p);
+        Sim.event("info", `<b>${this}</b> ${this.portName(p)} ${down ? "is switched off (administratively down) — its link LED goes dark" : "is switched on again"}`, { obj: this });
+    }
+
+    // ---- reboot: the MAC table is forgotten, the saved configuration comes back
+    reboot() {
+        if (this.down) return;
+        const name = this.id.toString();
+        if (shell.host == this) {
+            terminal.println(`Connection to ${name} closed by remote host.\nConnection to ${name} closed.`);
+            if (!shell.oneShot) shell.toConsole();
+        }
+        Sim.event("info", `<b>${name}</b> reboots: no frames pass for a few seconds, and the MAC table is empty afterwards — the switch has to learn again (flooding!)`, { obj: this });
+        this.down = true;
+        this.downSince = Sim.time;
+        this.macTable = [];
+        if (this.managed == "cisco") this.applySnapshot(this.startup);
+        else if (this.startup) this.applySnapshot(Object.assign({}, this.startup, { name: this.persistName }));
+        if (this.cli) this.cli.reset();
+        Sim.after(Host.BOOT_MS, () => {
+            this.down = false;
+            this.bootTime = new Date();
+            Sim.event("info", `<b>${this}</b> is up again` + (this.managed == "cisco" ? " with its startup-config" : ""), { obj: this });
+        });
     }
 
     // VLAN numbers in use on this switch
@@ -199,10 +293,10 @@ class Switch extends Hub {
         if (!e) {
             this.macTable.push({ mac, vlan: vid, port, t: Sim.time });
             this.stats.learned++;
-            Sim.event("sw", `<b>${this}</b> learns: ${mac} lives behind port ${this.portNo(port)}${this.vtxt(vid)} (new MAC table entry)`, { frame, obj: this });
+            Sim.event("sw", `<b>${this}</b> learns: ${mac} lives behind ${this.portName(port)}${this.vtxt(vid)} (new MAC table entry)`, { frame, obj: this });
         } else {
             if (e.port != port) {
-                Sim.event("sw", `<b>${this}</b> ${mac} moved from port ${this.portNo(e.port)} to port ${this.portNo(port)}`, { frame, obj: this });
+                Sim.event("sw", `<b>${this}</b> ${mac} moved from ${this.portName(e.port)} to ${this.portName(port)}`, { frame, obj: this });
                 e.port = port;
             }
             e.t = Sim.time;
@@ -222,21 +316,26 @@ class Switch extends Hub {
     processFrame(frame, sourcePort) {
         const src = String(frame.macSrc).toLowerCase(), dst = String(frame.macDst).toLowerCase();
         const inP = this.portNo(sourcePort);
+        if (this.down || sourcePort.adminDown) {
+            Sim.event("drop", `<b>${this}</b> ${this.down ? "is rebooting" : this.portName(sourcePort) + " is switched off"} — the frame is lost`, { frame, obj: this });
+            frame.dispose("dropped");
+            return;
+        }
         if (!sourcePort.trunk && frame.vlan) {
-            Sim.event("sw", `<b>${this}</b> port ${inP} is an access port — a tagged frame is not allowed there, dropped`, { frame, obj: this });
+            Sim.event("sw", `<b>${this}</b> ${this.portName(sourcePort)} is an access port — a tagged frame is not allowed there, dropped`, { frame, obj: this });
             frame.dispose("dropped");
             return;
         }
         const vid = sourcePort.trunk ? (frame.vlan || 1) : sourcePort.vlan;
         this.learn(src, sourcePort, frame, vid);
         // only ports of the same VLAN (and trunks) take part
-        const others = this.ports.filter(p => p.connected && p != sourcePort && (p.trunk || p.vlan == vid));
+        const others = this.ports.filter(p => p.connected && !p.adminDown && p != sourcePort && (p.trunk || p.vlan == vid));
         const vt = this.vtxt(vid);
         if (frame.vlan && sourcePort.trunk) frame.log(`${this} read the 802.1Q tag: VLAN ${vid}`);
 
         if (dst == LLDP.MULTICAST) {
             frame.log(`${this} kept it: bridges never forward LLDP frames`);
-            Sim.event("sw", `<b>${this}</b> port ${inP}: LLDP frame stops here — switches never forward 01:80:c2:00:00:0e, so LLDP only shows direct neighbours`, { frame, obj: this });
+            Sim.event("sw", `<b>${this}</b> ${this.portName(sourcePort)}: LLDP frame stops here — switches never forward 01:80:c2:00:00:0e, so LLDP only shows direct neighbours`, { frame, obj: this });
             frame.dispose("dropped");
             return;
         }
@@ -244,25 +343,25 @@ class Switch extends Hub {
             this.stats.flooded++;
             frame.log(`${this} flooded it (broadcast) out of ${this.portList(others)}`);
             if (!others.length) {
-                Sim.event("sw", `<b>${this}</b> port ${inP}: broadcast${vt}, but no other port is in that VLAN — nobody else hears it`, { frame, obj: this });
+                Sim.event("sw", `<b>${this}</b> ${this.portName(sourcePort)}: broadcast${vt}, but no other port is in that VLAN — nobody else hears it`, { frame, obj: this });
                 frame.dispose("dropped");
                 return;
             }
-            Sim.event("sw", `<b>${this}</b> port ${inP}: ${dst == ARP.BROADCAST ? "broadcast" : "multicast"}${vt} → floods it to ${this.portList(others)}`, { frame, obj: this });
+            Sim.event("sw", `<b>${this}</b> ${this.portName(sourcePort)}: ${dst == ARP.BROADCAST ? "broadcast" : "multicast"}${vt} → floods it to ${this.portList(others)}`, { frame, obj: this });
             this.emitVlan(frame, others, vid);
         } else {
             const e = this.entry(dst, vid);
             if (e && e.port == sourcePort) {
                 this.stats.filtered++;
                 frame.log(`${this} filtered it: destination is on the same port`);
-                Sim.event("sw", `<b>${this}</b> ${dst} is on port ${inP}, where the frame came from — filtered (not forwarded)`, { frame, obj: this });
+                Sim.event("sw", `<b>${this}</b> ${dst} is on ${this.portName(sourcePort)}, where the frame came from — filtered (not forwarded)`, { frame, obj: this });
                 frame.dispose("dropped");
                 return;
             }
-            if (e && e.port.connected) {
+            if (e && e.port.connected && !e.port.adminDown) {
                 this.stats.forwarded++;
-                frame.log(`${this} forwarded it to port ${this.portNo(e.port)} only (MAC table hit)`);
-                Sim.event("sw", `<b>${this}</b> MAC table: ${dst}${vt} → port ${this.portNo(e.port)}, forwards it there only`, { frame, obj: this });
+                frame.log(`${this} forwarded it to ${this.portName(e.port)} only (MAC table hit)`);
+                Sim.event("sw", `<b>${this}</b> MAC table: ${dst}${vt} → ${this.portName(e.port)}, forwards it there only`, { frame, obj: this });
                 this.emitVlan(frame, [e.port], vid);
             } else {
                 this.stats.flooded++;
@@ -279,24 +378,46 @@ class Switch extends Hub {
         frame.dispose("repeated");
     }
 
-    // a VLAN select in the popup changed
+    // a VLAN select in the popup changed (like the web page of a managed switch)
     onInput(act, value, el) {
-        if (act != "vlan") return;
+        if (act != "vlan" || !this.managed) return;
         const p = this.ports[+el.dataset.port];
-        if (!p) return;
-        if (value == "trunk") { p.trunk = true; }
-        else { p.trunk = false; p.vlan = parseInt(value); }
-        this.macTable = this.macTable.filter(e => e.port != p);
-        Sim.event("info", `<b>${this}</b> port ${this.portNo(p)} is now ${p.trunk ? "a trunk (all VLANs, tagged)" : "in VLAN " + p.vlan}`, { obj: this });
-        if (typeof Editor != "undefined") Editor.changed();
+        if (p) this.setPortVlan(p, value);
+    }
+
+    hasSession() { return shell.host == this; }
+
+    actions() {
+        if (!this.managed) return [];
+        const id = this.id.toString();
+        if (this.managed == "linux") return [
+            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "MAC table", cmd: `ssh ${id} bridge fdb show` },
+            { label: "VLANs", cmd: `ssh ${id} bridge vlan show` },
+            { label: "Ports", cmd: `ssh ${id} ip link` },
+            { sep: true }, { input: id, title: "a new name for this switch" },
+            { label: "Rename", tpl: `ssh ${id} hostnamectl set-hostname {}` },
+            { label: "Reboot", cmd: `ssh ${id} reboot` },
+        ];
+        return [
+            { label: "Open CLI", cmd: `ssh ${id}` },
+            { label: "MAC table", cmd: `ssh ${id} show mac address-table` },
+            { label: "VLANs", cmd: `ssh ${id} show vlan brief` },
+            { label: "Ports", cmd: `ssh ${id} show interfaces status` },
+            { sep: true }, { input: id, title: "a new name for this switch" },
+            // the real steps, one after the other, so they can be seen in the terminal
+            { label: "Rename", tpl: [`ssh ${id}`, "enable", "configure terminal", "hostname {}", "end", "write memory", "exit"] },
+            { label: "Reload", cmd: [`ssh ${id}`, "enable", "reload"] },
+        ];
     }
 
     tooltipLines() {
         return [
-            `${this.id} · ${this.ports.length}-port learning switch` + (this.showVlans ? ` · VLANs ${this.vlans().join(", ")}` : ""),
+            `${this.id} · ${this.ports.length}-port ${Switch.KINDS[this.managed].what}` + (this.showVlans ? ` · VLANs ${this.vlans().join(", ")}` : ""),
             `MAC table ${this.macTable.length} entries`,
             `forwarded ${this.stats.forwarded} · flooded ${this.stats.flooded} · filtered ${this.stats.filtered}`,
             `Layer 2 device: sends frames only where the MAC lives`,
+            this.managed ? `managed: ssh ${this.id} to look inside` : `unmanaged: nothing to log in to`,
         ];
     }
 
@@ -312,7 +433,7 @@ class Switch extends Hub {
         }).join("");
         return {
             title: `${this.id}`,
-            sub: `${this.ports.length}-port Ethernet switch (learning bridge)`,
+            sub: `${this.ports.length}-port ${Switch.KINDS[this.managed].what}`,
             badge: "SW",
             color: "#5aa7e0",
             sections: [
@@ -326,10 +447,20 @@ class Switch extends Hub {
                         `<p class="note">Empty — the switch has not seen any frames yet. Send something!</p>`
                 },
                 { h: "Ports", html: `<table class="t"><tr><th>#</th><th>Link</th><th>Connected to</th><th>In</th><th>Out</th></tr>${this.portRows()}</table>` },
-                {
+                this.managed ? {
                     h: "VLANs (802.1Q)", html: `<table class="t"><tr><th>Port</th><th>VLAN</th><th>Connected to</th></tr>${vrows}</table>
                     <p class="note">An <b>access port</b> belongs to one VLAN: frames stay inside it, as if the switch were cut into separate switches. A <b>trunk</b> carries every VLAN to another switch, each frame marked with a 4-byte 802.1Q tag.</p>`
+                } : {
+                    h: "Unmanaged", html: `<p>This is an <b>unmanaged switch</b>: plug it in and it works, but there is nothing to set. No VLANs, no name, no login — all ports are in one network.</p>
+                    <p class="note">A <b>managed switch</b> (Linux or IOS-style) can be logged in to with <code>ssh</code>, renamed, and its ports can be put into VLANs or switched off.</p>`
                 },
+                ...(this.managed ? [{
+                    h: this.managed == "linux" ? "Log in (Linux switch OS)" : "Log in (IOS-style command line)",
+                    html: this.managed == "linux"
+                        ? `<p><code>ssh ${this.id}</code>, then <code>bridge fdb show</code> (MAC table), <code>bridge vlan show</code>, <code>bridge vlan add dev swp3 vid 20 pvid untagged</code>, <code>ip link set swp2 down</code>.</p>`
+                        : `<p><code>ssh ${this.id}</code> → <code>enable</code> → <code>configure terminal</code> → <code>interface gi0/3</code> → <code>switchport access vlan 20</code> → <code>end</code> → <code>write memory</code>. Type <code>?</code> anywhere for help.</p>` +
+                        (this.modified() ? `<p class="note">The running-config has changes that are not saved yet: a reload would lose them.</p>` : ""),
+                }] : []),
                 {
                     h: "Counters", html: `<table class="t kv"><tr><td>Forwarded to one port</td><td class="m">${this.stats.forwarded}</td></tr>
                     <tr><td>Flooded</td><td class="m">${this.stats.flooded}</td></tr><tr><td>Filtered</td><td class="m">${this.stats.filtered}</td></tr>
@@ -339,3 +470,6 @@ class Switch extends Hub {
         };
     }
 }
+
+// managed switches can be renamed with the same rules as computers
+Switch.prototype.rename = Host.prototype.rename;

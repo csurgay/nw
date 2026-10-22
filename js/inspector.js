@@ -129,14 +129,17 @@ class Inspector {
                 const val = v => typeof v == "function" ? v() : v;
                 const label = () => {
                     b.textContent = val(a.label);
-                    b.title = (val(a.cmd) || a.tpl || "").replace("{}", "<…>");
+                    const show = v => Array.isArray(v) ? v.join("  ⏎  ") : v;
+                    b.title = (show(val(a.cmd)) || show(a.tpl) || "").replace("{}", "<…>");
                 };
                 label();
                 if (typeof a.label == "function") (w.live = w.live || []).push(label);
                 if (myInput) b.dataset.forInput = "1";
                 b.addEventListener("click", () => {
-                    const cmd = val(a.cmd) || a.tpl.replace("{}", (myInput ? myInput.value.trim() : ""));
-                    terminal.runCommand(cmd);
+                    const fill = t => t.replace("{}", (myInput ? myInput.value.trim() : ""));
+                    const cmd = val(a.cmd) || (Array.isArray(a.tpl) ? a.tpl.map(fill) : fill(a.tpl));
+                    // several commands: typed one after the other, like a person would
+                    (Array.isArray(cmd) ? cmd : [cmd]).forEach(c => terminal.runCommand(c));
                     label();
                 });
                 f.appendChild(b);

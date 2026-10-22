@@ -20,9 +20,9 @@ const LEXICON = [
                 "Minden út egy hostnál kezdődik és egy hostnál ér véget: a keret mindig egy hostból indul és egy másikba érkezik. A közbeeső switchek és routerek csak továbbadják."],
             like: "a házak egy városban: a levél házból indul és házba érkezik, a posta csak viszi.",
         },
-        fig: () => Fig.svg(Fig.pc(110, 60, "Host1", "192.168.1.1") + Fig.pc(370, 60, "Host2", "192.168.1.2") +
+        fig: () => Fig.svg(Fig.pc(110, 60, "host1", "192.168.1.1") + Fig.pc(370, 60, "host2", "192.168.1.2") +
             Fig.line(138, 92, 342, 92) + Fig.env(240, 92, Fig.c.icmp, "ping") + Fig.arrow(205, 122, 280, 122, Fig.c.icmp)),
-        try: [["p2p", "ssh Host1 ip addr"]], see: ["nic", "ip", "mac", "server"],
+        try: [["p2p", "ssh host1 ip addr"]], see: ["nic", "ip", "mac", "server"],
     },
     {
         id: "nic", cat: "devices", abbr: "NIC = Network Interface Card", keys: ["NIC", "network card"],
@@ -88,7 +88,7 @@ const LEXICON = [
         fig: () => Fig.svg(Fig.hub(160, 30, "HUB") + [70, 190, 310, 430].map((x, i) => Fig.pc(x, 120, "PC" + (i + 1))) +
             [70, 190, 310, 430].map((x, i) => i == 0 ? Fig.arrow(x, 116, 200, 68, Fig.c.arp) : Fig.arrow(240, 68, x, 116, Fig.c.arp, "", true)).join("") +
             Fig.bubble(118, 100, "for PC3", Fig.c.arp)),
-        try: [["hub", "ssh Host1 ping -c 2 192.168.1.3"]], see: ["switch", "collision-domain", "flooding", "layers"],
+        try: [["hub", "ssh host1 ping -c 2 192.168.1.3"]], see: ["switch", "collision-domain", "flooding", "layers"],
     },
     {
         id: "switch", cat: "devices", keys: ["switch", "learning switch", "kapcsoló"],
@@ -110,7 +110,7 @@ const LEXICON = [
             Fig.arrow(70, 126, 196, 66, Fig.c.icmp) + Fig.arrow(268, 66, 310, 126, Fig.c.icmp, "only here!") +
             `<rect x="330" y="8" width="140" height="52" rx="6" fill="#0b1118" stroke="#5aa7e0"/>` + Fig.t(400, 24, "MAC table", { s: 10.5, c: "#5aa7e0", w: 700 }) +
             Fig.t(400, 38, "…:01 → port 1", { s: 9.5, mono: true }) + Fig.t(400, 52, "…:03 → port 3", { s: 9.5, mono: true })),
-        try: [["switch", "ssh Host1 ping -c 3 192.168.1.3"]], see: ["mac-table", "flooding", "hub", "vlan"],
+        try: [["switch", "ssh host1 ping -c 3 192.168.1.3"]], see: ["mac-table", "flooding", "hub", "vlan", "managed-switch"],
     },
     {
         id: "router", cat: "devices", keys: ["router", "útválasztó"],
@@ -129,9 +129,9 @@ const LEXICON = [
             like: "egy postahivatal: elolvassa a várost a levélen, és a megfelelő teherautóra teszi.",
         },
         fig: () => Fig.svg(Fig.zone(10, 30, 150, 150, "192.168.1.0/24", Fig.c.eth) + Fig.zone(320, 30, 150, 150, "192.168.2.0/24", Fig.c.icmp) +
-            Fig.pc(70, 70, "Host1") + Fig.pc(390, 70, "Host3") + Fig.router(240, 80, "Router") + Fig.line(98, 102, 200, 97) + Fig.line(280, 97, 362, 102) +
+            Fig.pc(70, 70, "host1") + Fig.pc(390, 70, "host3") + Fig.router(240, 80, "Router") + Fig.line(98, 102, 200, 97) + Fig.line(280, 97, 362, 102) +
             Fig.tag(150, 60, "TTL 64", Fig.c.ip) + Fig.tag(330, 60, "TTL 63", Fig.c.ip) + Fig.arrow(150, 205, 330, 205, Fig.c.ip, "same IP addresses, new MACs"), 220),
-        try: [["router", "ssh Host1 ping -c 2 192.168.2.10"]], see: ["routing-table", "gateway", "ttl", "ipv4"],
+        try: [["router", "ssh host1 ping -c 2 192.168.2.10"]], see: ["router-setup", "routing-table", "gateway", "ttl", "ipv4"],
     },
     {
         id: "server", cat: "devices", keys: ["server", "szerver"],
@@ -139,20 +139,20 @@ const LEXICON = [
             t: "Server",
             short: "A computer that offers a service to the others — for example giving out addresses (DHCP) or answering name questions (DNS).",
             body: ["A server is a normal computer, usually without screen and keyboard, running programs that wait for questions on a <b>port number</b>.",
-                "In this lab Server1 can run <code>dhcpd</code> (hands out IP addresses) and <code>named</code> (a DNS server). Web, file and game servers work the same way."],
+                "In this lab server1 can run <code>dhcpd</code> (hands out IP addresses) and <code>named</code> (a DNS server). Web, file and game servers work the same way."],
             like: "the reception desk of a hotel: guests come with questions, the desk answers them.",
         },
         hu: {
             t: "Szerver (kiszolgáló)",
             short: "Számítógép, ami szolgáltatást nyújt a többieknek — például címeket oszt (DHCP) vagy nevekre válaszol (DNS).",
             body: ["A szerver egy hétköznapi számítógép, többnyire képernyő és billentyűzet nélkül. Programok futnak rajta, amelyek egy <b>portszámon</b> várják a kérdéseket.",
-                "A laborban a Server1 futtathat <code>dhcpd</code>-t (IP-címeket oszt) és <code>named</code>-et (DNS-szerver). A web-, fájl- és játékszerverek ugyanígy működnek."],
+                "A laborban a server1 futtathat <code>dhcpd</code>-t (IP-címeket oszt) és <code>named</code>-et (DNS-szerver). A web-, fájl- és játékszerverek ugyanígy működnek."],
             like: "a szálloda recepciója: a vendégek kérdeznek, a recepció válaszol.",
         },
-        fig: () => Fig.svg(Fig.server(240, 70, "Server1", "dhcpd · named") + Fig.pc(80, 60, "Host1") + Fig.pc(400, 60, "Host2") +
+        fig: () => Fig.svg(Fig.server(240, 70, "server1", "dhcpd · named") + Fig.pc(80, 60, "host1") + Fig.pc(400, 60, "host2") +
             Fig.bubble(110, 40, "an address, please!", Fig.c.dhcp, 150) + Fig.bubble(380, 40, "who is www?", Fig.c.dns, 110) +
             Fig.arrow(120, 110, 215, 95, Fig.c.dhcp) + Fig.arrow(360, 110, 265, 95, Fig.c.dns)),
-        try: [["dhcp", "ssh Host1 dhclient"]], see: ["dhcp", "dns", "port-number"],
+        try: [["dhcp", "ssh host1 dhclient"]], see: ["dhcp", "dns", "port-number"],
     },
 
     // ---------------------------------------------------------------- addresses
@@ -177,7 +177,7 @@ const LEXICON = [
             Fig.t(90, 130, "0000 0010", { s: 11, mono: true, c: Fig.c.dim }) + Fig.arrow(90, 140, 90, 165, Fig.c.dim) +
             Fig.t(170, 182, "last bit 0 = one card (unicast) · 1 = group", { s: 10.5, a: "start", c: Fig.c.text }) +
             Fig.t(170, 198, "ff:ff:ff:ff:ff:ff = everybody (broadcast)", { s: 10.5, a: "start", c: Fig.c.arp })),
-        try: [["p2p", "ssh Host1 ip link"]], see: ["nic", "arp", "broadcast", "unicast-multicast"],
+        try: [["p2p", "ssh host1 ip link"]], see: ["nic", "arp", "broadcast", "unicast-multicast"],
     },
     {
         id: "ip", cat: "addresses", abbr: "IP = Internet Protocol", keys: ["IP address", "IP addresses", "IP", "IP-cím"],
@@ -197,8 +197,8 @@ const LEXICON = [
         },
         fig: () => Fig.svg(Fig.fields(60, 80, [["192", 90, Fig.c.ip], ["168", 90, Fig.c.ip], ["1", 90, Fig.c.ip], ["10", 90, Fig.c.arp]]) +
             Fig.t(195, 70, "network: 192.168.1  (/24 = first 24 bits)", { s: 11, c: Fig.c.ip }) + Fig.t(375, 135, "computer: 10", { s: 11, c: Fig.c.arp }) +
-            Fig.t(240, 175, "Host1 = 192.168.1.10 · Host2 = 192.168.1.11 · same network", { s: 11, c: Fig.c.dim })),
-        try: [["p2p", "ssh Host1 ip addr"]], see: ["subnet", "ipv4", "mac", "dhcp"],
+            Fig.t(240, 175, "host1 = 192.168.1.10 · host2 = 192.168.1.11 · same network", { s: 11, c: Fig.c.dim })),
+        try: [["p2p", "ssh host1 ip addr"]], see: ["subnet", "ipv4", "mac", "dhcp"],
     },
     {
         id: "subnet", cat: "addresses", abbr: "CIDR = Classless Inter-Domain Routing (the /24 way of writing)", keys: ["netmask", "subnet", "prefix", "CIDR", "alhálózat"],
@@ -220,7 +220,7 @@ const LEXICON = [
             Fig.t(187, 60, "24 ones = network part", { s: 11, c: Fig.c.ip }) + Fig.t(397, 60, "8 zeros = computers", { s: 11, c: Fig.c.arp }) +
             Fig.t(240, 135, "255 . 255 . 255 . 0   =   /24", { s: 14, mono: true }) +
             Fig.t(240, 170, "192.168.1.0 = the network · 192.168.1.255 = broadcast · 1 … 254 = computers", { s: 10.5, c: Fig.c.dim })),
-        try: [["router", "ssh Host1 ip route"]], see: ["ip", "gateway", "routing-table", "broadcast"],
+        try: [["router", "ssh host1 ip route"]], see: ["ip", "gateway", "routing-table", "broadcast"],
     },
     {
         id: "gateway", cat: "addresses", keys: ["default gateway", "gateway", "átjáró"],
@@ -238,12 +238,12 @@ const LEXICON = [
                 "A gép nem írja át a cél IP-címet — csak az átjáró MAC-címét teszi a keretre. Nézd meg: <code>ip route</code> → <code>default via 192.168.1.1</code>."],
             like: "az osztályterem ajtaja: ami kimegy, az mind azon át megy ki.",
         },
-        fig: () => Fig.svg(Fig.pc(80, 60, "Host1", "192.168.1.10") + Fig.router(260, 70, "gateway", "192.168.1.1") + Fig.line(108, 92, 220, 87) +
+        fig: () => Fig.svg(Fig.pc(80, 60, "host1", "192.168.1.10") + Fig.router(260, 70, "gateway", "192.168.1.1") + Fig.line(108, 92, 220, 87) +
             `<ellipse cx="410" cy="85" rx="55" ry="34" fill="#16222f" stroke="${Fig.c.dim}"/>` + Fig.t(410, 81, "other", { s: 11 }) + Fig.t(410, 95, "networks", { s: 11 }) + Fig.line(300, 87, 355, 87, Fig.c.dim) +
             `<rect x="30" y="155" width="420" height="44" rx="6" fill="#0b1016" stroke="#1c2735"/>` +
             Fig.t(45, 173, "192.168.1.0/24 dev NIC1        ← my own network: send directly", { s: 10, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(45, 190, "default via 192.168.1.1        ← everything else", { s: 10, mono: true, a: "start", c: "#c9f7d6" })),
-        try: [["router", "ssh Host1 ip route"]], see: ["router", "routing-table", "subnet"],
+        try: [["router", "ssh host1 ip route"]], see: ["router", "routing-table", "subnet"],
     },
     {
         id: "broadcast", cat: "addresses", keys: ["broadcast", "broadcasts", "üzenetszórás"],
@@ -261,10 +261,10 @@ const LEXICON = [
                 "Az ARP-kérések és a DHCP első üzenetei broadcastok, mert a küldő még nem tudja, kitől kérdezzen."],
             like: "bekiabálni az osztályba: a teremben mindenki hallja, kint senki.",
         },
-        fig: () => Fig.svg(Fig.pc(90, 90, "Host1") + Fig.bubble(90, 60, "Who has 192.168.1.3?", Fig.c.arp, 160) +
-            [260, 340, 420].map((x, i) => Fig.pc(x, 100, "Host" + (i + 2)) + Fig.arrow(130, 115, x - 32, 115 + (i - 1) * 6, Fig.c.arp, "", true)).join("") +
+        fig: () => Fig.svg(Fig.pc(90, 90, "host1") + Fig.bubble(90, 60, "Who has 192.168.1.3?", Fig.c.arp, 160) +
+            [260, 340, 420].map((x, i) => Fig.pc(x, 100, "host" + (i + 2)) + Fig.arrow(130, 115, x - 32, 115 + (i - 1) * 6, Fig.c.arp, "", true)).join("") +
             Fig.t(240, 200, "destination MAC ff:ff:ff:ff:ff:ff", { s: 11, mono: true, c: Fig.c.arp })),
-        try: [["hub", "ssh Host4 arping 192.168.1.2"]], see: ["arp", "broadcast-domain", "unicast-multicast", "flooding"],
+        try: [["hub", "ssh host4 arping 192.168.1.2"]], see: ["arp", "broadcast-domain", "unicast-multicast", "flooding"],
     },
     {
         id: "unicast-multicast", cat: "addresses", keys: ["unicast", "multicast"],
@@ -304,7 +304,7 @@ const LEXICON = [
                 "A kérdező fél egy véletlen, nagy portot választ (például 40213), oda érkezik majd a válasz. Ne keverd össze a switch portjával — az egy fizikai aljzat!"],
             like: "a lakás száma egy nagy társasházban.",
         },
-        fig: () => Fig.svg(`<rect x="170" y="30" width="140" height="160" rx="8" fill="#16222f" stroke="${Fig.c.dim}"/>` + Fig.t(240, 50, "Server1 · 192.168.1.2", { s: 11 }) +
+        fig: () => Fig.svg(`<rect x="170" y="30" width="140" height="160" rx="8" fill="#16222f" stroke="${Fig.c.dim}"/>` + Fig.t(240, 50, "server1 · 192.168.1.2", { s: 11 }) +
             [["53 DNS", Fig.c.dns], ["67 DHCP", Fig.c.dhcp], ["22 ssh", Fig.c.icmp]].map(([t, c], i) => `<rect x="190" y="${65 + i * 40}" width="100" height="30" rx="5" fill="${c}" fill-opacity=".2" stroke="${c}"/>` + Fig.t(240, 85 + i * 40, t, { s: 12, c, w: 700 })).join("") +
             Fig.env(80, 80, Fig.c.dns, "to port 53") + Fig.arrow(105, 80, 188, 80, Fig.c.dns)),
         see: ["udp", "server", "dns", "dhcp"],
@@ -327,7 +327,7 @@ const LEXICON = [
         },
         fig: () => Fig.svg(Fig.t(240, 70, "host1 . lab", { s: 30, mono: true, c: Fig.c.dns }) + Fig.t(185, 100, "computer", { s: 11, c: Fig.c.dim }) + Fig.t(300, 100, "domain", { s: 11, c: Fig.c.dim }) +
             Fig.arrow(240, 120, 240, 160, Fig.c.dns, "DNS") + Fig.t(240, 190, "192.168.1.11", { s: 22, mono: true, c: Fig.c.ip })),
-        try: [["dns", "ssh Host1 host host3"]], see: ["dns", "ip"],
+        try: [["dns", "ssh host1 host host3"]], see: ["dns", "ip"],
     },
 
     // ---------------------------------------------------------------- protocols
@@ -367,10 +367,10 @@ const LEXICON = [
                 "A választ az <b>ARP-gyorsítótár</b> megjegyzi, így egy ideig nem kell újra kérdezni. Nézd meg: <code>ip neigh</code> vagy <code>arp -a</code>."],
             like: "bekiabálni az osztályban: „Ki az Anna?” — és Anna jelentkezik.",
         },
-        fig: () => Fig.svg(Fig.pc(90, 90, "Host1", ".1") + Fig.pc(390, 90, "Host2", ".2") +
+        fig: () => Fig.svg(Fig.pc(90, 90, "host1", ".1") + Fig.pc(390, 90, "host2", ".2") +
             Fig.bubble(150, 50, "Who has 192.168.1.2?", Fig.c.arp, 160) + Fig.bubble(340, 50, "It's me: 02:…:02", Fig.c.icmp, 130) +
             Fig.arrow(130, 150, 350, 150, Fig.c.arp, "1) broadcast") + Fig.arrow(350, 180, 130, 180, Fig.c.icmp, "2) straight back")),
-        try: [["p2p", "ssh Host1 arping 192.168.1.2"]], see: ["arp-cache", "broadcast", "mac", "ip"],
+        try: [["p2p", "ssh host1 arping 192.168.1.2"]], see: ["arp-cache", "broadcast", "mac", "ip"],
     },
     {
         id: "ipv4", cat: "protocols", abbr: "IPv4 = Internet Protocol version 4", keys: ["IPv4", "IP packet", "IP header"],
@@ -409,10 +409,10 @@ const LEXICON = [
                 "Az ICMP-hibaüzenet mindig magával viszi a hibás csomag elejét, így a küldő pontosan tudja, melyikről van szó."],
             like: "rövid cetlik: „Ott vagy?” — „Igen!” — vagy „Bocs, nem tudtam kézbesíteni.”",
         },
-        fig: () => Fig.svg(Fig.pc(80, 60, "Host1") + Fig.pc(400, 60, "Host2") +
+        fig: () => Fig.svg(Fig.pc(80, 60, "host1") + Fig.pc(400, 60, "host2") +
             Fig.arrow(120, 70, 360, 70, Fig.c.icmp, "echo request (ping)") + Fig.arrow(360, 105, 120, 105, Fig.c.icmp, "echo reply (pong)") +
             Fig.router(340, 150, "router") + Fig.arrow(298, 167, 140, 145, Fig.c.bad, "time exceeded!")),
-        try: [["p2p", "ssh Host1 ping -c 2 192.168.1.2"], ["routing-loop", "ssh Host1 ping -c 1 -t 6 172.16.0.1"]], see: ["ping", "ttl", "traceroute"],
+        try: [["p2p", "ssh host1 ping -c 2 192.168.1.2"], ["routing-loop", "ssh host1 ping -c 1 -t 6 172.16.0.1"]], see: ["ping", "ttl", "traceroute"],
     },
     {
         id: "udp", cat: "protocols", abbr: "UDP = User Datagram Protocol", keys: ["UDP"],
@@ -453,7 +453,7 @@ const LEXICON = [
         fig: () => Fig.svg(Fig.pc(80, 40, "new PC", "no IP yet") + Fig.server(400, 40, "DHCP server") +
             [["1 DISCOVER", 1], ["2 OFFER .100", -1], ["3 REQUEST .100", 1], ["4 ACK ✓", -1]].map(([t, d], i) =>
                 d > 0 ? Fig.arrow(120, 110 + i * 26, 370, 110 + i * 26, Fig.c.dhcp, t) : Fig.arrow(370, 110 + i * 26, 120, 110 + i * 26, Fig.c.dhcp, t)).join(""), 220),
-        try: [["dhcp", "ssh Host1 dhclient"]], see: ["lease", "broadcast", "udp", "gateway", "dns"],
+        try: [["dhcp", "ssh host1 dhclient"]], see: ["lease", "broadcast", "udp", "gateway", "dns"],
     },
     {
         id: "dns", cat: "protocols", abbr: "DNS = Domain Name System", keys: ["DNS", "named", "NXDOMAIN", "nameserver"],
@@ -471,10 +471,10 @@ const LEXICON = [
                 "Ha a név nem létezik, a válasz <b>NXDOMAIN</b> („nincs ilyen tartomány”). A DNS-kérdések UDP-ben utaznak az 53-as portra."],
             like: "a telefonkönyv, vagy a névjegyzéked: a név alapján megkeresed a számot.",
         },
-        fig: () => Fig.svg(Fig.pc(80, 60, "Host1") + Fig.server(400, 60, "DNS server") +
+        fig: () => Fig.svg(Fig.pc(80, 60, "host1") + Fig.server(400, 60, "DNS server") +
             Fig.arrow(120, 75, 370, 75, Fig.c.dns, "1) what is www.lab?") + Fig.arrow(370, 110, 120, 110, Fig.c.dns, "2) 10.0.0.80") +
             Fig.arrow(120, 170, 370, 170, Fig.c.icmp, "3) now ping 10.0.0.80")),
-        try: [["dns", "ssh Host1 host host3"], ["dns", "ssh Host1 ping -c 1 host3"]], see: ["domain-name", "udp", "port-number", "host-cmd"],
+        try: [["dns", "ssh host1 host host3"], ["dns", "ssh host1 ping -c 1 host3"]], see: ["domain-name", "udp", "port-number", "host-cmd"],
     },
     {
         id: "lldp", cat: "protocols", abbr: "LLDP = Link Layer Discovery Protocol", keys: ["LLDP", "lldpd", "LLDPDU"],
@@ -492,10 +492,10 @@ const LEXICON = [
                 "Az LLDP-keretek egy különleges multicast címre mennek, amit a switchek sosem adnak tovább — így csak a saját kábeled túlsó végén lévő eszközről tudsz meg valamit. A hálózatüzemeltetők ezzel rajzolnak térképet a hálózatukról."],
             like: "köszönni annak, aki melletted ül a buszon.",
         },
-        fig: () => Fig.svg(Fig.pc(110, 70, "Host1") + Fig.pc(370, 70, "Host2") + Fig.line(138, 102, 342, 102) +
-            Fig.bubble(120, 45, "I am Host1, port NIC1", Fig.c.lldp, 160) + Fig.bubble(360, 45, "I am Host2, port NIC2", Fig.c.lldp, 160) +
+        fig: () => Fig.svg(Fig.pc(110, 70, "host1") + Fig.pc(370, 70, "host2") + Fig.line(138, 102, 342, 102) +
+            Fig.bubble(120, 45, "I am host1, port NIC1", Fig.c.lldp, 160) + Fig.bubble(360, 45, "I am host2, port NIC2", Fig.c.lldp, 160) +
             Fig.env(240, 102, Fig.c.lldp, "LLDP")),
-        try: [["hub", "for i in {1..4}; do ssh Host$i systemctl start lldpd; done"], ["hub", "ssh Host1 lldpcli update"]], see: ["tlv", "unicast-multicast", "lldpcli"],
+        try: [["hub", "for i in {1..4}; do ssh host$i systemctl start lldpd; done"], ["hub", "ssh host1 lldpcli update"]], see: ["tlv", "unicast-multicast", "lldpcli"],
     },
     {
         id: "vlan", cat: "protocols", abbr: "VLAN = Virtual Local Area Network · 802.1Q = the VLAN tag standard", keys: ["VLAN", "VLANs", "802.1Q"],
@@ -516,7 +516,7 @@ const LEXICON = [
         fig: () => Fig.svg(Fig.sw(150, 40, "SWITCH", 4, [Fig.c.vlan, Fig.c.vlan, Fig.c.eth, Fig.c.eth]) +
             [60, 170, 300, 410].map((x, i) => Fig.pc(x, 120, "PC" + (i + 1), i < 2 ? "VLAN 10" : "VLAN 20")).join("") +
             Fig.zone(15, 110, 215, 100, "", Fig.c.vlan) + Fig.zone(250, 110, 215, 100, "", Fig.c.eth) + Fig.no(240, 160)),
-        try: [["vlan", "ssh Host1 ping -c 1 192.168.1.3"], ["vlan-trunk", "ssh Host1 ping -c 2 192.168.10.21"]], see: ["trunk-access", "switch", "broadcast-domain"],
+        try: [["vlan", "ssh host1 ping -c 1 192.168.1.3"], ["vlan-trunk", "ssh host1 ping -c 2 192.168.10.21"]], see: ["trunk-access", "switch", "broadcast-domain"],
     },
 
     // ---------------------------------------------------------------- inside a frame
@@ -659,7 +659,7 @@ const LEXICON = [
         fig: () => Fig.svg(Fig.pc(50, 70) + [160, 280, 400].map((x, i) => Fig.router(x, 80, "R" + (i + 1))).join("") +
             [["64", 105], ["63", 220], ["62", 340]].map(([t, x]) => Fig.tag(x, 60, "TTL " + t, Fig.c.ip)).join("") +
             Fig.line(78, 97, 120, 97) + Fig.line(200, 97, 240, 97) + Fig.line(320, 97, 360, 97) + Fig.t(240, 180, "… at 0: dropped + ICMP time exceeded", { s: 11, c: Fig.c.bad })),
-        try: [["two-routers", "ssh Host1 ping -c 1 -t 2 192.168.2.10"], ["two-routers", "ssh Host1 traceroute 192.168.2.10"]], see: ["traceroute", "routing-loop", "icmp", "router"],
+        try: [["two-routers", "ssh host1 ping -c 1 -t 2 192.168.2.10"], ["two-routers", "ssh host1 traceroute 192.168.2.10"]], see: ["traceroute", "routing-loop", "icmp", "router"],
     },
     {
         id: "checksum", cat: "packets", keys: ["checksum", "ellenőrzőösszeg"],
@@ -697,7 +697,7 @@ const LEXICON = [
                 "A DHCP-opciók is így működnek (53-as opció = üzenettípus, 3-as = router…)."],
             like: "felcímkézett dobozok a költöztetőautóban: „könyvek · 3 kg · (a könyvek)”.",
         },
-        fig: () => Fig.svg(Fig.fields(30, 80, [["T 5", 50, Fig.c.lldp, "type"], ["L 5", 50, Fig.c.lldp, "length"], ["Host1", 100, Fig.c.lldp, "value"], ["T 2", 50, Fig.c.eth, "type"], ["L 5", 50, Fig.c.eth, "length"], ["NIC1", 120, Fig.c.eth, "value"]], 44) +
+        fig: () => Fig.svg(Fig.fields(30, 80, [["T 5", 50, Fig.c.lldp, "type"], ["L 5", 50, Fig.c.lldp, "length"], ["host1", 100, Fig.c.lldp, "value"], ["T 2", 50, Fig.c.eth, "type"], ["L 5", 50, Fig.c.eth, "length"], ["NIC1", 120, Fig.c.eth, "value"]], 44) +
             Fig.t(130, 160, "system name", { s: 11, c: Fig.c.lldp }) + Fig.t(340, 160, "port ID", { s: 11, c: Fig.c.eth })),
         see: ["lldp", "dhcp"],
     },
@@ -762,7 +762,7 @@ const LEXICON = [
         },
         fig: () => Fig.svg(`<rect x="80" y="30" width="320" height="150" rx="8" fill="#0b1118" stroke="#5aa7e0"/>` + Fig.t(240, 54, "MAC address          port   age", { s: 12, mono: true, c: "#5aa7e0" }) +
             [["02:00:00:00:00:01", 1, "4s"], ["02:00:00:00:00:03", 3, "2s"], ["02:00:00:00:00:05", 4, "1s"]].map(([m, p, a], i) => Fig.t(240, 86 + i * 28, `${m}     ${p}     ${a}`, { s: 12, mono: true })).join("")),
-        try: [["switch", "ssh Host1 ping -c 2 192.168.1.3"]], see: ["switch", "flooding", "mac"],
+        try: [["switch", "ssh host1 ping -c 2 192.168.1.3"]], see: ["switch", "flooding", "mac"],
     },
     {
         id: "arp-cache", cat: "ideas", keys: ["ARP cache", "neighbour table", "ARP-gyorsítótár"],
@@ -784,7 +784,7 @@ const LEXICON = [
             Fig.t(70, 85, "$ ip neigh", { s: 13, mono: true, a: "start", c: Fig.c.ok }) +
             Fig.t(70, 115, "192.168.1.2 dev NIC1 lladdr 02:00:00:00:00:02", { s: 12, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(70, 135, "REACHABLE", { s: 12, mono: true, a: "start", c: Fig.c.ok })),
-        try: [["p2p", "ssh Host1 ip neigh"]], see: ["arp", "mac", "ip"],
+        try: [["p2p", "ssh host1 ip neigh"]], see: ["arp", "mac", "ip"],
     },
     {
         id: "routing-table", cat: "ideas", keys: ["routing table", "longest prefix match", "útvonaltábla"],
@@ -807,7 +807,7 @@ const LEXICON = [
             Fig.t(45, 98, "192.168.1.0/24 dev NIC5      → LAN A", { s: 11.5, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(45, 120, "192.168.2.0/24 via 10.0.0.2 → next router", { s: 11.5, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(45, 142, "default via 10.0.0.2         → everything else", { s: 11.5, mono: true, a: "start", c: "#c9f7d6" })),
-        try: [["two-routers", "ssh Router1 ip route"]], see: ["router", "gateway", "subnet"],
+        try: [["two-routers", "ssh router1 ip route"]], see: ["router", "gateway", "subnet"],
     },
     {
         id: "flooding", cat: "ideas", keys: ["flood", "floods", "flooding", "flooded", "elárasztás"],
@@ -908,7 +908,7 @@ const LEXICON = [
             Fig.t(80, 70, "lease 192.168.1.100 {", { s: 12, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(100, 94, "hardware ethernet 02:00:00:00:00:02;", { s: 12, mono: true, a: "start", c: "#c9f7d6" }) +
             Fig.t(100, 118, "binding state active;", { s: 12, mono: true, a: "start", c: "#c9f7d6" }) + Fig.t(80, 142, "}", { s: 12, mono: true, a: "start", c: "#c9f7d6" })),
-        try: [["dhcp", "ssh Server1 cat /var/lib/dhcpd/dhcpd.leases"]], see: ["dhcp", "server"],
+        try: [["dhcp", "ssh server1 cat /var/lib/dhcpd/dhcpd.leases"]], see: ["dhcp", "server"],
     },
     {
         id: "routing-loop", cat: "ideas", keys: ["routing loop", "útválasztási hurok"],
@@ -926,11 +926,11 @@ const LEXICON = [
                 "A 10. lecke szándékosan épít ilyen hurkot, hogy megnézhesd."],
             like: "két ember egymásra mutogat: „kérdezd őt!” — „nem, kérdezd őt!”",
         },
-        fig: () => Fig.svg(Fig.router(140, 80, "Router1") + Fig.router(340, 80, "Router2") +
+        fig: () => Fig.svg(Fig.router(140, 80, "router1") + Fig.router(340, 80, "router2") +
             `<path d="M180 85 C 240 40, 260 40, 300 85" fill="none" stroke="${Fig.c.bad}" stroke-width="2" marker-end="url(#ah)"/>` +
             `<path d="M300 110 C 260 150, 220 150, 180 110" fill="none" stroke="${Fig.c.bad}" stroke-width="2" marker-end="url(#ah)"/>` +
             Fig.tag(240, 30, "TTL 6 → 5 → 4 …", Fig.c.ip) + Fig.t(240, 195, "default route → the other router", { s: 11, c: Fig.c.dim })),
-        try: [["routing-loop", "ssh Host1 ping -c 1 -t 6 172.16.0.1"]], see: ["ttl", "routing-table", "icmp"],
+        try: [["routing-loop", "ssh host1 ping -c 1 -t 6 172.16.0.1"]], see: ["ttl", "routing-table", "icmp"],
     },
     {
         id: "trunk-access", cat: "ideas", keys: ["trunk", "access port", "tagged"],
@@ -951,7 +951,7 @@ const LEXICON = [
         fig: () => Fig.svg(Fig.sw(20, 40, "SW1", 3, [Fig.c.vlan, Fig.c.eth, "#ddd"]) + Fig.sw(340, 40, "SW2", 3, ["#ddd", Fig.c.vlan, Fig.c.eth]) +
             Fig.line(120, 75, 360, 75, "#e4b43c", 4) + Fig.env(200, 75, Fig.c.vlan, "V10", 40) + Fig.env(285, 75, Fig.c.eth, "V20", 40) +
             Fig.t(240, 140, "trunk: one cable, every VLAN, tagged frames", { s: 11.5, c: "#e4b43c" })),
-        try: [["vlan-trunk", "ssh Host2 ping -c 2 192.168.20.22"]], see: ["vlan", "switch"],
+        try: [["vlan-trunk", "ssh host2 ping -c 2 192.168.20.22"]], see: ["vlan", "switch"],
     },
 
     // ---------------------------------------------------------------- commands
@@ -974,7 +974,7 @@ const LEXICON = [
         fig: () => Fig.svg(`<rect x="20" y="30" width="440" height="150" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
             ["$ ping -c 2 192.168.1.2", "PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.", "64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=2.61 ms", "64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=2.58 ms", "2 packets transmitted, 2 received, 0% packet loss"]
                 .map((l, i) => Fig.t(34, 56 + i * 26, l, { s: 11, mono: true, a: "start", c: i ? "#c9f7d6" : Fig.c.ok })).join("")),
-        try: [["p2p", "ssh Host1 ping -c 3 192.168.1.2"]], see: ["icmp", "ttl", "traceroute"],
+        try: [["p2p", "ssh host1 ping -c 3 192.168.1.2"]], see: ["icmp", "ttl", "traceroute"],
     },
     {
         id: "traceroute", cat: "commands", keys: ["traceroute"],
@@ -995,7 +995,7 @@ const LEXICON = [
         fig: () => Fig.svg(`<rect x="20" y="40" width="440" height="130" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
             ["$ traceroute 192.168.2.10", " 1  192.168.1.1 (192.168.1.1)  6.9 ms", " 2  10.0.0.2 (10.0.0.2)  7.4 ms", " 3  192.168.2.10 (192.168.2.10)  12.5 ms"]
                 .map((l, i) => Fig.t(34, 68 + i * 28, l, { s: 12, mono: true, a: "start", c: i ? "#c9f7d6" : Fig.c.ok })).join("")),
-        try: [["two-routers", "ssh Host1 traceroute 192.168.2.10"]], see: ["ttl", "icmp", "router"],
+        try: [["two-routers", "ssh host1 traceroute 192.168.2.10"]], see: ["ttl", "icmp", "router"],
     },
     {
         id: "arping", cat: "commands", keys: ["arping"],
@@ -1011,8 +1011,8 @@ const LEXICON = [
             body: ["Az <code>arping 192.168.1.2</code> megkérdezi: „kié a 192.168.1.2?”, és kiírja: <code>Unicast reply from 192.168.1.2 [02:00:00:00:00:02]</code>. Csak a helyi hálózaton belül működik, mert az ARP sosem megy át routeren."],
             like: "kiáltani egy osztálytárs nevét a folyosón.",
         },
-        fig: () => Fig.svg(Fig.pc(110, 70, "Host1") + Fig.pc(370, 70, "Host2") + Fig.arrow(150, 90, 330, 90, Fig.c.arp, "who has .2?") + Fig.arrow(330, 125, 150, 125, Fig.c.icmp, "me! 02:…:02")),
-        try: [["p2p", "ssh Host1 arping 192.168.1.2"]], see: ["arp", "ping"],
+        fig: () => Fig.svg(Fig.pc(110, 70, "host1") + Fig.pc(370, 70, "host2") + Fig.arrow(150, 90, 330, 90, Fig.c.arp, "who has .2?") + Fig.arrow(330, 125, 150, 125, Fig.c.icmp, "me! 02:…:02")),
+        try: [["p2p", "ssh host1 arping 192.168.1.2"]], see: ["arp", "ping"],
     },
     {
         id: "ip-cmd", cat: "commands", keys: ["ip addr", "ip route", "ip neigh"],
@@ -1033,7 +1033,7 @@ const LEXICON = [
         fig: () => Fig.svg(`<rect x="20" y="30" width="440" height="160" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
             ["$ ip addr", "2: NIC1: <BROADCAST,MULTICAST,UP,LOWER_UP>", "    link/ether 02:00:00:00:00:01", "    inet 192.168.1.1/24 brd 192.168.1.255", "$ ip route", "192.168.1.0/24 dev NIC1 proto kernel"]
                 .map((l, i) => Fig.t(34, 54 + i * 24, l.replace(/</g, "&lt;").replace(/>/g, "&gt;"), { s: 11, mono: true, a: "start", c: l.startsWith("$") ? Fig.c.ok : "#c9f7d6" })).join("")),
-        try: [["p2p", "ssh Host1 ip addr"], ["router", "ssh Router1 ip route"]], see: ["ip", "routing-table", "arp-cache"],
+        try: [["p2p", "ssh host1 ip addr"], ["router", "ssh router1 ip route"]], see: ["ip", "routing-table", "arp-cache"],
     },
     {
         id: "dhclient", cat: "commands", keys: ["dhclient"],
@@ -1052,7 +1052,7 @@ const LEXICON = [
         fig: () => Fig.svg(`<rect x="20" y="40" width="440" height="140" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
             ["$ dhclient", "DHCPDISCOVER on NIC2 to 255.255.255.255 port 67", "DHCPOFFER of 192.168.1.100 from 192.168.1.2", "DHCPREQUEST for 192.168.1.100 on NIC2", "DHCPACK of 192.168.1.100 from 192.168.1.2"]
                 .map((l, i) => Fig.t(34, 64 + i * 26, l, { s: 11, mono: true, a: "start", c: i ? "#c9f7d6" : Fig.c.ok })).join("")),
-        try: [["dhcp", "ssh Host1 dhclient"]], see: ["dhcp", "lease"],
+        try: [["dhcp", "ssh host1 dhclient"]], see: ["dhcp", "lease"],
     },
     {
         id: "host-cmd", cat: "commands", keys: ["nslookup", "resolv.conf"],
@@ -1071,25 +1071,25 @@ const LEXICON = [
         fig: () => Fig.svg(`<rect x="20" y="50" width="440" height="110" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
             ["$ host host3", "host3.lab has address 192.168.1.13", "$ host nobody", "Host nobody.lab not found: 3(NXDOMAIN)"]
                 .map((l, i) => Fig.t(34, 78 + i * 24, l, { s: 12, mono: true, a: "start", c: l.startsWith("$") ? Fig.c.ok : "#c9f7d6" })).join("")),
-        try: [["dns", "ssh Host1 host host3"], ["dns", "ssh Host1 nslookup www.lab"]], see: ["dns", "domain-name"],
+        try: [["dns", "ssh host1 host host3"], ["dns", "ssh host1 nslookup www.lab"]], see: ["dns", "domain-name"],
     },
     {
         id: "ssh", cat: "commands", keys: ["ssh"],
         en: {
             t: "ssh",
             short: "Log in to another computer and type commands there.",
-            body: ["<code>ssh Host1</code> opens a shell on Host1 — its screen lights up green. <code>ssh Host1 ip addr</code> runs just one command there. <code>exit</code> (or Ctrl-D) brings you back to the admin console."],
+            body: ["<code>ssh host1</code> opens a shell on host1 — its screen lights up green. <code>ssh host1 ip addr</code> runs just one command there. <code>exit</code> (or Ctrl-D) brings you back to the admin console."],
             like: "a remote control for another computer.",
         },
         hu: {
             t: "ssh",
             short: "Belépés egy másik gépre, hogy ott írjunk parancsokat.",
-            body: ["Az <code>ssh Host1</code> parancssort nyit a Host1-en — a képernyője zölden világít. Az <code>ssh Host1 ip addr</code> csak egy parancsot futtat ott. Az <code>exit</code> (vagy Ctrl-D) visszavisz az admin konzolra."],
+            body: ["Az <code>ssh host1</code> parancssort nyit a host1-en — a képernyője zölden világít. Az <code>ssh host1 ip addr</code> csak egy parancsot futtat ott. Az <code>exit</code> (vagy Ctrl-D) visszavisz az admin konzolra."],
             like: "egy távirányító egy másik számítógéphez.",
         },
-        fig: () => Fig.svg(Fig.pc(120, 60, "console") + Fig.pc(360, 60, "Host1", "", "#4ade80") + Fig.arrow(160, 80, 320, 80, Fig.c.ok, "ssh Host1") +
-            Fig.t(240, 170, "[root@Host1 ~]#", { s: 16, mono: true, c: Fig.c.ok })),
-        try: [["p2p", "ssh Host1"]], see: ["host"],
+        fig: () => Fig.svg(Fig.pc(120, 60, "console") + Fig.pc(360, 60, "host1", "", "#4ade80") + Fig.arrow(160, 80, 320, 80, Fig.c.ok, "ssh host1") +
+            Fig.t(240, 170, "[root@host1 ~]#", { s: 16, mono: true, c: Fig.c.ok })),
+        try: [["p2p", "ssh host1"]], see: ["host"],
     },
     {
         id: "lldpcli", cat: "commands", keys: ["lldpcli"],
@@ -1106,8 +1106,141 @@ const LEXICON = [
             like: "a névkártyád, meg a nevek listája, amiket összegyűjtöttél.",
         },
         fig: () => Fig.svg(`<rect x="20" y="50" width="440" height="110" rx="8" fill="#0b1016" stroke="#1c2735"/>` +
-            ["$ lldpcli show neighbors", "Host1 LLDP neighbors:", "NIC2 [02:00:00:00:00:02]"]
+            ["$ lldpcli show neighbors", "host1 LLDP neighbors:", "NIC2 [02:00:00:00:00:02]"]
                 .map((l, i) => Fig.t(34, 80 + i * 26, l, { s: 12, mono: true, a: "start", c: l.startsWith("$") ? Fig.c.ok : "#c9f7d6" })).join("")),
-        try: [["hub", "for i in {1..4}; do ssh Host$i systemctl start lldpd; done"]], see: ["lldp", "tlv"],
+        try: [["hub", "for i in {1..4}; do ssh host$i systemctl start lldpd; done"]], see: ["lldp", "tlv"],
+    },
+    // ---------------------------------------------------------------- managing devices
+    {
+        id: "managed-switch", cat: "devices", keys: ["managed switch", "unmanaged switch"],
+        en: {
+            t: "Managed and unmanaged switch",
+            short: "An unmanaged switch just works and has nothing to set; a managed switch is a small computer you can log in to and configure.",
+            body: ["An <b>unmanaged switch</b> is plug and play: it learns MAC addresses by itself, but you can't log in, give it a name or split it into VLANs — all its ports are one network. The little switches at home are like that. A <b>hub</b> is never managed.",
+                "A <b>managed switch</b> has a small computer inside. You log in (here with <code>ssh switch1</code>) and you can: see its MAC table, put ports into <b>VLANs</b>, make a <b>trunk</b>, switch a port off, give it a name, reboot it. Schools and offices use these.",
+                "Managed switches speak one of two kinds of language. A <b>Linux switch</b> uses the same commands as the servers (<code>ip link</code>, <code>bridge vlan</code>). An <b>IOS-style switch</b> has its own command line with modes (<code>enable</code>, <code>configure terminal</code>) — the kind many network engineers learn. The lab has both: compare them!"],
+            like: "a light switch and a smart lamp: the first only does on/off, the second you can set up from your phone.",
+        },
+        hu: {
+            t: "Managed és unmanaged switch",
+            short: "Az unmanaged (nem menedzselt) switch egyszerűen működik, nincs mit beállítani rajta; a managed switch egy kis számítógép, amelybe be lehet lépni és be lehet állítani.",
+            body: ["Az <b>unmanaged switch</b> „bedugod és megy”: magától tanulja a MAC-címeket, de nem lehet belépni, nevet adni neki vagy VLAN-okra osztani — az összes portja egy hálózat. Az otthoni kis switchek ilyenek. A <b>hub</b> soha nem menedzselhető.",
+                "A <b>managed switch</b> belsejében egy kis számítógép van. Belépsz (itt: <code>ssh switch1</code>), és megnézheted a MAC-tábláját, portokat tehetsz <b>VLAN</b>-okba, csinálhatsz <b>trunkot</b>, lekapcsolhatsz egy portot, nevet adhatsz neki, újraindíthatod. Iskolákban, irodákban ilyeneket használnak.",
+                "A managed switchek kétféle nyelvet beszélnek. A <b>Linuxos switch</b> ugyanazokat a parancsokat érti, mint a szerverek (<code>ip link</code>, <code>bridge vlan</code>). Az <b>IOS-stílusú switch</b> saját parancssort használ, módokkal (<code>enable</code>, <code>configure terminal</code>) — ezt tanulja sok hálózati mérnök. A laborban mindkettő megvan: hasonlítsd össze őket!"],
+            like: "egy villanykapcsoló és egy okoslámpa: az első csak fel-le kapcsol, a másodikat a telefonodról állíthatod be.",
+        },
+        fig: () => Fig.svg(Fig.box(40, 50, 170, "#3d4f60", "unmanaged") + Fig.t(125, 110, "plug and play", { s: 11, c: Fig.c.dim }) + Fig.t(125, 128, "no login · one network", { s: 11, c: Fig.c.dim }) +
+            Fig.box(270, 50, 170, "#24524a", "managed", 4, [Fig.c.vlan, Fig.c.vlan, Fig.c.eth, Fig.c.eth]) +
+            `<rect x="285" y="96" width="140" height="62" rx="5" fill="#070b10" stroke="#2f6a48"/>` +
+            Fig.t(295, 116, "$ ssh switch1", { s: 10.5, mono: true, a: "start", c: Fig.c.ok }) + Fig.t(295, 134, "VLANs · name", { s: 10.5, mono: true, a: "start", c: "#c9f7d6" }) +
+            Fig.t(295, 150, "MAC table · reboot", { s: 10.5, mono: true, a: "start", c: "#c9f7d6" }) + Fig.no(125, 175) + Fig.yes(355, 180)),
+        try: [["switch", "ssh switch1"], ["linux-switch", "ssh switch1 bridge fdb show"], ["ios-switch", "ssh switch1 show vlan brief"]],
+        see: ["switch", "vlan", "linux-switch", "ios-cli", "hub"],
+    },
+    {
+        id: "router-setup", cat: "commands", keys: ["ip_forward", "sysctl", "set up a router"],
+        en: {
+            t: "Setting up a router, step by step",
+            short: "Give each leg of the router an address in its own network, tell it the way to networks further away, allow forwarding, and point the computers at it.",
+            body: ["<b>1. Log in:</b> <code>ssh router1</code>.<br><b>2. One address per leg</b>, each in a different network: <code>ip addr add 192.168.1.1/24 dev NIC1</code>, <code>ip addr add 10.0.0.1/24 dev NIC2</code>. Check with <code>ip addr</code>.<br><b>3. Neighbours come for free:</b> <code>ip route</code> already lists the networks the router is plugged into (<i>proto kernel</i>).",
+                "<b>4. Networks further away need a route:</b> <code>ip route add 192.168.3.0/24 via 10.0.0.2</code> — “to get there, hand the packet to 10.0.0.2”. Or one route for everything else: <code>ip route add default via 10.0.0.2</code>.<br><b>5. Allow passing on:</b> a Linux machine only becomes a router when forwarding is on: <code>sysctl -w net.ipv4.ip_forward=1</code>. The lab's routers start with it on — switch it off with <code>=0</code> and watch the pings die.",
+                "<b>6. Tell the computers:</b> their <b>gateway</b> is the router's address on their side: <code>ip route add default via 192.168.1.1</code> (or let DHCP hand it out).<br><b>7. Test:</b> <code>ping</code>, then <code>traceroute</code> to see every hop. If ping fails, think of the way back: the far side needs a route home too!"],
+            like: "a roundabout with signposts: every exit leads to a different town, and the signs tell which exit to take.",
+        },
+        hu: {
+            t: "Router beállítása lépésenként",
+            short: "Adj a router minden lábának egy címet a saját hálózatában, mondd meg neki a távolabbi hálózatok felé vezető utat, engedd meg a továbbítást, és állítsd be a gépeken átjárónak.",
+            body: ["<b>1. Lépj be:</b> <code>ssh router1</code>.<br><b>2. Minden lábra egy cím</b>, mindegyik másik hálózatban: <code>ip addr add 192.168.1.1/24 dev NIC1</code>, <code>ip addr add 10.0.0.1/24 dev NIC2</code>. Ellenőrizd: <code>ip addr</code>.<br><b>3. A szomszédokat magától tudja:</b> az <code>ip route</code> már mutatja azokat a hálózatokat, amelyekbe a router be van dugva (<i>proto kernel</i>).",
+                "<b>4. A távolabbi hálózatokhoz útvonal kell:</b> <code>ip route add 192.168.3.0/24 via 10.0.0.2</code> — „oda úgy jutsz, hogy átadod a 10.0.0.2-nek”. Vagy egyetlen útvonal minden másra: <code>ip route add default via 10.0.0.2</code>.<br><b>5. Engedd meg a továbbítást:</b> egy linuxos gép csak akkor router, ha be van kapcsolva a továbbítás: <code>sysctl -w net.ipv4.ip_forward=1</code>. A labor routerein ez be van kapcsolva — kapcsold ki <code>=0</code>-val, és nézd, ahogy elhalnak a pingek.",
+                "<b>6. Szólj a gépeknek:</b> az <b>átjárójuk</b> a router saját oldalukon lévő címe: <code>ip route add default via 192.168.1.1</code> (vagy kiossza a DHCP).<br><b>7. Próbáld ki:</b> <code>ping</code>, aztán <code>traceroute</code>, hogy minden ugrást láss. Ha nem megy a ping, gondolj a visszaútra: a túloldalnak is kell útvonal hazafelé!"],
+            like: "egy körforgalom útjelző táblákkal: minden kijárat másik városba visz, a táblák mondják meg, melyiken kell kimenni.",
+        },
+        fig: () => Fig.svg(Fig.zone(14, 30, 150, 150, "192.168.1.0/24") + Fig.zone(316, 30, 150, 150, "10.0.0.0/24") +
+            Fig.pc(80, 60, "host1", "gw 192.168.1.1") + Fig.router(240, 80, "router1") + Fig.line(108, 92, 200, 97) + Fig.line(280, 97, 380, 97) +
+            Fig.server(400, 72, "server", "10.0.0.80") +
+            Fig.tag(170, 72, "① 192.168.1.1", Fig.c.ip) + Fig.tag(320, 72, "① 10.0.0.1", Fig.c.ip) +
+            Fig.tag(240, 160, "② ip route  ③ ip_forward=1", Fig.c.ok) + Fig.tag(80, 196, "④ gateway", Fig.c.arp) + Fig.tag(400, 196, "⑤ ping · traceroute", Fig.c.icmp)),
+        try: [["two-routers", "ssh router1 ip route"], ["two-routers", "ssh router1 sysctl -w net.ipv4.ip_forward=0"], ["two-routers", "ssh host1 traceroute 192.168.2.10"]],
+        see: ["router", "gateway", "routing-table", "ip-cmd", "traceroute"],
+    },
+    {
+        id: "linux-switch", cat: "commands", keys: ["Linux switch", "bridge vlan", "swp1", "br0"],
+        en: {
+            t: "Configuring a Linux switch",
+            short: "A Linux switch is a Linux computer whose ports are network interfaces (swp1, swp2 …) joined in one bridge (br0); you set it up with ip and bridge commands.",
+            body: ["<b>1. Log in:</b> <code>ssh switch1</code>. You get the same shell as on the servers: <code>ls</code>, <code>cat</code>, <code>ps</code> all work.<br><b>2. Look at the ports:</b> <code>ip link</code> — is each swp UP? <code>ethtool swp1</code> — is a cable plugged in?<br><b>3. The MAC table:</b> <code>bridge fdb show</code> — which MAC address lives behind which port.",
+                "<b>4. VLANs:</b> <code>bridge vlan add dev swp3 vid 20 pvid untagged</code> puts swp3 into VLAN 20 (an access port). Without <i>pvid untagged</i> the VLAN is carried with a tag: the port becomes a <b>trunk</b>. Check with <code>bridge vlan show</code>.<br><b>5. A port off and on:</b> <code>ip link set swp2 down</code>, then <code>up</code>.<br><b>6. A name:</b> <code>hostnamectl set-hostname core-sw</code>.",
+                "On a real Linux switch the settings are kept in the file <code>/etc/network/interfaces</code> (try <code>cat</code> on it) and <code>ifreload -a</code> applies it. In this lab a <code>reboot</code> brings back the start settings."],
+            like: "a power strip with a little computer glued on: every socket has a name, and you can tell the computer which sockets belong together.",
+        },
+        hu: {
+            t: "Linuxos switch beállítása",
+            short: "A Linuxos switch egy linuxos számítógép, amelynek a portjai hálózati csatolók (swp1, swp2 …), egyetlen bridge-be (br0) kötve; ip és bridge parancsokkal állítod be.",
+            body: ["<b>1. Lépj be:</b> <code>ssh switch1</code>. Ugyanazt a shellt kapod, mint a szervereken: az <code>ls</code>, a <code>cat</code>, a <code>ps</code> mind működik.<br><b>2. Nézd meg a portokat:</b> <code>ip link</code> — minden swp UP? <code>ethtool swp1</code> — van benne kábel?<br><b>3. A MAC-tábla:</b> <code>bridge fdb show</code> — melyik MAC-cím melyik port mögött lakik.",
+                "<b>4. VLAN-ok:</b> a <code>bridge vlan add dev swp3 vid 20 pvid untagged</code> a swp3-at a 20-as VLAN-ba teszi (access port). A <i>pvid untagged</i> nélkül a VLAN címkével megy: a port <b>trunk</b> lesz. Ellenőrizd: <code>bridge vlan show</code>.<br><b>5. Port ki és be:</b> <code>ip link set swp2 down</code>, aztán <code>up</code>.<br><b>6. Név:</b> <code>hostnamectl set-hostname core-sw</code>.",
+                "Egy igazi Linuxos switchen a beállítások az <code>/etc/network/interfaces</code> fájlban vannak (nézd meg <code>cat</code>-tel), és az <code>ifreload -a</code> alkalmazza őket. A laborban a <code>reboot</code> visszahozza a kezdő beállításokat."],
+            like: "egy elosztó, amire egy kis számítógépet ragasztottak: minden aljzatnak neve van, és megmondhatod a gépnek, melyik aljzatok tartoznak össze.",
+        },
+        fig: () => Fig.svg(`<rect x="60" y="34" width="360" height="30" rx="6" fill="none" stroke="${Fig.c.ok}" stroke-dasharray="5 4"/>` + Fig.t(240, 54, "br0 — the bridge is the switch", { s: 11, c: Fig.c.ok }) +
+            [0, 1, 2, 3].map(i => `<rect x="${78 + i * 88}" y="80" width="62" height="34" rx="4" fill="#24524a" stroke="#0e2a24"/>` + Fig.t(109 + i * 88, 102, "swp" + (i + 1), { s: 12, mono: true }) +
+                `<rect x="${102 + i * 88}" y="114" width="14" height="10" fill="#0b0e12" stroke="#9aa4ae"/>`).join("") +
+            `<rect x="70" y="140" width="340" height="66" rx="5" fill="#070b10" stroke="#2f6a48"/>` +
+            ["$ bridge vlan add dev swp3 vid 20 pvid untagged", "$ bridge fdb show", "$ ip link set swp2 down"]
+                .map((l, i) => Fig.t(80, 160 + i * 19, l, { s: 10.5, mono: true, a: "start", c: Fig.c.ok })).join("")),
+        try: [["linux-switch", "ssh switch1 bridge vlan show"], ["linux-switch", "ssh switch1 cat /etc/network/interfaces"], ["linux-switch", "ssh switch1"]],
+        see: ["managed-switch", "vlan", "mac-table", "ios-cli"],
+    },
+    {
+        id: "ios-cli", cat: "commands", keys: ["IOS-style", "configure terminal", "privileged mode", "show vlan brief"],
+        en: {
+            t: "IOS-style command line (configuring a managed switch)",
+            short: "A command language with modes: you climb from looking (>) to changing (#) to configuring ((config)#), one step at a time.",
+            body: ["<b>1. Log in:</b> <code>ssh switch1</code> → <code>switch1&gt;</code> — user mode, you may only look.<br><b>2. <code>enable</code></b> → <code>switch1#</code> — privileged mode: show everything, save, reload.<br><b>3. <code>configure terminal</code></b> → <code>switch1(config)#</code> — now changes are allowed. <code>hostname edge1</code> renames the switch.",
+                "<b>4. One port:</b> <code>interface gi0/3</code> → <code>(config-if)#</code>, then <code>switchport mode access</code>, <code>switchport access vlan 20</code>, <code>description to host3</code>. A trunk: <code>switchport mode trunk</code>. Off and on: <code>shutdown</code>, <code>no shutdown</code>.<br><b>5. <code>end</code></b> takes you back to <code>#</code>. Check: <code>show vlan brief</code>, <code>show interfaces status</code>, <code>show mac address-table</code>, <code>show running-config</code>.<br><b>6. Save!</b> <code>write memory</code> — or a <code>reload</code> forgets everything.",
+                "Tricks: words may be shortened (<code>conf t</code>, <code>int gi0/3</code>, <code>sh vlan br</code>), <b>?</b> shows what can come next, TAB completes a word, and <code>do show …</code> works inside the configuration modes. A wrong word is marked with a <b>^</b>."],
+            like: "the floors of a building: the lobby (>) is open to everybody, the office (#) needs a key, and only the workshop ((config)#) has tools.",
+        },
+        hu: {
+            t: "IOS-stílusú parancssor (managed switch beállítása)",
+            short: "Módokra osztott parancsnyelv: lépésről lépésre jutsz a nézelődéstől (>) a változtatásig (#), majd a beállításig ((config)#).",
+            body: ["<b>1. Lépj be:</b> <code>ssh switch1</code> → <code>switch1&gt;</code> — felhasználói mód, csak nézelődni lehet.<br><b>2. <code>enable</code></b> → <code>switch1#</code> — privilegizált mód: mindent megnézhetsz, menthetsz, újraindíthatsz.<br><b>3. <code>configure terminal</code></b> → <code>switch1(config)#</code> — most már lehet változtatni. A <code>hostname edge1</code> átnevezi a switchet.",
+                "<b>4. Egy port:</b> <code>interface gi0/3</code> → <code>(config-if)#</code>, aztán <code>switchport mode access</code>, <code>switchport access vlan 20</code>, <code>description to host3</code>. Trunk: <code>switchport mode trunk</code>. Ki és be: <code>shutdown</code>, <code>no shutdown</code>.<br><b>5. Az <code>end</code></b> visszavisz a <code>#</code>-hoz. Ellenőrizd: <code>show vlan brief</code>, <code>show interfaces status</code>, <code>show mac address-table</code>, <code>show running-config</code>.<br><b>6. Ments!</b> <code>write memory</code> — különben egy <code>reload</code> mindent elfelejt.",
+                "Trükkök: a szavakat rövidítheted (<code>conf t</code>, <code>int gi0/3</code>, <code>sh vlan br</code>), a <b>?</b> megmutatja, mi jöhet, a TAB kiegészít egy szót, és a <code>do show …</code> a beállító módokban is működik. A hibás szót egy <b>^</b> jelöli."],
+            like: "egy épület emeletei: az előcsarnok (>) mindenkinek nyitva van, az irodához (#) kulcs kell, és csak a műhelyben ((config)#) vannak szerszámok.",
+        },
+        fig: () => Fig.svg([["switch1>", "user mode: look"], ["switch1#", "privileged: show, save"], ["switch1(config)#", "configure"], ["switch1(config-if)#", "one port"]]
+            .map(([p, d], i) => `<rect x="${30 + i * 28}" y="${24 + i * 46}" width="190" height="30" rx="5" fill="#070b10" stroke="#2f5a8a"/>` +
+                Fig.t(40 + i * 28, 44 + i * 46, p, { s: 12, mono: true, a: "start", c: Fig.c.ok }) + Fig.t(232 + i * 28, 44 + i * 46, d, { s: 11, a: "start", c: Fig.c.dim })).join("") +
+            Fig.arrow(60, 55, 80, 68, Fig.c.eth) + Fig.t(100, 66, "enable", { s: 10, mono: true, a: "start", c: Fig.c.eth }) +
+            Fig.arrow(88, 101, 108, 114, Fig.c.eth) + Fig.t(128, 112, "configure terminal", { s: 10, mono: true, a: "start", c: Fig.c.eth }) +
+            Fig.arrow(116, 147, 136, 160, Fig.c.eth) + Fig.t(156, 158, "interface gi0/3", { s: 10, mono: true, a: "start", c: Fig.c.eth }) +
+            `<path d="M110 200 C 8 206, 4 92, 52 86" fill="none" stroke="${Fig.c.arp}" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ah)"/>` + Fig.t(64, 216, "end", { s: 11, mono: true, c: Fig.c.arp })),
+        try: [["ios-switch", "ssh switch1"], ["ios-switch", "ssh switch1 show interfaces status"], ["vlan-trunk", "ssh switch2 show vlan brief"]],
+        see: ["running-config", "managed-switch", "vlan", "trunk-access", "linux-switch"],
+    },
+    {
+        id: "running-config", cat: "ideas", keys: ["running-config", "startup-config", "write memory"],
+        en: {
+            t: "running-config and startup-config",
+            short: "A managed switch or router keeps two copies of its settings: the one in use right now, and the saved one it reads when it starts.",
+            body: ["The <b>running-config</b> lives in memory. Every command you type in <code>configure terminal</code> changes it at once — the switch works with it immediately.",
+                "The <b>startup-config</b> is saved (in NVRAM, a memory that keeps its contents without power). After a <code>reload</code> the switch starts from it. <code>write memory</code> (or <code>copy running-config startup-config</code>) copies the running one over the saved one.",
+                "So a change you did not save disappears at the next reload — handy when you made a mistake, painful when you forgot to save! That is why <code>reload</code> asks: <i>System configuration has been modified. Save?</i>"],
+            like: "a drawing on a whiteboard and a photo of it: you can change the whiteboard all day, but only the photo is still there tomorrow.",
+        },
+        hu: {
+            t: "running-config és startup-config",
+            short: "A managed switch vagy router két példányban tartja a beállításait: az éppen használtat, és a mentettet, amelyből indulásnál olvas.",
+            body: ["A <b>running-config</b> a memóriában él. Minden parancs, amit a <code>configure terminal</code> után beírsz, azonnal megváltoztatja — a switch rögtön aszerint működik.",
+                "A <b>startup-config</b> el van mentve (NVRAM-ban, ami áram nélkül is megőrzi a tartalmát). Egy <code>reload</code> után a switch ebből indul. A <code>write memory</code> (vagy <code>copy running-config startup-config</code>) a futót rámásolja a mentettre.",
+                "Ezért ami nincs elmentve, az a következő reloadnál eltűnik — jól jön, ha hibáztál, és fáj, ha elfelejtettél menteni! Ezért kérdez a <code>reload</code>: <i>System configuration has been modified. Save?</i>"],
+            like: "egy rajz a táblán és egy fénykép róla: a táblát egész nap rajzolhatod, de holnap csak a fénykép lesz meg.",
+        },
+        fig: () => Fig.svg(`<rect x="20" y="60" width="160" height="80" rx="8" fill="#16222f" stroke="${Fig.c.ok}"/>` + Fig.t(100, 92, "running-config", { s: 13, mono: true, c: Fig.c.ok }) + Fig.t(100, 114, "memory · in use now", { s: 10.5, c: Fig.c.dim }) +
+            `<rect x="300" y="60" width="160" height="80" rx="8" fill="#16222f" stroke="${Fig.c.ip}"/>` + Fig.t(380, 92, "startup-config", { s: 13, mono: true, c: Fig.c.ip }) + Fig.t(380, 114, "NVRAM · saved", { s: 10.5, c: Fig.c.dim }) +
+            Fig.arrow(186, 82, 294, 82, Fig.c.ok) + Fig.t(240, 72, "write memory", { s: 10.5, mono: true, c: Fig.c.ok }) + Fig.arrow(294, 124, 186, 124, Fig.c.arp) + Fig.t(240, 146, "reload", { s: 10.5, mono: true, c: Fig.c.arp }) +
+            Fig.t(240, 190, "not saved + reload = gone", { s: 11, c: Fig.c.bad })),
+        try: [["ios-switch", "ssh switch1"]],
+        see: ["ios-cli", "managed-switch"],
     },
 ];

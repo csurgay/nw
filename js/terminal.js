@@ -2,12 +2,12 @@ class Terminal {
     static consolePrompt = "[admin@console ~]$ ";
     constructor(textarea) {
         this.history = [
-            "ssh Host1 systemctl start lldpd",
-            "ssh Host1 lldpcli update",
-            "ssh Host1 lldpcli show neighbors",
-            "ssh Host1 arping 192.168.1.2",
-            "for i in {1..12}; do ssh Host$i systemctl start lldpd; done",
-            "for i in {1..12}; do ssh Host$i lldpcli update; done",
+            "ssh host1 systemctl start lldpd",
+            "ssh host1 lldpcli update",
+            "ssh host1 lldpcli show neighbors",
+            "ssh host1 arping 192.168.1.2",
+            "for i in {1..12}; do ssh host$i systemctl start lldpd; done",
+            "for i in {1..12}; do ssh host$i lldpcli update; done",
         ];
         this.textarea = textarea;
         this.historyIndex = 0;
@@ -147,6 +147,16 @@ class Terminal {
         if (evt.key == "Tab") {
             evt.preventDefault();
             this.tab();
+            return;
+        }
+        // IOS-style switch: "?" shows the help right away, the line stays
+        if (evt.key == "?" && shell.host && shell.host.cli && !shell.host.cli.ask) {
+            evt.preventDefault();
+            const v = this.textarea.value;
+            const line = v.substring(v.lastIndexOf(this.prompt) + this.prompt.length);
+            this.textarea.value += "?\n" + shell.host.cli.help(line) + "\n" + this.prompt + line;
+            this.textarea.selectionStart = this.textarea.selectionEnd = this.textarea.value.length;
+            this.showBottom();
             return;
         }
         if (evt.key != "Shift") this.lastTab = null;
