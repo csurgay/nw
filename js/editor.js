@@ -80,7 +80,7 @@ const Editor = {
             // dragged from the bar and dropped on the canvas: put it there
             const r = nwCanvas.getBoundingClientRect();
             const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom && !this.overBar(ev);
-            if (inside) { this.place(this.tool.slice(6), App.eventPoint(ev)); App.suppressClick = true; }
+            if (inside) this.place(this.tool.slice(6), App.eventPoint(ev));
             this.setTool(null);
         });
         document.getElementById("importFile").addEventListener("change", ev => this.importFile(ev.target.files[0]));

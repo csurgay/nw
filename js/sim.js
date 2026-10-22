@@ -1,7 +1,8 @@
 // Simulation clock: everything that moves or waits uses Sim time, so
 // pausing freezes cables, ping intervals, ARP waits and LLDP timers alike.
 class Sim {
-    static time = 0;          // simulated milliseconds since load
+    static time = 0;
+    static total = 0;         // simulated ms since the page opened — never reset (tests wait on it)          // simulated milliseconds since load
     static running = true;
     static stepping = false;  // run until the next network event, then pause
     static pauseAfterTick = false;
@@ -11,20 +12,42 @@ class Sim {
     static timers = [];
     static listeners = [];
 
+    static STEP = 20;         // the simulation moves in steps of at most this many ms
+
+    // one animation frame: at high speed the time is cut into small steps, so a frame that
+    // arrives can go on at once — the network behaves the same at 0.25× and at 8×
     static update(realDt) {
         if (!Sim.running) return;
-        const dt = Math.min(realDt, 100) * Sim.speed;
-        Sim.time += dt;
-        Sim.timers.sort((a, b) => a.t - b.t);
-        while (Sim.timers.length && Sim.timers[0].t <= Sim.time) {
-            const tm = Sim.timers.shift();
-            if (!tm.cancelled) tm.fn();
+        let left = Math.min(realDt, 100) * Sim.speed;
+        while (left > 0 && Sim.running) {
+            const dt = Math.min(left, Sim.STEP);
+            left -= dt;
+            Sim.time += dt;
+            Sim.total += dt;
+            Sim.timers.sort((a, b) => a.t - b.t);
+            while (Sim.timers.length && Sim.timers[0].t <= Sim.time) {
+                const tm = Sim.timers.shift();
+                if (!tm.cancelled) tm.fn();
+            }
+            (Id.list["Patch"] || []).forEach(p => p.update(dt));
+            if (Sim.pauseAfterTick) {
+                Sim.pauseAfterTick = false;
+                Sim.pause();
+            }
         }
-        (Id.list["Patch"] || []).forEach(p => p.update(dt));
-        if (Sim.pauseAfterTick) {
-            Sim.pauseAfterTick = false;
-            Sim.pause();
-        }
+    }
+
+    // wait ms of simulated time, even across lab loads (Sim.time and its timers are reset there):
+    // faster with the speed slider, slower when slowed down, not at all while paused
+    static wait(ms, fn) {
+        const end = Sim.total + ms;
+        const h = { cancelled: false, cancel() { this.cancelled = true; } };
+        const poll = () => {
+            if (h.cancelled) return;
+            if (Sim.total >= end) fn(); else setTimeout(poll, 15);
+        };
+        setTimeout(poll, 15);
+        return h;
     }
 
     static after(ms, fn) {

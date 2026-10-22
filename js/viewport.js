@@ -31,6 +31,7 @@ const App = {
         nwCanvas.addEventListener("mouseleave", () => { this.hover = null; this.mx = -1; });
         nwCanvas.addEventListener("mousedown", ev => {
             if (ev.button != 0) return;
+            this.suppressClick = false; // a drag that ended outside the canvas left no click behind
             const p = this.eventPoint(ev);
             if (Editor.mousedown(p, this.pick(p.x, p.y))) { ev.preventDefault(); return; }
             // anything else: dragging moves the whole picture
@@ -70,7 +71,7 @@ const App = {
         // double click on the empty background: show the whole network again
         nwCanvas.addEventListener("dblclick", ev => {
             const p = this.eventPoint(ev);
-            if (!this.pick(p.x, p.y) && !Editor.on) this.resetView();
+            if (!this.pick(p.x, p.y)) this.resetView();
         });
         nwCanvas.addEventListener("click", ev => {
             const p = this.eventPoint(ev);

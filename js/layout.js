@@ -47,7 +47,7 @@ const Layout = {
         el.addEventListener("pointerdown", ev => {
             if (ev.button != 0) return;
             ev.preventDefault();
-            el.setPointerCapture(ev.pointerId);
+            try { el.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events (UI tests) have no real pointer */ }
             el.classList.add("drag");
             document.body.classList.add("resizing", kind);
             const move = e => { onMove(e); this.apply(); };

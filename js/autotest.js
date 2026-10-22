@@ -33,7 +33,11 @@ const AutoTest = {
         this.btnRun = el.querySelector(".at-run");
         el.querySelector(".at-x").addEventListener("click", () => this.close());
         el.querySelector(".at-copy").addEventListener("click", () => this.copy());
-        this.btnRun.addEventListener("click", () => this.running ? test.stop() : this.run());
+        this.btnRun.addEventListener("click", () => {
+            if (!this.running) return this.run();
+            UiTest.stopped = true;
+            test.stop();
+        });
         // move it by its title bar
         const h = el.querySelector(".at-h");
         h.addEventListener("pointerdown", ev => {
@@ -54,15 +58,32 @@ const AutoTest = {
         this.passed = 0;
         this.failedN = 0;
         this.t0 = Date.now();
-        this.total = Test.case.length;
+        this.total = Test.case.length + UiTest.count();
+        this.saved = this.snapshot(); // the network you were working on comes back at the end
         this.running = true;
         this.btnRun.textContent = "Stop";
         this.add("head", `NetLab autotest · ${new Date().toLocaleString()} · ${this.total} cases`);
-        this.add("head", "The terminal shows what is typed; this takes a few minutes in real time.\n");
+        this.add("head", "Your network is put aside and comes back at the end. This takes a few minutes in real time.\n");
         this.tick();
         this.timer = setInterval(() => this.tick(), 500);
-        test.listener = this;
         if (shell.job) { shell.job.cancel(false); shell.job = null; }
+        if (!Sim.running) Sim.play();
+        this.uiFirst();
+    },
+
+    // 1. the UI tests build a network with the pointer, 2. the terminal tests check the protocols
+    async uiFirst() {
+        this.add("head", `1. UI tests (${UiTest.count()}) — watch the pointer build a network`);
+        // out of the way while the pointer works on the canvas and the terminal
+        const st = this.el.getAttribute("style") || "";
+        this.el.setAttribute("style", "left:auto; right:12px; top:auto; bottom:12px; width:440px; height:300px");
+        this.el.classList.add("docked");
+        test.stopped = false;
+        try { await UiTest.run(this); }
+        finally { this.el.setAttribute("style", st); this.el.classList.remove("docked"); }
+        if (UiTest.stopped) return this.onDone(false, true);
+        this.add("head", `\n2. Terminal tests (${Test.case.length}) — the terminal shows what is typed`);
+        test.listener = this;
         test.test();
     },
 
@@ -82,18 +103,59 @@ const AutoTest = {
             this.failedN++;
             this.add("bad", `✘ ${n}  ${cmd}`);
             fails.forEach(f => {
-                this.add("bad dim", `        expected: ${JSON.stringify(f.want)}`);
+                this.add("bad dim", `        expected: ${f.want instanceof RegExp ? String(f.want) : JSON.stringify(f.want)}`);
                 this.add("bad dim", `        got:      ${JSON.stringify(f.got == null ? "" : f.got)}`);
             });
         }
+        this.tick(UiTest.count() + i + 1);
+    },
+
+    // the terminal tests are over (or the run was stopped): the network comes back
+    onDone(ok, stopped) {
+        test.listener = null;
+        try { this.restore(this.saved); }
+        catch (e) { this.add("bad", "Could not bring your network back: " + e.message); }
+        this.finish(this.failedN == 0 && !stopped, stopped);
+    },
+
+    onUiCase(i, name, err) {
+        const n = ("UI" + (i + 1)).padStart(5);
+        if (!err) { this.passed++; this.add("ok", `✔ ${n}  ${name}`); }
+        else { this.failedN++; this.add("bad", `✘ ${n}  ${name}`); this.add("bad dim", `        ${err}`); }
         this.tick(i + 1);
     },
 
-    onDone(ok, stopped) {
+    snapshot() {
+        const cur = Topology.current || { id: "new", title: "New network", mine: true };
+        return {
+            cur, spec: Editor.serialize(cur.title), edited: Editor.edited, editorOn: Editor.on,
+            view: { uz: App.uz, px: App.px, py: App.py }, layout: Object.assign({}, Layout.s), lang: Lang.cur,
+            speed: Sim.speed, running: Sim.running && !Sim.stepping,
+        };
+    },
+
+    // load the network back as it was (devices, addresses, routes, VLANs, names, cables)
+    restore(s) {
+        const c = s.cur;
+        const spec = Object.assign({}, s.spec, { id: c.id, title: c.title, title_hu: c.title_hu, goal: c.goal, goal_hu: c.goal_hu, tries: c.tries, mine: c.mine });
+        spec.zones = s.edited ? [] : (c.zones || []);
+        Topology.loadSpec(spec);
+        Editor.edited = s.edited;
+        Editor.toggle(s.editorOn);
+        App.uz = s.view.uz; App.px = s.view.px; App.py = s.view.py;
+        App.applyView();
+        Layout.s = s.layout; Layout.apply(); Layout.save();
+        if (Lang.cur != s.lang) Lang.set(s.lang);
+        Sim.setSpeed(s.speed);
+        if (s.running) Sim.play(); else Sim.pause();
+        Sim.event("info", `Autotest finished — <b>${esc(c.title)}</b> is back`);
+        this.add("head", `\nYour network “${c.title}” is back.`);
+    },
+
+    finish(ok, stopped) {
         clearInterval(this.timer);
         this.running = false;
         this.btnRun.textContent = "Run again";
-        test.listener = null;
         const secs = Math.round((Date.now() - this.t0) / 1000);
         const time = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
         this.add("head", "");

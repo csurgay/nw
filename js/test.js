@@ -22,14 +22,15 @@ class Test {
         ["ssh host7 ping -c 1 192.168.1.21", ["PING 192.168.1.21 (192.168.1.21) 56(84) bytes of data."], 100],
         ["", ["--- 192.168.1.21 ping statistics ---", "*", "*", "*"], 14000],
         ["ssh host9 arp -a", ["[root@host12 ~]# ssh host9 arp -a", "*"], 100],
-        ["ssh host11 ip neigh", ["192.168.1.10 dev NIC11 lladdr 02:00:00:00:00:07 REACHABLE", "*"], 100],
+        // REACHABLE or STALE depends on the simulated clock: only the IP -> MAC pair is checked
+        ["ssh host11 ip neigh", [/^192\.168\.1\.10 dev NIC11 lladdr 02:00:00:00:00:07 (REACHABLE|STALE)$/, "*"], 100],
         ["lab switch", ["Loaded lab: 3 · A switch learns MAC addresses", "*"], 100],
         ["ssh host1 ping -c 1 192.168.1.3", ["--- 192.168.1.3 ping statistics ---", "*", "*", "*"], 9000],
         ["ssh host2 ip neigh", ["[admin@console ~]$ ssh host2 ip neigh", "*"], 100],
         ["lab router", ["Loaded lab: 8 · A router joins two networks", "*"], 100],
         ["ssh host1 traceroute 192.168.2.10", ["traceroute to 192.168.2.10 (192.168.2.10), 30 hops max, 60 byte packets"], 100],
         ["", ["*", "*", "[admin@console ~]$ "], 16000],
-        ["ssh router1 ip neigh", ["192.168.1.10 dev NIC5 lladdr 02:00:00:00:00:01 REACHABLE", "192.168.2.10 dev NIC6 lladdr 02:00:00:00:00:03 REACHABLE", "*"], 100],
+        ["ssh router1 ip neigh", [/^192\.168\.1\.10 dev NIC5 lladdr 02:00:00:00:00:01 (REACHABLE|STALE)$/, /^192\.168\.2\.10 dev NIC6 lladdr 02:00:00:00:00:03 (REACHABLE|STALE)$/, "*"], 100],
         ["lab routing-loop", ["Loaded lab: 10 · A routing loop — why TTL exists", "*"], 100],
         ["ssh host1 ping -c 1 -t 4 172.16.0.1", ["From 10.0.0.2 icmp_seq=1 Time to live exceeded", "--- 172.16.0.1 ping statistics ---", "*", "*"], 12000],
         ["lab vlan", ["Loaded lab: 6 · VLANs: one switch, two worlds", "*"], 100],
@@ -107,8 +108,7 @@ class Test {
         this.failed = false;
         this.stopped = false;
         this.index = this.startCase;
-        Sim.setSpeed(1); // test timing assumes real-time speed
-        Sim.play();
+        Sim.play(); // the waits are in simulated time: any speed works
         setTimeout(this.input.bind(this), 100);
     }
 
@@ -124,7 +124,7 @@ class Test {
             this.terminal.print(inStr);
             this.terminal.enter(inStr);
         }
-        setTimeout(this.output.bind(this), Test.case[this.index][2]);
+        Sim.wait(Test.case[this.index][2], () => this.output());
     }
 
     output() {
@@ -133,7 +133,9 @@ class Test {
         let ret = true;
         const fails = [];
         for (let i=assert.length-1; i>=0; i--) {
-            if (assert[i] != "*" && assert[i] != outStr[assert.length-1-i]) {
+            const want = assert[i], got = outStr[assert.length-1-i];
+            const match = want instanceof RegExp ? want.test(got || "") : want == got;
+            if (want != "*" && !match) {
                 ret = false;
                 fails.push({ want: assert[i], got: outStr[assert.length-1-i] });
                 Debug.error(this.id, this.index+".assert", "_" + assert[i] 

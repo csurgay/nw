@@ -507,6 +507,14 @@ select.vsel option { color: var(--text); background: #0b1016; }
 .at-out .head { color: var(--muted); }
 .at-out .big { font-weight: 700; font-size: 13px; }
 
+/* ---------- UI test pointer ---------- */
+.ui-cursor { position: fixed; left: -3px; top: -2px; z-index: 10000; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6)); }
+.ui-ripple {
+    position: fixed; z-index: 9999; pointer-events: none; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+    border: 3px solid #fbbf24; border-radius: 50%; animation: uirip .55s ease-out forwards;
+}
+@keyframes uirip { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+
 /* ---------- zoom buttons ---------- */
 .zoomctl {
     position: absolute; right: 12px; top: 10px; z-index: 4; display: flex;
