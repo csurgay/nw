@@ -105,13 +105,20 @@ class Test {
         }
         if (this.startCase == 0) Topology.load("classic"); // the cases expect the original lab
         this.failed = false;
+        this.stopped = false;
         this.index = this.startCase;
         Sim.setSpeed(1); // test timing assumes real-time speed
         Sim.play();
         setTimeout(this.input.bind(this), 100);
     }
 
+    // the Autotest window can stop a run between two cases
+    stop() {
+        this.stopped = true;
+    }
+
     input() {
+        if (this.stopped) return this.finish();
         let inStr = Test.case[this.index][0];
         if (inStr != "") {
             this.terminal.print(inStr);
@@ -124,13 +131,16 @@ class Test {
         let outStr = this.terminal.lastLines();
         let assert = Test.case[this.index][1];
         let ret = true;
+        const fails = [];
         for (let i=assert.length-1; i>=0; i--) {
             if (assert[i] != "*" && assert[i] != outStr[assert.length-1-i]) {
                 ret = false;
+                fails.push({ want: assert[i], got: outStr[assert.length-1-i] });
                 Debug.error(this.id, this.index+".assert", "_" + assert[i] 
                     + "_ is not _" + outStr[assert.length-1-i] + "_");
             }
         }
+        if (this.listener) this.listener.onCase(this.index, fails.reverse());
         if (ret) {
             Debug.log(this.id, this.index+"."+assert, "...OK");
         }
@@ -141,15 +151,18 @@ class Test {
         if (this.index <= this.endCase) {
             setTimeout(this.input.bind(this), 10);
         }
-        else {
-            if (this.failed) {
-                Debug.log(this.id, "SOME TESTS", "FAILED");
-            }
-            else {
-                Debug.log(this.id, "ALL TESTS", "OK");
-            }
-            // End of testing
-            DEBUG = "whitelist";
+        else this.finish();
+    }
+
+    finish() {
+        if (this.failed) {
+            Debug.log(this.id, "SOME TESTS", "FAILED");
         }
+        else {
+            Debug.log(this.id, "ALL TESTS", "OK");
+        }
+        // End of testing
+        DEBUG = "whitelist";
+        if (this.listener) this.listener.onDone(!this.failed, this.stopped);
     }
 }

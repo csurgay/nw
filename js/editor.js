@@ -43,6 +43,7 @@ const Editor = {
                     <button data-cmd="save">Save in this browser…</button>
                     <button data-cmd="export">Export to a file (.json)</button>
                     <button data-cmd="import">Import a file…</button>
+                    <hr><button data-cmd="autotest">Autotest — run all tests…</button>
                     <hr><button data-cmd="delete" class="danger">Delete this network…</button>
                 </div></div>
             <span class="ebin" title="Drag a device here to delete it">🗑</span>
@@ -65,7 +66,8 @@ const Editor = {
             if (!c) return;
             menu.hidden = true;
             ({ new: () => this.newNetwork(), save: () => this.save(), export: () => this.exportFile(),
-                import: () => document.getElementById("importFile").click(), delete: () => this.deleteMine() })[c.dataset.cmd]();
+                import: () => document.getElementById("importFile").click(), delete: () => this.deleteMine(),
+                autotest: () => AutoTest.open() })[c.dataset.cmd]();
         });
         document.addEventListener("click", ev => { if (!ev.target.closest(".efile")) menu.hidden = true; });
         window.addEventListener("mousemove", ev => {
