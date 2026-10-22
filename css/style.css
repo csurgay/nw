@@ -515,6 +515,10 @@ select.vsel option { color: var(--text); background: #0b1016; }
 }
 @keyframes uirip { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
+body.ui-testing #canvasWrap, body.ui-testing .side { cursor: not-allowed; }
+.at-note { display: none; font: 600 11px var(--sans); color: #fbbf24; }
+body.ui-testing .at-note { display: inline; }
+
 /* ---------- zoom buttons ---------- */
 .zoomctl {
     position: absolute; right: 12px; top: 10px; z-index: 4; display: flex;

@@ -105,7 +105,16 @@ const UiTest = {
     centre(o) { const b = o.bounds(); return this.world(b.x + b.w / 2, b.y + b.h / 2); },
     body(o) { const b = o.bounds(); return this.world(b.x + b.w * 0.3, b.y + b.h * 0.35); }, // away from the sockets
     el(sel) { const r = document.querySelector(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
-    empty() { const r = nwCanvas.getBoundingClientRect(); return [r.left + r.width * 0.15, r.top + r.height * 0.75]; },
+    // a spot on the canvas with nothing on it (and no window above it)
+    empty() {
+        const r = nwCanvas.getBoundingClientRect();
+        for (const fy of [0.75, 0.85, 0.6, 0.9, 0.5]) for (const fx of [0.15, 0.3, 0.5, 0.08]) {
+            const x = r.left + r.width * fx, y = r.top + r.height * fy;
+            const p = App.eventPoint({ clientX: x, clientY: y });
+            if (!App.pick(p.x, p.y) && this.target(x, y) == nwCanvas) return [x, y];
+        }
+        return [r.left + r.width * 0.15, r.top + r.height * 0.75];
+    },
 
     async waitFor(fn, ms = 10000) {
         const t0 = Sim.total;
@@ -194,10 +203,15 @@ const UiTest = {
             }],
             ["Drag the empty canvas: the picture moves; double-click: back", async () => {
                 const [x, y] = U.empty();
+                const px0 = App.px, py0 = App.py;
                 await U.drag(x, y, x + 120, y - 60);
-                const moved = App.px == 120 && App.py == -60;
+                const dx = Math.round(App.px - px0), dy = Math.round(App.py - py0);
+                if (Math.abs(dx - 120) > 2 || Math.abs(dy + 60) > 2) {
+                    const o = App.pick(...Object.values(App.eventPoint({ clientX: x, clientY: y })));
+                    return `the picture moved ${dx},${dy} instead of 120,-60` + (o ? ` (the drag started on ${o})` : "");
+                }
                 await U.dblclick(x + 120, y - 60);
-                return moved && App.px == 0 && App.py == 0 ? null : `pan ${App.px},${App.py}`;
+                return App.px == 0 && App.py == 0 ? null : `double-click left the picture at ${Math.round(App.px)},${Math.round(App.py)}`;
             }],
             ["Drag router1 onto the toolbar: deleted", async () => {
                 const r = Id.find("router1");
@@ -269,9 +283,36 @@ const UiTest = {
         ];
     },
 
+    // while the pointer works, the real mouse and keyboard are ignored on the page
+    // (moving the real mouse would mix into the test's drags) — except in the Autotest window
+    guard(on) {
+        const types = ["mousedown", "mouseup", "mousemove", "click", "dblclick", "wheel", "keydown", "pointerdown", "pointermove", "pointerup", "contextmenu"];
+        if (on && !this.blocker) {
+            this.blocker = ev => {
+                if (!ev.isTrusted) return;
+                if (ev.target && ev.target.closest && ev.target.closest(".autotest")) return;
+                ev.stopImmediatePropagation();
+                if (ev.cancelable && ev.type != "mousemove" && ev.type != "pointermove") ev.preventDefault();
+            };
+            types.forEach(t => window.addEventListener(t, this.blocker, { capture: true, passive: false }));
+            document.body.classList.add("ui-testing");
+        }
+        if (!on && this.blocker) {
+            types.forEach(t => window.removeEventListener(t, this.blocker, { capture: true }));
+            this.blocker = null;
+            document.body.classList.remove("ui-testing");
+        }
+    },
+
     async run(listener) {
         this.stopped = false;
         this.cursor().style.display = "";
+        this.guard(true);
+        try { await this.runCases(listener); }
+        finally { this.guard(false); this.cur.style.display = "none"; }
+    },
+
+    async runCases(listener) {
         const list = this.cases();
         for (let i = 0; i < list.length; i++) {
             if (this.stopped || (test && test.stopped)) break;
@@ -281,7 +322,6 @@ const UiTest = {
             listener.onUiCase(i, name, err);
             await this.sleep(150);
         }
-        this.cur.style.display = "none";
     },
 
     count() { return this.cases().length; },

@@ -20,7 +20,7 @@ const AutoTest = {
         const el = document.createElement("div");
         el.className = "autotest";
         el.hidden = true;
-        el.innerHTML = `<div class="at-h"><span class="at-logo">✔</span><b>Autotest</b><span class="at-status"></span>
+        el.innerHTML = `<div class="at-h"><span class="at-logo">✔</span><b>Autotest</b><span class="at-status"></span><span class="at-note">🖱 in use by the test</span>
                 <button class="mini at-run">Run again</button><button class="mini at-copy">Copy</button>
                 <button class="pop-x at-x" title="Close">×</button></div>
             <div class="at-bar"><span></span></div>
