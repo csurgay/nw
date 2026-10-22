@@ -258,6 +258,7 @@ const Editor = {
             d = new Router(p.x - 75, p.y - 28, terminal);
             ["left", "right", "down"].forEach(side => d.addNic(new NIC(0, 0, new MAC("same")), side));
         }
+        if (d) d.bootTime = new Date(); // its uptime starts now
         if (d) Sim.event("info", `<b>${d}</b> added — ${d instanceof Host && !(d instanceof Router) && d.nics[0].ip ? "address " + d.nics[0].ip.toString() + ", " : ""}now click one of its sockets, then a socket of another device: that is a cable`, { obj: d });
         this.changed();
         return d;

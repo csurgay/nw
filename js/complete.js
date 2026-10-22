@@ -42,7 +42,8 @@ const Completion = {
         const n = prev.length; // index of the word being completed
         switch (cmd) {
             case "sudo": return this.candidates(sh, prev.slice(1), cur);
-            case "man": case "which": return this.w(this.commands());
+            case "man": return this.w(MAN.names());
+            case "which": return this.w(this.commands());
             case "ssh":
                 if (n == 1) {
                     const at = cur.startsWith("root@") ? "root@" : "";

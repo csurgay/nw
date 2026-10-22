@@ -588,8 +588,16 @@ const Coreutils = {
         },
 
         man(sh, a) {
-            if (!a.length) return Coreutils.err(sh, "What manual page do you want?\nFor example, try 'man man'.");
-            Coreutils.err(sh, `No manual entry for ${a[a.length - 1]}\n(This lab has no manual pages: type  help  for the commands, or open the 📖 Lexicon.)`);
+            const o = Coreutils.opts(a, "k");
+            if (o.v.k != null) {
+                const hits = MAN.search(o.v.k);
+                return hits.length ? Coreutils.out(sh, hits.join("\n")) : Coreutils.err(sh, `${o.v.k}: nothing appropriate.`);
+            }
+            const name = o.rest.filter(x => !/^\d$/.test(x)).pop(); // "man 8 ip" works too
+            if (!name) return Coreutils.err(sh, "What manual page do you want?\nFor example, try 'man man'.");
+            const page = MAN.page(name);
+            if (!page) return Coreutils.err(sh, `No manual entry for ${name}\n(Every command of the lab has a page: help lists them.)`);
+            Coreutils.out(sh, page);
         },
 
         ps(sh, a) {
