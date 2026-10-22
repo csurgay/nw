@@ -175,6 +175,8 @@ class IcmpPacket extends PDU {
         this.addLookup("Type", new Lookup("IcmpTypes", {
             "EchoRequest": 0x08,
             "EchoReply": 0x00,
+            "DestUnreachable": 0x03,
+            "TimeExceeded": 0x0b,
         }));
         this.addValue("Type", type);
         this.addHeaderField("Identifier");

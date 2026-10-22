@@ -140,6 +140,13 @@ class Shell {
             if (this.needHost("ip")) return true;
             this.ipCommand(command);
         }
+        else if (command[0] == "traceroute" || command[0] == "tracert") {
+            if (this.needHost("traceroute")) return true;
+            showPrompt = this.host.l3.icmp.traceroute(this, command);
+        }
+        else if (command[0] == "lab") {
+            this.labCommand(command);
+        }
         else if (command[0] == "ping") {
             if (this.needHost("ping")) return true;
             showPrompt = this.host.l3.icmp.ping(this, command);
@@ -162,7 +169,27 @@ class Shell {
             });
         }
         else if ("route".startsWith(sub) && sub != "" || sub == "r") {
-            this.t.println(h.l3.routing.lines().join("\n"));
+            if (command[2] == "add") {
+                // ip route add <net>/<cidr>|default via <gw>
+                const dest = command[3], via = command[command.indexOf("via") + 1];
+                if (!dest || command.indexOf("via") < 0 || !via) {
+                    this.t.println("Usage: ip route add { default | NETWORK/PREFIX } via GATEWAY");
+                    return;
+                }
+                let net = "0.0.0.0", cidr = 0;
+                if (dest != "default") {
+                    [net, cidr] = dest.split("/");
+                    cidr = cidr == null ? 32 : parseInt(cidr);
+                    if (!IP.isValid(net) || isNaN(cidr) || cidr < 0 || cidr > 32) {
+                        this.t.println("Error: any valid prefix is expected rather than \"" + dest + "\".");
+                        return;
+                    }
+                }
+                const err = h.l3.routing.addStatic(net, cidr, via);
+                if (err) this.t.println(err);
+                else Sim.event("info", `<b>${h}</b> new route: ${dest} via ${via}`, { proto: "IPv4", obj: h });
+            }
+            else this.t.println(h.l3.routing.lines().join("\n"));
         }
         else if ("neighbour".startsWith(sub) && sub != "" || "neighbor".startsWith(sub) && sub != "") {
             this.t.println(h.l3.arp.neighLines().join("\n"));
@@ -175,6 +202,18 @@ class Shell {
         }
     }
 
+    labCommand(command) {
+        if (!command[1]) {
+            this.t.println(TOPOLOGIES.map((tp, i) => `${String(i + 1).padStart(2)}  ${tp.id.padEnd(14)} ${tp.title}`).join("\n"));
+            this.t.println("usage: lab <name or number>");
+            return;
+        }
+        const n = parseInt(command[1]);
+        const tp = TOPOLOGIES.find(tp => tp.id == command[1]) || (n ? TOPOLOGIES[n - 1] : null);
+        if (!tp) this.t.println("lab: no such lab: " + command[1]);
+        else Topology.load(tp.id, { fromShell: true });
+    }
+
     help() {
         this.t.println([
             "Commands in this lab:",
@@ -183,7 +222,10 @@ class Shell {
             "  ip addr | ip route | ip neigh   interfaces, routing table, ARP cache",
             "  arp -a                       ARP cache, old style",
             "  arping 192.168.1.2           ask who has this IP (ARP request)",
-            "  ping [-c N] 192.168.1.2      ICMP echo; Ctrl-C stops it",
+            "  ping [-c N] [-t TTL] 192.168.1.2   ICMP echo; Ctrl-C stops it",
+            "  traceroute 192.168.2.10      list the routers on the way",
+            "  ip route add default via 192.168.1.1",
+            "  lab [name|number]            list or load an example network",
             "  systemctl start|stop|status lldpd",
             "  lldpcli update | show neighbors | show chassis",
             "  for i in {1..12}; do ssh Host$i <cmd>; done",

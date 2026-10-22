@@ -13,7 +13,7 @@ const App = {
     zones: [],
 
     init() {
-        this.stage = document.getElementById("stage");
+        this.stage = document.getElementById("canvasWrap");
         window.addEventListener("resize", () => this.resize());
         this.resize();
         nwCanvas.addEventListener("mousemove", ev => {
@@ -46,9 +46,25 @@ const App = {
         nwCanvas.width = Math.round(r.width * this.dpr);
         nwCanvas.height = Math.round(r.height * this.dpr);
         this.cw = r.width; this.ch = r.height;
-        this.scale = Math.min(r.width / this.W, (r.height - 24) / this.H);
-        this.ox = (r.width - this.W * this.scale) / 2;
-        this.oy = Math.max(4, (r.height - 24 - this.H * this.scale) / 2);
+        const v = this.view || { x: 0, y: 0, w: this.W, h: this.H };
+        this.scale = Math.min(r.width / v.w, (r.height - 24) / v.h);
+        this.ox = (r.width - v.w * this.scale) / 2 - v.x * this.scale;
+        this.oy = Math.max(4, (r.height - 24 - v.h * this.scale) / 2) - v.y * this.scale;
+    },
+
+    // zoom to the current network: bounding box of devices and zones
+    fit() {
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        const add = b => { if (!b) return; x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); };
+        this.devices().forEach(d => add(d.bounds()));
+        this.zones.forEach(add);
+        if (x0 > x1) { this.view = null; return this.resize(); }
+        const m = 24;
+        x0 -= m; y0 -= m; x1 += m; y1 += m;
+        // don't zoom in too much on tiny networks
+        const w = Math.max(x1 - x0, 760), h = Math.max(y1 - y0, 420);
+        this.view = { x: (x0 + x1 - w) / 2, y: (y0 + y1 - h) / 2, w, h };
+        this.resize();
     },
 
     toWorld(x, y) {
@@ -57,6 +73,11 @@ const App = {
 
     list(type) {
         return Id.list[type] || [];
+    },
+
+    // every box on the canvas: hubs, switches, hosts, routers
+    devices() {
+        return [...this.list("Hub"), ...this.list("Switch"), ...this.list("Host"), ...this.list("Router")];
     },
 
     // topmost first: frames, sockets, hosts, hubs, cables
@@ -68,8 +89,7 @@ const App = {
         });
         for (const f of frames) if (f.hit(x, y)) return f;
         for (const n of this.list("Port")) if (n.hit(x, y)) return n;
-        for (const h of this.list("Host")) if (h.hit(x, y)) return h;
-        for (const h of this.list("Hub")) if (h.hit(x, y)) return h;
+        for (const h of this.devices()) if (h.hit(x, y)) return h;
         for (const p of this.list("Patch")) if (p.hit(x, y)) return p;
         return null;
     },
@@ -95,7 +115,8 @@ const App = {
             ctx.lineWidth = 1;
             ctx.stroke();
             ctx.restore();
-            Gfx.text(z.label, z.x + 12, z.y + z.h - 9, { align: "left", size: 10.5, weight: 600, color: "rgba(148,163,184,.55)" });
+            const right = z.align == "right";
+            Gfx.text(z.label, right ? z.x + z.w - 12 : z.x + 12, z.y + z.h - 9, { align: right ? "right" : "left", size: 10.5, weight: 600, color: "rgba(148,163,184,.55)" });
         });
     },
 
@@ -107,8 +128,7 @@ const App = {
         this.drawZones();
         const hov = this.hover;
         this.list("Patch").forEach(p => p.drawCable(hov == p));
-        this.list("Hub").forEach(h => h.draw());
-        this.list("Host").forEach(h => h.draw());
+        this.devices().forEach(h => h.draw());
 
         // outline for hovered object and for objects with an open popup
         const outline = (o, strong) => {
@@ -141,16 +161,10 @@ const App = {
         Sim.onChange(() => this.syncControls());
         this.syncControls();
 
-        const tries = [
-            ["ARP", "ssh Host1 arping 192.168.1.2"],
-            ["ping", "ssh Host1 ping -c 3 192.168.1.2"],
-            ["via hubs", "ssh Host7 ping -c 2 192.168.1.21"],
-            ["LLDP on", "for i in {1..12}; do ssh Host$i systemctl start lldpd; done"],
-            ["LLDP send", "ssh Host8 lldpcli update"],
-            ["neighbours", "ssh Host7 lldpcli show neighbors"],
-            ["ARP cache", "ssh Host7 ip neigh"],
-            ["help", "help"],
-        ];
+    },
+
+    // clickable example commands under the terminal
+    setTries(tries) {
         const box = document.getElementById("tries");
         box.innerHTML = '<span class="lbl">Try:</span>';
         tries.forEach(([label, cmd]) => {

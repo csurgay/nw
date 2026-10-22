@@ -88,7 +88,7 @@ class EventLog {
         if (EventLog.entries.length == 1) EventLog.el.innerHTML = "";
         const atBottom = EventLog.el.scrollTop + EventLog.el.clientHeight >= EventLog.el.scrollHeight - 30;
         const proto = e.proto || (e.frame ? e.frame.proto() : (e.kind == "cmd" ? "CMD" : "INFO"));
-        const label = { cmd: "$", tx: "TX", rx: "RX", drop: "DROP", hub: "HUB", l3: proto, info: "i" }[e.kind] || e.kind;
+        const label = { cmd: "$", tx: "TX", rx: "RX", drop: "DROP", hub: "HUB", sw: "SW", rt: "RTR", l3: proto, info: "i" }[e.kind] || e.kind;
         const row = document.createElement("div");
         row.className = "ev new " + e.kind + ((e.frame || e.obj) ? " link" : "");
         row.innerHTML = `<span class="t">${Sim.fmt(e.t)}</span>` +

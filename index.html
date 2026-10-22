@@ -36,9 +36,12 @@
     <script src="js/nic.js" defer></script>
     <script src="js/layer3.js" defer></script>
     <script src="js/host.js" defer></script>
+    <script src="js/router.js" defer></script>
     <script src="js/patch.js" defer></script>
     <script src="js/hub.js" defer></script>
     <script src="js/viewport.js" defer></script>
+    <script src="js/topologies.js" defer></script>
+    <script src="js/topology.js" defer></script>
     <script src="js/event.js" defer></script>
     <script src="js/main.js" defer></script>
 </head>
@@ -74,8 +77,16 @@
 
     <main class="layout">
         <section class="stage" id="stage">
-            <canvas id="nwCanvas" width="1000" height="600"></canvas>
-            <div class="stage-hint">Hover for a quick look · click any device, cable or frame to inspect it</div>
+            <div class="labbar">
+                <button class="labnav" id="labPrev" title="Previous lab">‹</button>
+                <select id="labSelect" title="Example networks, from simple to complex"></select>
+                <button class="labnav" id="labNext" title="Next lab">›</button>
+                <p class="labgoal" id="labGoal"></p>
+            </div>
+            <div class="canvas-wrap" id="canvasWrap">
+                <canvas id="nwCanvas" width="1000" height="600"></canvas>
+                <div class="stage-hint">Hover for a quick look · click any device, cable or frame to inspect it</div>
+            </div>
         </section>
 
         <aside class="side">

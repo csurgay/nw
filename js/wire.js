@@ -58,6 +58,10 @@ class Wire {
         }
         if (frame.etherType == "IPv4") {
             const icmp = p.getPayload();
+            if (p.getValue("Protocol") == "ICMP" && icmp && icmp.getValue("Type") == "TimeExceeded")
+                return "Time-to-live exceeded  " + p.getValue("SrcIP") + " → " + p.getValue("DstIP");
+            if (p.getValue("Protocol") == "ICMP" && icmp && icmp.getValue("Type") == "DestUnreachable")
+                return "Destination unreachable (" + (icmp.code == 1 ? "Host" : "Network") + " unreachable)  " + p.getValue("SrcIP") + " → " + p.getValue("DstIP");
             if (p.getValue("Protocol") == "ICMP" && icmp) {
                 const req = icmp.getValue("Type") == "EchoRequest";
                 return "Echo (ping) " + (req ? "request" : "reply") + "  " + p.getValue("SrcIP") + " → " +
@@ -144,63 +148,94 @@ class Wire {
         end();
     }
 
-    static encodeIpv4(p, begin, field, end) {
-        const icmp = p.getPayload();
-        // build ICMP first, we need its length and checksum
-        let icmpBytes = [];
-        let parts = [];
-        if (icmp) {
-            const type = icmp.getValue("Type") == "EchoRequest" ? 8 : 0;
-            const ident = icmp.getValue("Identifier") || 0;
-            const seq = icmp.getValue("Seq") || 0;
+    static ICMP_TYPES = { EchoRequest: 8, EchoReply: 0, DestUnreachable: 3, TimeExceeded: 11 };
+
+    // ICMP message bytes (with checksum) and its parts
+    static icmpParts(icmp) {
+        const t = icmp.getValue("Type");
+        const type = Wire.ICMP_TYPES[t];
+        const code = icmp.code || 0;
+        let rest, body;
+        if (t == "EchoRequest" || t == "EchoReply") {
             const ts = Math.floor(icmp.ts || 0);
-            const data = [...Wire.u32(Math.floor(ts / 1000)), ...Wire.u32((ts % 1000) * 1000)];
-            for (let i = 0; i < 48; i++) data.push(0x10 + i);
-            const noSum = [type, 0, 0, 0, ...Wire.u16(ident), ...Wire.u16(seq), ...data];
-            const sum = Wire.checksum(noSum);
-            parts = [type, ident, seq, sum, data];
-            icmpBytes = noSum;
-            icmpBytes[2] = sum >> 8; icmpBytes[3] = sum & 255;
+            body = [...Wire.u32(Math.floor(ts / 1000)), ...Wire.u32((ts % 1000) * 1000)];
+            for (let i = 0; i < 48; i++) body.push(0x10 + i);
+            rest = [...Wire.u16(icmp.getValue("Identifier") || 0), ...Wire.u16(icmp.getValue("Seq") || 0)];
+        } else {
+            rest = [0, 0, 0, 0];
+            body = icmp.orig ? Wire.ipv4Bytes(icmp.orig).slice(0, 28) : [];
         }
-        const total = 20 + icmpBytes.length;
+        const bytes = [type, code, 0, 0, ...rest, ...body];
+        const sum = Wire.checksum(bytes);
+        bytes[2] = sum >> 8; bytes[3] = sum & 255;
+        return { t, type, code, sum, rest, body, bytes };
+    }
+
+    static ipHeader(p, payloadLen) {
+        const total = 20 + payloadLen;
         const proto = { ICMP: 1, TCP: 6, UDP: 17 }[p.getValue("Protocol")] || 0;
         const ttl = p.getValue("TTL") || 64;
         const ident = p.ident || 0;
-        const hdr = [0x45, 0, ...Wire.u16(total), ...Wire.u16(ident), 0x40, 0, ttl, proto, 0, 0,
+        const bytes = [0x45, 0, ...Wire.u16(total), ...Wire.u16(ident), 0x40, 0, ttl, proto, 0, 0,
             ...Wire.ip(p.getValue("SrcIP")), ...Wire.ip(p.getValue("DstIP"))];
-        const hsum = Wire.checksum(hdr);
+        const sum = Wire.checksum(bytes);
+        bytes[10] = sum >> 8; bytes[11] = sum & 255;
+        return { bytes, total, proto, ttl, ident, sum };
+    }
+
+    // a whole IPv4 packet as bytes (used inside ICMP error messages)
+    static ipv4Bytes(p) {
+        const ic = p.getPayload() ? Wire.icmpParts(p.getPayload()).bytes : [];
+        return [...Wire.ipHeader(p, ic.length).bytes, ...ic];
+    }
+
+    static encodeIpv4(p, begin, field, end) {
+        const icmp = p.getPayload();
+        const ic = icmp ? Wire.icmpParts(icmp) : null;
+        const H = Wire.ipHeader(p, ic ? ic.bytes.length : 0);
 
         begin("Internet Protocol v4", "ip", COLORS.IPv4,
             "Layer 3. The IP header carries the logical addresses; routers use them to forward packets between networks.");
         field("Version / IHL", [0x45], "4 / 20 bytes",
             "<b>0x45</b>: the high 4 bits say IP <b>version 4</b>, the low 4 bits the header length in 32-bit words (5 × 4 = 20 bytes).");
         field("DSCP / ECN", [0], "0x00", "<b>Differentiated services</b> — priority marking for quality of service. 0 = normal.");
-        field("Total length", Wire.u16(total), total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + icmpBytes.length + " bytes of ICMP).");
-        field("Identification", Wire.u16(ident), Wire.hex(ident, 4), "<b>Identification</b> — a counter, used to put fragments of the same packet back together.");
+        field("Total length", Wire.u16(H.total), H.total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + (H.total - 20) + " bytes of ICMP).");
+        field("Identification", Wire.u16(H.ident), Wire.hex(H.ident, 4), "<b>Identification</b> — a counter, used to put fragments of the same packet back together. Routers don't change it.");
         field("Flags / Fragment", [0x40, 0], "Don't fragment",
             "<b>Flags</b>: DF = don't fragment. Fragment offset 0 — this packet is not split up.");
-        field("Time to live", [ttl], String(ttl),
-            "<b>TTL</b> — every router lowers it by one; at 0 the packet is dropped. This stops packets from circling forever. Linux starts at 64.");
-        field("Protocol", [proto], proto + " (" + p.getValue("Protocol") + ")", "<b>Protocol</b> of the data inside: 1 = ICMP, 6 = TCP, 17 = UDP.");
-        field("Header checksum", Wire.u16(hsum), Wire.hex(hsum, 4), "<b>Header checksum</b> — protects only the IP header; every router recomputes it after changing the TTL.");
-        field("Source address", Wire.ip(p.getValue("SrcIP")), p.getValue("SrcIP"), "<b>Source IP</b> — who sent the packet.");
-        field("Destination address", Wire.ip(p.getValue("DstIP")), p.getValue("DstIP"), "<b>Destination IP</b> — where the packet should end up, maybe many networks away.");
+        field("Time to live", [H.ttl], String(H.ttl),
+            "<b>TTL</b> — every router lowers it by one; when it would reach 0 the packet is dropped and the router sends back an ICMP “time exceeded”. This stops packets from circling forever. Linux starts at 64; <code>traceroute</code> uses 1, 2, 3… on purpose.");
+        field("Protocol", [H.proto], H.proto + " (" + p.getValue("Protocol") + ")", "<b>Protocol</b> of the data inside: 1 = ICMP, 6 = TCP, 17 = UDP.");
+        field("Header checksum", Wire.u16(H.sum), Wire.hex(H.sum, 4), "<b>Header checksum</b> — protects only the IP header; every router recomputes it after lowering the TTL.");
+        field("Source address", Wire.ip(p.getValue("SrcIP")), p.getValue("SrcIP"), "<b>Source IP</b> — who sent the packet. Routers don't change it.");
+        field("Destination address", Wire.ip(p.getValue("DstIP")), p.getValue("DstIP"), "<b>Destination IP</b> — where the packet should end up, maybe many networks away. Stays the same all the way, while the MAC addresses change at every router.");
         end();
 
-        if (icmp) {
-            const [type, id, seq, sum, data] = parts;
-            begin("ICMP", "icmp", COLORS.ICMP, "Internet Control Message Protocol — used by ping and for error reports.");
-            field("Type", [type], type + (type == 8 ? " (Echo request)" : " (Echo reply)"),
-                "<b>Type</b> 8 = echo request (<i>are you there?</i>), 0 = echo reply (<i>yes!</i>). This is what <code>ping</code> sends.");
+        if (!ic) return;
+        const names = { 8: "Echo request", 0: "Echo reply", 3: "Destination unreachable", 11: "Time exceeded" };
+        begin("ICMP", "icmp", COLORS.ICMP, "Internet Control Message Protocol — used by ping and traceroute, and for error reports.");
+        field("Type", [ic.type], ic.type + " (" + names[ic.type] + ")",
+            "<b>Type</b> 8 = echo request (<i>are you there?</i>), 0 = echo reply (<i>yes!</i>), 11 = time exceeded (a router dropped the packet because its TTL ran out), 3 = destination unreachable.");
+        if (ic.type == 8 || ic.type == 0) {
             field("Code", [0], "0", "<b>Code</b> — sub-type; always 0 for echo.");
-            field("Checksum", Wire.u16(sum), Wire.hex(sum, 4), "<b>Checksum</b> over the whole ICMP message.");
+            field("Checksum", Wire.u16(ic.sum), Wire.hex(ic.sum, 4), "<b>Checksum</b> over the whole ICMP message.");
+            const id = icmp.getValue("Identifier") || 0, seq = icmp.getValue("Seq") || 0;
             field("Identifier", Wire.u16(id), String(id) + " (" + Wire.hex(id, 4) + ")",
                 "<b>Identifier</b> — picked by each running ping, so replies find the right ping program.");
             field("Sequence", Wire.u16(seq), String(seq), "<b>Sequence number</b> — counts up by one: this is the <code>icmp_seq</code> ping prints.");
-            field("Data", data, data.length + " bytes (timestamp + pattern)",
+            field("Data", ic.body, ic.body.length + " bytes (timestamp + pattern)",
                 "<b>Data</b> — ping fills 56 bytes: a timestamp (to measure the round-trip time) and a counting pattern. The reply echoes it back unchanged.");
-            end();
+        } else {
+            const codeTxt = ic.type == 11 ? "TTL expired in transit" : (ic.code == 1 ? "host unreachable" : "network unreachable");
+            field("Code", [ic.code], ic.code + " (" + codeTxt + ")",
+                "<b>Code</b> — the exact reason. Time exceeded 0 = TTL ran out in transit. Unreachable 0 = no route to the network, 1 = the host did not answer ARP.");
+            field("Checksum", Wire.u16(ic.sum), Wire.hex(ic.sum, 4), "<b>Checksum</b> over the whole ICMP message.");
+            field("Unused", [0, 0, 0, 0], "0", "<b>Unused</b> — four zero bytes.");
+            const o = icmp.orig, oi = o && o.getPayload();
+            field("Original packet", ic.body, ic.body.length + " bytes: " + (o ? o.getValue("SrcIP") + " → " + o.getValue("DstIP") + (oi ? ", ICMP seq=" + oi.getValue("Seq") : "") : ""),
+                "<b>The beginning of the packet that failed</b> — its IP header plus the first 8 bytes of its data. Thanks to this the sender (and its ping or traceroute) can tell exactly which packet it was.");
         }
+        end();
     }
 
     static encodeLldp(p, begin, field, end) {

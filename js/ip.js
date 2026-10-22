@@ -84,6 +84,10 @@ class IP {
         return out.join(".");
     }
 
+    static networkOf(ip, cidr) {
+        return IP.fromBinary(IP.calcBinary(ip).substring(0, cidr).padEnd(32, "0"));
+    }
+
     static broadcastOf(ip, cidr) {
         return IP.fromBinary(IP.calcBinary(ip).substring(0, cidr).padEnd(32, "1"));
     }

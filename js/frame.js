@@ -53,6 +53,12 @@ class Frame extends Drawable {
         return this._wire;
     }
 
+    isError() {
+        if (this.proto() != "ICMP") return false;
+        const t = this.payload.getPayload().getValue("Type");
+        return t == "TimeExceeded" || t == "DestUnreachable";
+    }
+
     isReply() {
         if (this.etherType == "ARP") return this.payload.getValue("OpCode") == "ArpReply";
         if (this.proto() == "ICMP") return this.payload.getPayload().getValue("Type") == "EchoReply";
@@ -63,6 +69,7 @@ class Frame extends Drawable {
     label() {
         const p = this.proto();
         if (p == "ARP") return this.isReply() ? "ARP reply" : "ARP who-has";
+        if (p == "ICMP" && this.isError()) return this.payload.getPayload().getValue("Type") == "TimeExceeded" ? "TTL exceeded" : "unreachable";
         if (p == "ICMP") return (this.isReply() ? "pong #" : "ping #") + this.payload.getPayload().getValue("Seq");
         return p;
     }
@@ -109,7 +116,7 @@ class Frame extends Drawable {
         ctx.lineWidth = 1;
         ctx.stroke();
         // reply marker / request marker
-        Gfx.text(this.isReply() ? "↩" : (this.proto() == "LLDP" ? "i" : "?"), x + 2 * s, y + 4 * s,
+        Gfx.text(this.isError() ? "!" : this.isReply() ? "↩" : (this.proto() == "LLDP" ? "i" : "?"), x + 2 * s, y + 4 * s,
             { size: 10 * s, weight: 800, color: "rgba(10,15,20,.85)" });
         // label above
         const lbl = this.label();
@@ -132,7 +139,7 @@ class Frame extends Drawable {
 
     tooltipLines() {
         return [
-            `${this.id} · ${this.proto()} ${this.isReply() ? "reply" : this.proto() == "LLDP" ? "advertisement" : "request"}`,
+            `${this.id} · ${this.proto()} ${this.isError() ? "error" : this.isReply() ? "reply" : this.proto() == "LLDP" ? "advertisement" : "request"}`,
             this.infoText(),
             `dst ${this.macDst}`,
             `src ${this.macSrc}`,

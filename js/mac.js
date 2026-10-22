@@ -9,9 +9,10 @@ class MAC {
 				this.address = mac;
 			}
 			else if (mac == "same") {
-				mac = Array.from({ length: 6 }, () =>
-					this.id.seq.toString(16).padStart(2, '0')
-				).join(':');
+				// readable lab address: locally administered unicast (02:…),
+				// the last digits are the NIC number, e.g. NIC12 -> 02:00:00:00:00:12
+				const n = String(this.id.seq).padStart(4, '0');
+				mac = "02:00:00:00:" + n.slice(0, 2) + ":" + n.slice(2, 4);
 				this.address = mac;
 			}
 			else {

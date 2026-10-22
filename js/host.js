@@ -3,7 +3,8 @@ class Host extends Clickable {
     constructor(x,y, terminal, opts = {}) {
         super(x,y);
         this.terminal = terminal;
-        this.id = new Id("Host", this);
+        this.id = new Id(opts.idType || "Host", this);
+        this.forwarding = false; // ip_forward: only routers pass packets on
         this.nics = [];
         this.nicSide = opts.nicSide || "right";
         this.mirrored = opts.mirror != null ? opts.mirror : this.nicSide == "left"; // tower on the left side
@@ -203,7 +204,7 @@ class Host extends Clickable {
                 },
                 {
                     h: "Routing table (ip route)", html: `<pre>${esc(this.l3.routing.lines().join("\n") || "(empty)")}</pre>
-                    <p class="note">One route per connected network: “to reach 192.168.1.x, just send it out of this card”. No gateway → only the local network is reachable.</p>`
+                    <p class="note">${this.forwarding ? "Connected networks plus static routes. For every packet the router picks the most specific matching route (longest prefix match)." : this.l3.routing.gateway ? `Local network: send directly. Anything else goes to the default gateway <b>${this.l3.routing.gateway}</b>, a router.` : "One route per connected network: “to reach 192.168.1.x, just send it out of this card”. No gateway → only the local network is reachable."}</p>`
                 },
                 {
                     h: "ARP cache (ip neigh)", html: arp.cache.length ?
@@ -233,6 +234,7 @@ class Host extends Clickable {
             { input: target },
             { label: "arping", tpl: `ssh ${id} arping {}` },
             { label: "ping", tpl: `ssh ${id} ping -c 3 {}` },
+            { label: "traceroute", tpl: `ssh ${id} traceroute {}` },
         ];
     }
 

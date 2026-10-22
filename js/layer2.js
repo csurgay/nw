@@ -89,7 +89,8 @@ class Layer2 {
         frame.dispose("delivered");
     }
 
-    sendFrame(nic, etherType, payload) {
+    // nextHop: for IPv4, the IP whose MAC we need (the gateway or the destination itself)
+    sendFrame(nic, etherType, payload, nextHop) {
         let macTarget;
         if (etherType == 'LLDP') {
             macTarget = LLDP.MULTICAST;
@@ -99,10 +100,11 @@ class Layer2 {
                 ARP.BROADCAST : String(payload.getValue('DstMAC'));
         }
         else if (etherType == 'IPv4') {
-            macTarget = this.host.l3.arp.getMAC(payload.getValue("DstIP"));
+            const hop = nextHop || payload.getValue("DstIP");
+            macTarget = this.host.l3.arp.getMAC(hop);
             if (!macTarget) {
                 // no MAC known yet: hold the packet and resolve with ARP first
-                this.host.l3.arp.resolve(nic, payload);
+                this.host.l3.arp.resolve(nic, payload, hop);
                 return;
             }
         }

@@ -10,7 +10,7 @@ class ArpEntry {
 class ARP {
     static BROADCAST = "ff:ff:ff:ff:ff:ff"; // Ethernet broadcast address
     static REACHABLE_MS = 30000; // after this an entry becomes STALE
-    static TIMEOUT_MS = 15000; // give up resolving after this (sim time, the animation is slowed down)
+    static TIMEOUT_MS = 8000; // give up resolving after this (sim time, the animation is slowed down)
 
     constructor(host) {
         this.id = new Id('ARP', this);
@@ -102,17 +102,23 @@ class ARP {
         return payload;
     }
 
-    // An IP packet needs a destination MAC we don't know yet
-    resolve(nic, packet) {
-        const ip = packet.getValue("DstIP");
+    // An IP packet needs the MAC of `ip` (next hop) that we don't know yet
+    resolve(nic, packet, ip) {
+        ip = ip || packet.getValue("DstIP");
+        const dst = packet.getValue("DstIP");
         this.pending.push({ ip, nic, packet });
         if (this.resolving[ip]) return;
-        Sim.event("l3", `<b>${this.host}</b> doesn't know the MAC of ${ip} yet → holds the IP packet and asks with ARP first`, { proto: "ARP", obj: this.host });
+        Sim.event("l3", `<b>${this.host}</b> doesn't know the MAC of ${ip}${ip != dst ? " (the gateway toward " + dst + ")" : ""} yet → holds the IP packet and asks with ARP first`, { proto: "ARP", obj: this.host });
         this.resolving[ip] = Sim.after(ARP.TIMEOUT_MS, () => {
             delete this.resolving[ip];
-            const lost = this.pending.filter(p => p.ip == ip).length;
+            const lost = this.pending.filter(p => p.ip == ip);
             this.pending = this.pending.filter(p => p.ip != ip);
-            if (lost) Sim.event("drop", `<b>${this.host}</b> no ARP answer for ${ip} — ${lost} waiting packet(s) discarded`, { proto: "ARP", obj: this.host });
+            if (!lost.length) return;
+            Sim.event("drop", `<b>${this.host}</b> no ARP answer for ${ip} — ${lost.length} waiting packet(s) discarded`, { proto: "ARP", obj: this.host });
+            lost.forEach(p => {
+                if (this.host.l3.isLocal(p.packet.getValue("SrcIP"))) this.host.l3.icmp.localUnreachable(p.packet);
+                else if (this.host.forwarding) this.host.l3.icmpError(p.packet, "DestUnreachable", 1, null);
+            });
         });
         this.host.l3.sendArpRequest(ip, nic);
     }
@@ -124,7 +130,7 @@ class ARP {
         if (!ready.length) return;
         this.pending = this.pending.filter(p => p.ip != ip);
         if (this.resolving[ip]) { this.resolving[ip].cancel(); delete this.resolving[ip]; }
-        ready.forEach(p => this.host.l2.sendFrame(p.nic, 'IPv4', p.packet));
+        ready.forEach(p => this.host.l2.sendFrame(p.nic, 'IPv4', p.packet, ip));
     }
 
     showCache() {
