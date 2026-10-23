@@ -5,7 +5,7 @@
 const Completion = {
     // commands of the lab shell (shell.js) — the rest comes from Coreutils
     SHELL_CMDS: ["exit", "clear", "help", "for", "ssh", "systemctl", "lldpcli", "arping", "arp", "ip", "traceroute",
-        "tracert", "lab", "dhclient", "host", "nslookup", "ping"],
+        "tracert", "lab", "dhclient", "host", "nslookup", "ping", "jobs", "fg", "bg", "kill", "alias", "unalias", "watch", "autotest"],
 
     // line: everything after the prompt -> { line: completed line, list: [shown words] }
     complete(sh, line) {
@@ -80,6 +80,14 @@ const Completion = {
                 if (n == 2 && prev[1] == "show") return this.w(["neighbors", "chassis"]);
                 return [];
             case "lab": return n == 1 ? this.w(Topology.all().map(t => t.id)) : [];
+            case "watch": {
+                let k = 1;
+                if (prev[1] == "-n") k = 3;
+                if (n < k) return n == 1 ? this.w(["-n"]) : [];
+                return this.candidates(sh, prev.slice(k), cur);
+            }
+            case "fg": case "bg": case "kill": return this.w(sh.jobList().map(j => "%" + j.n));
+            case "unalias": return this.w(Object.keys(sh.aliasMap()));
             case "hostnamectl": return n == 1 ? this.w(["set-hostname", "status"]) : [];
             case "shutdown": return this.w(["-r"]);
             case "reboot": case "poweroff": case "halt": return [];

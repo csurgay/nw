@@ -2,7 +2,8 @@ class ICMP {
     constructor(host) {
         this.id = new Id('ICMP', this);
         this.host = host;
-        this.job = null; // running ping or traceroute
+        this.job = null; // the newest running ping or traceroute
+        this.jobs = [];  // all of them (one may run in the background, another in front)
         Debug.log(this.id, "Create", this.host.id);
     }
 
@@ -32,9 +33,19 @@ class ICMP {
         }
     }
 
+    // a stopped job (Ctrl-Z) keeps its output until fg / bg, like a blocked process
+    say(job, text) {
+        if (job.suspended) (job.held = job.held || []).push(text);
+        else this.host.terminal.println(text);
+    }
+
+    jobFor(ident) {
+        return this.jobs.find(j => j.active && j.ident == ident) || null;
+    }
+
     // a reply to one of our probes
     onReply(src, icmp, payload) {
-        const job = this.job;
+        const job = this.jobFor(icmp.getValue("Identifier"));
         if (!job || !job.active || job.ident != icmp.getValue("Identifier")) return;
         const seq = icmp.getValue("Seq");
         if (job.kind == "trace") return this.traceHop(job, seq, src, true);
@@ -43,7 +54,7 @@ class ICMP {
         const rtt = (Sim.time - job.sentAt[seq]) / 1000; // the animation runs ~1000× slower than reality
         job.rtts.push(rtt);
         job.recv++;
-        this.host.terminal.println("64 bytes from " + src + ": icmp_seq=" + seq +
+        this.say(job, "64 bytes from " + src + ": icmp_seq=" + seq +
             " ttl=" + payload.getValue("TTL") + " time=" + rtt.toFixed(2) + " ms");
         if (job.count && job.recv + job.errors >= job.count) this.finish(job);
     }
@@ -51,27 +62,27 @@ class ICMP {
     // an ICMP error about one of our probes (the error quotes our packet)
     onError(src, icmp) {
         const orig = icmp.orig, oi = orig && orig.getPayload();
-        const job = this.job;
+        const job = oi ? this.jobFor(oi.getValue("Identifier")) : null;
         if (!oi || !job || !job.active || job.ident != oi.getValue("Identifier")) return;
         const seq = oi.getValue("Seq");
         if (job.kind == "trace") return this.traceHop(job, seq, src, icmp.getValue("Type") != "TimeExceeded", icmp);
         if (job.got[seq]) return;
         job.got[seq] = true;
         job.errors++;
-        this.host.terminal.println("From " + src + " icmp_seq=" + seq + " " + ICMP.errText(icmp));
+        this.say(job, "From " + src + " icmp_seq=" + seq + " " + ICMP.errText(icmp));
         if (job.count && job.recv + job.errors >= job.count) this.finish(job);
     }
 
     // our own ARP for the next hop failed
     localUnreachable(packet) {
         const icmp = packet.getPayload();
-        const job = this.job;
+        const job = icmp ? this.jobFor(icmp.getValue("Identifier")) : null;
         if (!icmp || !job || !job.active || job.kind != "ping" || job.ident != icmp.getValue("Identifier")) return;
         const seq = icmp.getValue("Seq");
         if (job.got[seq]) return;
         job.got[seq] = true;
         job.errors++;
-        this.host.terminal.println("From " + packet.getValue("SrcIP") + " icmp_seq=" + seq + " Destination Host Unreachable");
+        this.say(job, "From " + packet.getValue("SrcIP") + " icmp_seq=" + seq + " Destination Host Unreachable");
         if (job.count && job.recv + job.errors >= job.count) this.finish(job);
     }
 
@@ -118,7 +129,9 @@ class ICMP {
                 if (err) { t.println(cmd + ": " + name + ": " + err); t.showPrompt(); }
                 return;
             }
-            if (go(ip)) t.showPrompt();
+            const fg = go(ip);
+            if (pend.n && shell.adoptJob) shell.adoptJob(pend); // it was sent to the background
+            else if (fg) t.showPrompt();
         });
         return !pend.active ? (shell.job == pend ? (shell.job = null, true) : false) : false;
     }
@@ -138,14 +151,16 @@ class ICMP {
             else this.stop(job);
         };
         this.job = job;
+        this.jobs.push(job);
         shell.job = job;
         const send = () => {
             if (!job.active) return;
+            if (job.suspended) { job.resume = send; return; } // Ctrl-Z: stopped until fg / bg
             job.sent++;
             job.sentAt[job.sent] = Sim.time;
             this.sendEchoRequest(dst, job.sent, job.ident, ttl);
             if (!job.count || job.sent < job.count) job.timer = Sim.after(interval, send);
-            else job.timer = Sim.after(25000, () => this.finish(job)); // wait for late replies (like ping -W)
+            else job.timer = Sim.after(25000, () => job.suspended ? (job.resume = () => this.finish(job)) : this.finish(job)); // wait for late replies (like ping -W)
         };
         send();
         return false;
@@ -181,6 +196,7 @@ class ICMP {
             if (printPrompt) this.host.terminal.showPrompt();
         };
         this.job = job;
+        this.jobs.push(job);
         shell.job = job;
         this.traceNext(job);
         return false;
@@ -188,6 +204,7 @@ class ICMP {
 
     traceNext(job) {
         if (!job.active) return;
+        if (job.suspended) { job.resume = () => this.traceNext(job); return; }
         job.hop++;
         if (job.hop > job.max) return this.traceDone(job);
         const hop = job.hop;
@@ -196,7 +213,7 @@ class ICMP {
         this.sendEchoRequest(job.dst, hop, job.ident, hop);
         job.timer = Sim.after(25000, () => {
             if (!job.active || job.hop != hop) return;
-            this.host.terminal.println(String(hop).padStart(2) + "  *");
+            this.say(job, String(hop).padStart(2) + "  *");
             this.traceNext(job);
         });
     }
@@ -206,7 +223,7 @@ class ICMP {
         if (job.timer) job.timer.cancel();
         const rtt = (Sim.time - job.sentAt[seq]) / 1000;
         const mark = icmp && icmp.getValue("Type") == "DestUnreachable" ? (icmp.code == 1 ? " !H" : " !N") : "";
-        this.host.terminal.println(String(seq).padStart(2) + "  " + src + " (" + src + ")  " + rtt.toFixed(3) + " ms" + mark);
+        this.say(job, String(seq).padStart(2) + "  " + src + " (" + src + ")  " + rtt.toFixed(3) + " ms" + mark);
         if (last || src == job.dst) this.traceDone(job);
         else this.traceNext(job);
     }
@@ -221,6 +238,7 @@ class ICMP {
         job.active = false;
         if (job.timer) job.timer.cancel();
         if (this.job == job) this.job = null;
+        this.jobs = this.jobs.filter(j => j != job);
         if (shell.job == job) shell.job = null;
     }
 

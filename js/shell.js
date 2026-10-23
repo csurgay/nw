@@ -50,8 +50,22 @@ class Shell {
         return false; // the boot sequence prints the prompt
     }
 
+    runInBackground(inner) {
+        const before = this.job;
+        const show = this.parse(inner);
+        let j;
+        if (show === false && this.job && this.job !== before) { j = this.job; this.job = null; }
+        else j = { active: false }; // it was already done
+        j.cmd = inner.trim();
+        const n = this.addJob(j, "Running");
+        j.pid = 1300 + Math.floor(Math.random() * 7000);
+        this.t.println(`[${n}] ${j.pid}`);
+        return true;
+    }
+
     // back to the admin console (exit, Ctrl-D, loading a lab)
     toConsole() {
+        if (this.host && this.hangUp) this.hangUp(this.host);
         this.host = null;
         this.cwd = this.consoleCwd || "/home/admin";
         this.oldCwd = null;
@@ -252,6 +266,9 @@ class Shell {
         let showPrompt = true;
         // logged in to an IOS-style switch: its own command line takes every line
         if (this.host && this.host.cli) return this.host.cli.exec(this, cmd);
+        // "ping 192.168.1.2 &": run it in the background
+        const bgm = cmd.match(/^(.*?[^&|])\s*&\s*$/s);
+        if (bgm && !/^\s*for\s/.test(cmd)) return this.runInBackground(bgm[1]);
         // "ssh switch1 show vlan | include 10": the whole line belongs to the IOS-style switch
         const toIos = cmd.match(/^\s*ssh\s+(\S+)\s+\S/);
         const iosTarget = toIos && Id.find(toIos[1].replace(/^root@/, ""));
@@ -264,6 +281,17 @@ class Shell {
             if (redir) segs[segs.length - 1] = redir.cmd;
             if (segs.length > 1 || redir) return this.pipeline(segs, redir);
         }
+        // an alias in front: replace it (and run it as a whole if it has | ; or &&)
+        const ex = this.expandAlias(cmd);
+        if (ex !== cmd) {
+            const name = cmd.trim().split(/\s+/)[0];
+            if (/[|;&]/.test(ex)) {
+                const g = this.aliasing;
+                this.aliasing = name;
+                try { return this.parse(ex); } finally { this.aliasing = g; }
+            }
+            cmd = ex;
+        }
         let command = this.tokenize(cmd.trim());
         this.status = 0;
         Debug.log("Shell", "parse", command);
@@ -272,6 +300,9 @@ class Shell {
             const r = LinuxSwitch.exec(this, command);
             if (r !== undefined) return r;
         }
+        // jobs, fg, bg, kill, alias, unalias, watch
+        const b = this.builtin(command, cmd);
+        if (b !== undefined) return b;
         if (command[0] == "exit") { if (this.host) this.t.quitToConsole(); else this.t.println("logout — (this is the admin console: it stays open)"); }
         else if (command[0] == "start") start();
         else if (command[0] == "stop") stop();

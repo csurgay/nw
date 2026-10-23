@@ -3,13 +3,15 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <title>Networking for Kids</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/boot.js" defer></script>
     <script src="js/id.js" defer></script>
     <script src="js/terminal.js" defer></script>
+    <script src="js/readline.js" defer></script>
     <script src="js/shell.js" defer></script>
+    <script src="js/jobs.js" defer></script>
     <script src="js/fs.js" defer></script>
     <script src="js/coreutils.js" defer></script>
     <script src="js/man.js" defer></script>
@@ -117,7 +119,15 @@
         <aside class="side" id="side">
             <div class="panel panel-term">
                 <div class="panel-h"><span class="dot"></span>Terminal<span class="panel-note">real Linux commands</span></div>
-                <textarea id="nwConsole" spellcheck="false" autocomplete="off"></textarea>
+                <textarea id="nwConsole" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="enter"></textarea>
+                <div class="keybar" id="keybar" title="Keys a phone keyboard does not have">
+                    <button data-k="Tab">Tab</button><button data-k="ArrowUp">↑</button><button data-k="ArrowDown">↓</button>
+                    <button data-k="ArrowLeft">←</button><button data-k="ArrowRight">→</button>
+                    <button data-k="AltDot" title="Alt-. : last word of the previous command">Alt .</button>
+                    <button data-k="PageUp" title="earlier commands that start like this one">PgUp</button><button data-k="PageDown">PgDn</button>
+                    <button data-k="CtrlC">^C</button><button data-k="CtrlZ" title="stop the running command (fg / bg)">^Z</button><button data-k="CtrlR" title="search the history">^R</button><button data-k="CtrlD" title="logout / delete the character under the cursor">^D</button><button data-k="CtrlA" title="start of the line">^A</button><button data-k="CtrlE" title="end of the line">^E</button><button data-k="CtrlU" title="cut to the start of the line">^U</button><button data-k="CtrlK" title="cut to the end of the line">^K</button><button data-k="CtrlY" title="paste what was cut">^Y</button><button data-k="CtrlT" title="swap two characters">^T</button><button data-k="CtrlL">^L</button><button data-k="!">!</button>
+                    <button data-k="|">|</button><button data-k="-">-</button><button data-k="/">/</button><button data-k="~">~</button><button data-k="?">?</button>
+                </div>
                 <div class="tries" id="tries"></div>
             </div>
             <div class="hsplit" id="splitH" title="Drag to share the height between terminal and event log · double-click: default"></div>

@@ -7,6 +7,7 @@ const Topology = {
         Array.from(Inspector.wins.keys()).forEach(o => Inspector.close(o));
         if (shell.job) { shell.job.cancel(false); shell.job = null; }
         shell.host = null;
+        shell.jobs = [];
         terminal.quitToConsole();
         for (const k in Id.types) {
             if (k == "Test") continue;

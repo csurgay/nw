@@ -60,6 +60,7 @@ const App = {
             }
             this.suppressClick = Editor.mouseup(ev);
         });
+        this.initTouch();
         // Ctrl + wheel (or a pinch on a touchpad) zooms around the mouse pointer
         nwCanvas.addEventListener("wheel", ev => {
             if (!ev.ctrlKey && !ev.metaKey) return;
@@ -92,6 +93,58 @@ const App = {
         });
         this.initControls();
         requestAnimationFrame(t => this.loop(t));
+    },
+
+    // phones and tablets: one finger works like the mouse (drag = move the picture, or a
+    // device in edit mode, or a cable from a socket; tap = inspect), two fingers pinch-zoom
+    initTouch() {
+        const fingers = new Map();
+        let pinch = null;
+        const mouse = (type, ev, target = nwCanvas) =>
+            target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: ev.clientX, clientY: ev.clientY, button: 0 }));
+        const two = () => {
+            const [a, b] = [...fingers.values()];
+            return { d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        };
+        nwCanvas.addEventListener("pointerdown", ev => {
+            if (ev.pointerType != "touch") return;
+            ev.preventDefault();
+            try { nwCanvas.setPointerCapture(ev.pointerId); } catch (e) { /* not essential */ }
+            fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+            if (fingers.size == 1) mouse("mousedown", ev);
+            else if (fingers.size == 2) {
+                // a second finger: the one-finger action stops where it is, the pinch begins
+                this.pan = null;
+                if (Editor.drag) Editor.drag = null;
+                Editor.cableFrom = null;
+                pinch = two();
+                this.suppressClick = true;
+            }
+        }, { passive: false });
+        nwCanvas.addEventListener("pointermove", ev => {
+            if (ev.pointerType != "touch" || !fingers.has(ev.pointerId)) return;
+            fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+            if (pinch && fingers.size >= 2) {
+                const now = two(), r = nwCanvas.getBoundingClientRect();
+                this.zoomAt(now.x - r.left, now.y - r.top, now.d / Math.max(1, pinch.d));
+                this.px += now.x - pinch.x;
+                this.py += now.y - pinch.y;
+                this.applyView();
+                pinch = now;
+            } else if (!pinch) mouse("mousemove", ev);
+        });
+        const up = ev => {
+            if (ev.pointerType != "touch" || !fingers.has(ev.pointerId)) return;
+            fingers.delete(ev.pointerId);
+            if (pinch) { if (fingers.size == 0) pinch = null; return; }
+            if (fingers.size == 0) {
+                mouse("mouseup", ev);
+                // no hover on a touch screen: the tooltip goes away with the finger
+                setTimeout(() => { this.hover = null; this.mx = -1; }, 400);
+            }
+        };
+        nwCanvas.addEventListener("pointerup", up);
+        nwCanvas.addEventListener("pointercancel", up);
     },
 
     resize() {
@@ -284,7 +337,7 @@ const App = {
             b.className = "try";
             b.textContent = label;
             b.title = cmd;
-            b.addEventListener("click", () => { terminal.runCommand(cmd); consoleArea.focus(); });
+            b.addEventListener("click", () => { terminal.runCommand(cmd); deskFocus(consoleArea); });
             box.appendChild(b);
         });
     },

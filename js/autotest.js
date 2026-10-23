@@ -14,6 +14,49 @@ const AutoTest = {
 
     close() {
         this.el.hidden = true;
+        this.watchMode(false);
+    },
+
+    // a small screen (phone): picture on top, terminal and report below, no page scrolling
+    small() { return matchMedia("(max-width: 820px), (pointer: coarse) and (max-height: 520px)").matches; },
+
+    watchMode(on) {
+        if (document.body.classList.contains("at-watch") == on) return;
+        document.body.classList.toggle("at-watch", on);
+        window.scrollTo(0, 0);
+        window.dispatchEvent(new Event("resize"));
+        terminal.showBottom();
+    },
+
+    // the camera follows the frames, zoomed in so that a phone shows readable pictures
+    follow(on) {
+        this.following = on;
+        document.body.classList.toggle("at-follow", on);
+        if (!on) { App.resetView(); return; }
+        if (this.camRaf) return;
+        let last = performance.now(), tx = null, ty = null;
+        const step = (now) => {
+            if (!this.following) { this.camRaf = null; return; }
+            this.camRaf = requestAnimationFrame(step);
+            const dt = Math.min(100, now - last); last = now;
+            // where the action is: the frames on the cables, else the network's middle
+            let n = 0, sx = 0, sy = 0;
+            (Id.list.Patch || []).forEach(p => p.inFlight().forEach(f => {
+                const q = p.pointAt(f.dir, f.progress); sx += q.x; sy += q.y; n++;
+            }));
+            if (n) { tx = sx / n; ty = sy / n; }
+            else if (tx == null) { const v = App.view || { x: 0, y: 0, w: App.W, h: App.H }; tx = v.x + v.w / 2; ty = v.y + v.h / 2; }
+            const uz = Math.max(1, Math.min(2.2, 0.85 / App.bs));
+            const k = 1 - Math.exp(-dt / 450);
+            const wantPx = App.cw / 2 - (App.bx * uz + tx * App.bs * uz);
+            const wantPy = (App.ch - 24) / 2 - (App.by * uz + ty * App.bs * uz);
+            App.uz += (uz - App.uz) * k;
+            // the pan follows the zoom so that the picture does not jump
+            App.px += (wantPx - App.px) * k;
+            App.py += (wantPy - App.py) * k;
+            App.applyView();
+        };
+        this.camRaf = requestAnimationFrame(step);
     },
 
     build() {
@@ -60,6 +103,7 @@ const AutoTest = {
         this.t0 = Date.now();
         this.total = Test.case.length + UiTest.count();
         this.saved = this.snapshot(); // the network you were working on comes back at the end
+        this.watchMode(this.small());
         this.running = true;
         this.btnRun.textContent = "Stop";
         this.add("head", `NetLab autotest · ${new Date().toLocaleString()} · ${this.total} cases`);
@@ -75,6 +119,7 @@ const AutoTest = {
     async uiFirst() {
         this.add("head", `1. UI tests (${UiTest.count()}) — watch the pointer build a network`);
         // out of the way while the pointer works on the canvas and the terminal
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // no phone keyboard
         const st = this.el.getAttribute("style") || "";
         this.el.setAttribute("style", "left:auto; right:12px; top:auto; bottom:12px; width:440px; height:300px");
         this.el.classList.add("docked");
@@ -84,6 +129,7 @@ const AutoTest = {
         if (UiTest.stopped) return this.onDone(false, true);
         this.add("head", `\n2. Terminal tests (${Test.case.length}) — the terminal shows what is typed`);
         test.listener = this;
+        if (document.body.classList.contains("at-watch")) this.follow(true);
         test.test();
     },
 
@@ -113,6 +159,7 @@ const AutoTest = {
     // the terminal tests are over (or the run was stopped): the network comes back
     onDone(ok, stopped) {
         test.listener = null;
+        if (this.following) this.follow(false);
         try { this.restore(this.saved); }
         catch (e) { this.add("bad", "Could not bring your network back: " + e.message); }
         this.finish(this.failedN == 0 && !stopped, stopped);
@@ -120,7 +167,8 @@ const AutoTest = {
 
     onUiCase(i, name, err) {
         const n = ("UI" + (i + 1)).padStart(5);
-        if (!err) { this.passed++; this.add("ok", `✔ ${n}  ${name}`); }
+        if (err && err.startsWith("skip:")) { this.passed++; this.add("ok dim", `– ${n}  ${name}  (${err.slice(5).trim()})`); }
+        else if (!err) { this.passed++; this.add("ok", `✔ ${n}  ${name}`); }
         else { this.failedN++; this.add("bad", `✘ ${n}  ${name}`); this.add("bad dim", `        ${err}`); }
         this.tick(i + 1);
     },

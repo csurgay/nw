@@ -2,6 +2,7 @@
 Lang.init();
 Lexicon.init(LEXICON);
 EventLog.init(document.getElementById("eventLog"));
+terminal.initTouch();
 App.init();
 Layout.init();
 Topology.initUI();

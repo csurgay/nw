@@ -302,7 +302,7 @@ const Lexicon = {
         if (id && this.byId[id]) this.current = id;
         if (!this.current) this.current = this.entries[0].id;
         this.render();
-        if (!id) setTimeout(() => el.querySelector(".lex-search").focus(), 50);
+        if (!id) setTimeout(() => deskFocus(el.querySelector(".lex-search")), 50);
     },
 
     close() { document.getElementById("lexicon").hidden = true; },
@@ -357,7 +357,7 @@ const Lexicon = {
         this.close();
         if (lab && (!Topology.current || Topology.current.id != lab)) terminal.runCommand("lab " + lab);
         terminal.runCommand(cmd);
-        consoleArea.focus();
+        deskFocus(consoleArea);
     },
 
     // turn known terms inside an element into lexicon links (each term once)

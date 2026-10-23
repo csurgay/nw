@@ -78,6 +78,25 @@ class Test {
         ["exit", ["Connection to switch1 closed.", "[admin@console ~]$ "], 100],
         ["lab router", ["Loaded lab: 8 · A router joins two networks", "*"], 100],
         ["ssh router1 sysctl net.ipv4.ip_forward", ["net.ipv4.ip_forward = 1", "*"], 100],
+        ["echo one two three", ["one two three", "*"], 100],
+        ["echo !$", ["echo three", "three", "*"], 100],
+        ["^three^four", ["echo four", "four", "*"], 100],
+        ["echo !-3:2 !!:$", ["echo two four", "two four", "*"], 100],
+        ["!nope", ["-bash: !nope: event not found", "*"], 100],
+        ["alias hi='echo hello'", ["*"], 100],
+        ["hi world", ["hello world", "*"], 100],
+        ["alias hi", ["alias hi='echo hello'", "*"], 100],
+        ["unalias hi; hi", ["hi: command not found...", "*"], 100],
+        ["lab switch", ["Loaded lab: 3 · A switch learns MAC addresses", "*"], 100],
+        ["ssh host1", ["[root@host1 ~]# "], 100],
+        ["ping -c 1 192.168.1.2 &", [/^\[1\] \d+$/, "*"], 100],
+        ["", ["*"], 6000],
+        ["jobs", ["[1]+  Done                    ping -c 1 192.168.1.2", "*"], 100],
+        ["ping 192.168.1.3 &", [/^\[1\] \d+$/, "*"], 100],
+        ["kill %1", ["[1]+  Terminated              ping 192.168.1.3", "*"], 100],
+        ["jobs", ["[root@host1 ~]# jobs", "*"], 100],
+        ["fg", ["-bash: fg: current: no such job", "*"], 100],
+        ["exit", ["*"], 100],
     ];
 
     constructor(terminal, shell) {
@@ -121,7 +140,7 @@ class Test {
         if (this.stopped) return this.finish();
         let inStr = Test.case[this.index][0];
         if (inStr != "") {
-            this.terminal.print(inStr);
+            this.terminal.raw(inStr);
             this.terminal.enter(inStr);
         }
         Sim.wait(Test.case[this.index][2], () => this.output());

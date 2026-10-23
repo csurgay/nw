@@ -348,15 +348,41 @@ body.resizing.row { cursor: row-resize; }
     .legend, .brand-sub { display: none; }
     .side { width: 380px; }
 }
-@media (max-width: 820px) {
-    html, body { overflow: auto; }
+@media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
+    /* phones (also turned sideways): everything in one column, the page scrolls */
+    html, body { height: auto; overflow-x: hidden; overflow-y: auto; }
+    .topbar { flex-wrap: wrap; height: auto; padding: 8px 10px; gap: 8px 10px; }
+    .controls { flex-wrap: wrap; gap: 8px; }
+    .speed > span, .clock #simTime, .legend { display: none; }
+    .speed input { width: 76px; }
     .layout { flex-direction: column; height: auto; }
-    .stage { height: 62vh; flex: none; }
-    .side { width: 100% !important; height: 80vh; border-left: 0; border-top: 1px solid var(--line); }
-    .vsplit { display: none; }
-    .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 10px; }
-    .layout { height: auto; }
-    .pop, .pop.wide { width: calc(100vw - 24px); }
+    .stage { height: auto; flex: none; }
+    .labbar { flex-wrap: wrap; padding: 8px 10px; gap: 6px; }
+    .labbar select { flex: 1; min-width: 0; max-width: none; }
+    .labgoal { order: 10; flex-basis: 100%; margin: 2px 0 0; }
+    .canvas-wrap { flex: none; height: clamp(260px, 80vw, 58vh); }
+    .stage-hint, .edithint { display: none !important; }
+    .editbar { left: 6px; right: 6px; top: 6px; max-width: none; flex-wrap: nowrap; overflow-x: auto; }
+    .side { width: 100% !important; height: auto; border-left: 0; border-top: 1px solid var(--line); }
+    .panel-term { flex: none !important; height: 52vh; min-height: 300px; }
+    .panel-log { height: 45vh; }
+    .vsplit, .hsplit { display: none; }
+    .pop, .pop.wide { width: calc(100vw - 16px); left: 8px !important; }
+    .autotest { left: 8px !important; right: 8px !important; width: auto !important; }
+}
+
+/* keys a phone keyboard lacks: only on touch screens */
+.keybar { display: none; gap: 5px; padding: 6px 8px; overflow-x: auto; background: #0b1016; border-top: 1px solid var(--line); flex: none; }
+.keybar button {
+    flex: none; min-width: 38px; height: 34px; padding: 0 9px; border-radius: 6px;
+    background: #17212c; border: 1px solid var(--line2); color: var(--text); font: 600 13px var(--mono);
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
+}
+.keybar button:active { background: #24384c; }
+@media (pointer: coarse) {
+    .keybar { display: flex; }
+    #nwCanvas { touch-action: none; }
+    .pop-h, .at-h { touch-action: none; }
 }
 
 select.vsel {
@@ -532,3 +558,47 @@ body.ui-testing .at-note { display: inline; }
 .zoomctl button + button { border-left: 1px solid var(--line2); }
 .zoomctl button:hover { background: #1c2735; color: #fff; }
 #zoomPct { min-width: 52px; font-size: 11px; }
+
+/* phones, last so it wins over the rules above */
+@media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
+    .zoomctl { top: auto; bottom: 8px; right: 8px; }
+    .zoomctl button { height: 32px; min-width: 34px; }
+    .pop table.t { display: block; overflow-x: auto; }
+}
+
+/* a phone turned sideways: the picture gets almost the whole screen height */
+@media (pointer: coarse) and (max-height: 520px) and (min-width: 521px) {
+    .canvas-wrap { height: 86vh; height: 86dvh; }
+}
+
+/* small screens: the editor bar wraps (the File menu must not be cut off) */
+@media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
+    .editbar { flex-wrap: wrap; overflow: visible; }
+    .editbar .etool { padding: 0 7px; }
+}
+
+/* ---------- Autotest on a phone: picture, terminal and report share the screen ---------- */
+body.at-watch { height: 100%; overflow: hidden; }
+body.at-watch .topbar, body.at-watch .labbar, body.at-watch .panel-log, body.at-watch .keybar,
+body.at-watch .tries, body.at-watch .panel-term .panel-h, body.at-watch .vsplit, body.at-watch .hsplit,
+body.at-watch .stage-hint { display: none !important; }
+body.at-watch .canvas-wrap { position: fixed; z-index: 1; left: 0; right: 0; top: 0; height: 50vh; height: 50dvh; border-bottom: 1px solid var(--line); }
+body.at-watch .side { position: fixed; z-index: 1; left: 0; right: 0; top: 50vh; top: 50dvh; height: 19vh; height: 19dvh; width: auto !important; border: 0; }
+body.at-watch .panel-term { height: 100% !important; min-height: 0 !important; flex: 1 1 auto !important; }
+body.at-watch #nwConsole { font-size: 11px !important; }
+body.at-watch .autotest {
+    left: 0 !important; right: 0 !important; top: 69vh !important; top: 69dvh !important; bottom: 0 !important;
+    width: auto !important; height: auto !important; min-width: 0; min-height: 0; border-radius: 0; resize: none;
+    border-width: 1px 0 0; box-shadow: none;
+}
+body.at-watch .at-h { cursor: default; padding: 4px 6px 4px 10px; gap: 6px; }
+body.at-watch .at-out { font-size: 11px; padding: 6px 10px; min-height: 0; }
+body.at-follow .editbar, body.at-follow .edithint { display: none !important; }
+body.at-watch .at-note { display: none !important; }
+body.at-watch .at-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+body.at-watch .at-h .mini { padding: 2px 7px; }
+@media (orientation: landscape) {
+    body.at-watch .canvas-wrap { right: 40vw; height: 100vh; height: 100dvh; border: 0; border-right: 1px solid var(--line); }
+    body.at-watch .side { left: 60vw; top: 0; height: 42vh; height: 42dvh; }
+    body.at-watch .autotest { left: 60vw !important; top: 42vh !important; top: 42dvh !important; }
+}

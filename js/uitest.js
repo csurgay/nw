@@ -104,6 +104,24 @@ const UiTest = {
     },
     centre(o) { const b = o.bounds(); return this.world(b.x + b.w / 2, b.y + b.h / 2); },
     body(o) { const b = o.bounds(); return this.world(b.x + b.w * 0.3, b.y + b.h * 0.35); }, // away from the sockets
+    // a button that may be hidden on a small screen: point and click when it is visible, else just press it
+    async press(sel) {
+        const e = document.querySelector(sel), r = e.getBoundingClientRect();
+        if (r.width && r.height && this.target(r.left + r.width / 2, r.top + r.height / 2).closest(sel)) return this.click(r.left + r.width / 2, r.top + r.height / 2);
+        e.click();
+        await this.sleep(150);
+    },
+    // on a phone the new network is built bigger, below the editor bar
+    phoneView() {
+        if (!document.body.classList.contains("at-watch")) return;
+        const bar = document.getElementById("editbar").getBoundingClientRect();
+        const top = bar.height + 8, h = App.ch - top;
+        App.uz = Math.max(1, Math.min(1.6, App.cw / (620 * App.bs), h / (380 * App.bs)));
+        App.px = App.cw / 2 - (App.bx * App.uz + 550 * App.bs * App.uz);
+        App.py = top + h / 2 - (App.by * App.uz + 250 * App.bs * App.uz);
+        App.applyView();
+    },
+    visible(sel) { const e = document.querySelector(sel); return !!(e && e.offsetParent && e.getBoundingClientRect().width); },
     el(sel) { const r = document.querySelector(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
     // a spot on the canvas with nothing on it (and no window above it)
     empty() {
@@ -133,9 +151,10 @@ const UiTest = {
         const U = this;
         return [
             ["Edit mode on, File ▸ New network: empty canvas", async () => {
-                if (!Editor.on) await U.click(...U.el("#btnEdit"));
+                if (!Editor.on) await U.press("#btnEdit");
                 await U.click(...U.el("#editbar [data-file]"));
                 await U.click(...U.el('#editbar [data-cmd="new"]'));
+                U.phoneView();
                 return App.devices().length == 0 ? null : `${App.devices().length} devices left on the canvas`;
             }],
             ["Drag “+ Linux switch” from the toolbar onto the canvas", async () => {
@@ -198,7 +217,7 @@ const UiTest = {
             ["Ctrl + wheel zooms in, the % button resets", async () => {
                 await U.wheel(...U.centre(Id.find("switch1")), -120, 5);
                 const z = App.uz;
-                await U.click(...U.el("#zoomPct"));
+                await U.press("#zoomPct");
                 return z > 1.2 && App.uz == 1 ? null : `zoom went to ${z.toFixed(2)}, then ${App.uz}`;
             }],
             ["Drag the empty canvas: the picture moves; double-click: back", async () => {
@@ -214,6 +233,7 @@ const UiTest = {
                 return App.px == 0 && App.py == 0 ? null : `double-click left the picture at ${Math.round(App.px)},${Math.round(App.py)}`;
             }],
             ["Drag router1 onto the toolbar: deleted", async () => {
+                U.phoneView();
                 const r = Id.find("router1");
                 const b = document.getElementById("editbar").getBoundingClientRect();
                 await U.drag(...U.body(r), b.right - 30, b.top + b.height / 2, { ms: 900 });
@@ -245,9 +265,72 @@ const UiTest = {
                 t.textarea.value = t.textarea.value.replace(/ssh $/, "");
                 return one ? null : "“ssh ho” was not completed to “ssh host1”";
             }],
+            ["Alt-. brings back the last word of earlier commands", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                t.history.push("ssh host1 cat /etc/hosts", "ping -c 1 10.0.0.9");
+                t.textarea.value += "echo ";
+                kd({ key: ".", code: "Period", altKey: true }); await U.sleep(150);
+                const a = t.line();
+                kd({ key: ".", code: "Period", altKey: true }); await U.sleep(150);
+                const b = t.line();
+                kd({ key: "c", ctrlKey: true });
+                return a == "echo 10.0.0.9" && b == "echo /etc/hosts" ? null : `got “${a}”, then “${b}”`;
+            }],
+            ["PgUp / PgDn: earlier commands that start like the typed text", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                t.history.push("ssh host2 ip addr", "lab", "ssh host1 ip route");
+                t.textarea.value += "ssh";
+                kd({ key: "PageUp" }); await U.sleep(150);
+                const a = t.line();
+                kd({ key: "PageUp" }); await U.sleep(150);
+                const b = t.line();
+                kd({ key: "PageDown" }); kd({ key: "PageDown" }); await U.sleep(150);
+                const c = t.line();
+                kd({ key: "c", ctrlKey: true });
+                return a == "ssh host1 ip route" && b == "ssh host2 ip addr" && c == "ssh" ? null : `got “${a}”, “${b}”, back “${c}”`;
+            }],
+            ["Ctrl-R finds an earlier command; Ctrl-A, Alt-F, Ctrl-K, Ctrl-Y, Ctrl-_ edit it", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                t.history.push("ssh host1 ip neigh show", "lab");
+                kd({ key: "r", code: "KeyR", ctrlKey: true });
+                for (const ch of "neigh") { kd({ key: ch, code: "Key" + ch.toUpperCase() }); await U.sleep(60); }
+                const shown = t.textarea.value.split("\n").pop();
+                kd({ key: "Escape" }); await U.sleep(100);
+                const found = t.line();
+                kd({ key: "a", code: "KeyA", ctrlKey: true });
+                kd({ key: "f", code: "KeyF", altKey: true });
+                kd({ key: "k", code: "KeyK", ctrlKey: true }); await U.sleep(100);
+                const cut = t.line();
+                kd({ key: "y", code: "KeyY", ctrlKey: true }); await U.sleep(100);
+                const back = t.line();
+                kd({ key: "_", code: "Minus", ctrlKey: true, shiftKey: true }); await U.sleep(100);
+                const undone = t.line();
+                kd({ key: "c", ctrlKey: true });
+                if (!/reverse-i-search\)`neigh': ssh host1 ip neigh show/.test(shown)) return `search line “${shown}”`;
+                return found == "ssh host1 ip neigh show" && cut == "ssh" && back == found && undone == "ssh" ? null
+                    : `found “${found}”, cut “${cut}”, yank “${back}”, undo “${undone}”`;
+            }],
+            ["watch, Ctrl-Z, jobs, fg, Ctrl-C", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                const type = async (cmd) => { t.textarea.value += cmd; kd({ key: "Enter" }); await U.sleep(200); };
+                const tail = () => t.textarea.value.slice(-400);
+                await type("watch -n 1 ssh host1 hostname");
+                await U.sleep(1500);
+                const w = /Every 1\.0s: ssh host1 hostname[^\n]*\n\nhost1/.test(tail());
+                kd({ key: "z", code: "KeyZ", ctrlKey: true }); await U.sleep(200);
+                const stopped = /Stopped\s+watch -n 1 ssh host1 hostname/.test(tail());
+                await type("jobs");
+                const listed = /\[1\]\+  Stopped\s+watch -n 1/.test(tail());
+                await type("fg"); await U.sleep(1200);
+                const again = shell.job && shell.job.kind == "watch";
+                kd({ key: "c", ctrlKey: true }); await U.sleep(200);
+                const ended = !shell.job && !shell.jobList().length;
+                return w && stopped && listed && again && ended ? null
+                    : `watch ${w}, ^Z ${stopped}, jobs ${listed}, fg ${again}, ^C ${ended}`;
+            }],
             ["Lexicon: open, search “vlan”, switch to HU, close", async () => {
                 const lang = Lang.cur;
-                await U.click(...U.el("#btnLex"));
+                await U.press("#btnLex");
                 const s = document.querySelector("#lexicon .lex-search");
                 s.value = "vlan"; s.dispatchEvent(new Event("input", { bubbles: true }));
                 await U.sleep(300);
@@ -261,6 +344,7 @@ const UiTest = {
                 return /lexikon/i.test(hu) ? null : `the title did not turn Hungarian (“${hu}”)`;
             }],
             ["Drag the splitter: wider terminal; double-click: default", async () => {
+                if (!U.visible("#splitV")) return "skip: no splitter on a small screen";
                 const side = document.getElementById("side"), w0 = side.offsetWidth;
                 const sp = document.getElementById("splitV"), r = sp.getBoundingClientRect();
                 const x = r.left + 3, y = r.top + 200;

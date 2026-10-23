@@ -16,3 +16,8 @@ function start() {
   Sim.play();
   Debug.log("Util", "ANIM", "Started")
 }
+
+// focus a field, but not on a phone or tablet: the on-screen keyboard would pop up
+function deskFocus(el) {
+    if (!(window.matchMedia && matchMedia("(pointer: coarse)").matches)) el.focus();
+}
