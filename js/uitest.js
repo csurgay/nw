@@ -328,6 +328,30 @@ const UiTest = {
                 return w && stopped && listed && again && ended ? null
                     : `watch ${w}, ^Z ${stopped}, jobs ${listed}, fg ${again}, ^C ${ended}`;
             }],
+            ["Wireshark: the pings were captured; filter “icmp”; a field explains itself", async () => {
+                await U.press("#btnShark");
+                const fin = document.querySelector(".ws-filter");
+                await U.click(...U.el(".ws-filter"));
+                fin.value = "ip.adr == 1"; fin.dispatchEvent(new Event("input"));
+                await U.sleep(200);
+                const bad = fin.classList.contains("bad");
+                fin.value = "icmp && icmp.type == 8"; fin.dispatchEvent(new Event("input"));
+                fin.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+                await U.sleep(200);
+                const n = Capture.shown.length, allPing = Capture.shown.every(r => r.proto == "ICMP" && !r.frame.isReply());
+                const row = document.querySelector(".ws-list tbody tr");
+                if (row) await U.click(...U.el(".ws-list tbody tr"));
+                const seq = [...document.querySelectorAll(".ws-f")].find(e => /^Sequence/.test(e.textContent));
+                if (seq) { Capture.keepIn(Capture.tree, seq); const r = seq.getBoundingClientRect(); await U.click(r.left + 30, r.top + r.height / 2); }
+                const ex = document.querySelector(".ws-explain").textContent;
+                const resp = /Response in frame/.test(document.querySelector(".ws-tree").textContent);
+                Capture.applyFilter("");
+                Capture.select(null);
+                await U.press(".ws-x");
+                if (!bad) return "a wrong filter did not turn red";
+                if (n < 2 || !allPing) return `the filter showed ${n} frames${allPing ? "" : ", not only ping requests"}`;
+                return /icmp\.seq/.test(ex) && resp ? null : `explanation “${ex.slice(0, 60)}”, response link ${resp}`;
+            }],
             ["Lexicon: open, search “vlan”, switch to HU, close", async () => {
                 const lang = Lang.cur;
                 await U.press("#btnLex");

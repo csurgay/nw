@@ -135,7 +135,7 @@ class Patch extends Clickable {
         for (let i = 0; i <= 1; i++) {
             this.flight[i].forEach(f => {
                 const q = this.pointAt(i, f.progress);
-                f.drawAt(q.x, q.y, hoverObj == f);
+                f.drawAt(q.x, q.y, hoverObj == f || (typeof Capture != "undefined" && Capture.mark === f));
             });
             // frames waiting at the sending socket
             const n = this.queue[i].length;

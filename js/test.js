@@ -97,6 +97,8 @@ class Test {
         ["jobs", ["[root@host1 ~]# jobs", "*"], 100],
         ["fg", ["-bash: fg: current: no such job", "*"], 100],
         ["exit", ["*"], 100],
+        ["wireshark -Y 'ip.adr == 1'", [/^wireshark: display filter: “ip\.adr” is neither a protocol nor a field name/, "*"], 100],
+        ["wireshark -i host9:NIC9", [/^wireshark: “host9:NIC9”: no such interface/, "*"], 100],
     ];
 
     constructor(terminal, shell) {

@@ -149,6 +149,17 @@ Object.assign(Shell.prototype, {
         return buf;
     },
 
+    // "NIC1" on this machine, or "host1:NIC1" / "switch1:swp2" / "switch1:Gi0/2" anywhere
+    findPort(name) {
+        let dev = this.host, pn = name;
+        const m = name.match(/^([^:]+):(.+)$/);
+        if (m && !/^\d/.test(m[2]) || m && !this.host) { dev = Id.find(m[1]); pn = m[2]; }
+        if (!dev) return null;
+        const ports = dev.nics || dev.ports || [];
+        const lc = pn.toLowerCase();
+        return ports.find(p => p.patch && (String(p.id).toLowerCase() == lc || (dev.portName && [dev.portName(p), dev.portName(p, true), "port" + (ports.indexOf(p) + 1), String(ports.indexOf(p) + 1)].some(x => String(x).toLowerCase().replace(/\s/g, "") == lc.replace(/\s/g, ""))))) || null;
+    },
+
     // ---------------------------------------------------------------- the commands
     // returns undefined when it is not one of these
     builtin(c, raw) {
@@ -222,6 +233,26 @@ Object.assign(Shell.prototype, {
             }
             case "watch":
                 return this.watch(c.slice(1));
+            case "wireshark": {
+                // wireshark [-i interface] [-Y "display filter"]
+                let ifn = null, flt = null;
+                for (let i = 1; i < c.length; i++) {
+                    if (c[i] == "-i") ifn = c[++i];
+                    else if (c[i] == "-Y" || c[i] == "-f") flt = c[++i];
+                    else if (c[i] == "-k") continue;
+                    else flt = (flt ? flt + " " : "") + c[i];
+                }
+                let port;
+                if (ifn) {
+                    port = this.findPort(ifn);
+                    if (!port) { t.println(`wireshark: “${ifn}”: no such interface with a cable${this.host ? "" : " (on the console write host1:NIC1 or switch1:swp2)"}`); return true; }
+                } else if (this.host) port = (this.host.nics || []).find(n => n.patch) || null;
+                const comp = flt != null ? Capture.compile(flt) : { fn: null };
+                if (comp.error) { t.println("wireshark: display filter: " + comp.error); return true; }
+                setTimeout(() => Capture.open({ iface: port || null, filter: flt != null ? flt : undefined }), 30);
+                t.println(`Wireshark opens · capturing on ${port ? Capture.portName(port) : "any"}${flt ? " · filter: " + flt : ""}`);
+                return true;
+            }
             case "autotest":
                 // the File ▸ Autotest window, also on a phone where the editor bar is small
                 if (this.host) { t.println("autotest: run it on the console (exit first)"); return true; }

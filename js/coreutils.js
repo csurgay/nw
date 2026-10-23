@@ -4,7 +4,7 @@ const Coreutils = {
     BIN: ["bash", "cat", "date", "df", "echo", "env", "false", "file", "free", "grep", "head", "host", "hostname", "id",
         "less", "ls", "lldpcli", "man", "mkdir", "more", "netstat", "nslookup", "ping", "printenv", "ps", "pwd", "rm", "rmdir", "sort",
         "ss", "ssh", "su", "sudo", "systemctl", "tail", "touch", "traceroute", "tree", "true", "uname", "uniq", "uptime",
-        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl", "sysctl", "watch", "kill"],
+        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl", "sysctl", "watch", "kill", "wireshark"],
     SBIN: ["arp", "arping", "dhclient", "dhcpd", "ifconfig", "ip", "lldpd", "named", "sshd", "reboot", "shutdown", "poweroff", "halt", "init"],
 
     // commands that read text and may sit behind a |

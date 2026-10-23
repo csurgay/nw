@@ -5,7 +5,7 @@
 const Completion = {
     // commands of the lab shell (shell.js) — the rest comes from Coreutils
     SHELL_CMDS: ["exit", "clear", "help", "for", "ssh", "systemctl", "lldpcli", "arping", "arp", "ip", "traceroute",
-        "tracert", "lab", "dhclient", "host", "nslookup", "ping", "jobs", "fg", "bg", "kill", "alias", "unalias", "watch", "autotest"],
+        "tracert", "lab", "dhclient", "host", "nslookup", "ping", "jobs", "fg", "bg", "kill", "alias", "unalias", "watch", "autotest", "wireshark"],
 
     // line: everything after the prompt -> { line: completed line, list: [shown words] }
     complete(sh, line) {
