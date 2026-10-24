@@ -11,6 +11,9 @@ const MAN = {
         lab: [7, "list or load an example network", ["lab", "lab NAME", "lab NUMBER"],
             "Without arguments lists the lessons and your own saved networks. With a name or a number loads that network: every machine starts fresh.",
             [], ["lab", "lab dhcp", "lab 8"], ["help"]],
+        router: [7, "how to make a Linux machine a router between two or three networks", ["ssh router1", "ip addr add ADDRESS/PREFIX dev NIC", "ip route add NETWORK/PREFIX via NEXT-ROUTER", "sysctl -w net.ipv4.ip_forward=1", "ssh hostN ip route add default via ROUTER-ADDRESS"],
+            "1. Log in to the router; ip addr shows its cards. 2. Give every card an address in the network it is plugged into (usually .1). The connected networks then appear in ip route by themselves. 3. For a network that is further away (behind another router) add a route via the next router; that router's address must be in a network you already have, so add the addresses first. 4. Switch forwarding on with sysctl. 5. On every computer set the default gateway: the router's address in the computer's own network. 6. Test with ping and traceroute. If it does not work: check the addresses, ip_forward, the gateways, and that every router has a route to the target AND back. Labs 18 and 19 start with empty routers; the lexicon page “Setting up a router” has both solutions step by step.",
+            [], ["ip addr add 192.168.1.1/24 dev NIC7", "ip route add 192.168.2.0/24 via 10.0.0.2", "sysctl -w net.ipv4.ip_forward=1", "for i in {1..2}; do ssh host$i ip route add default via 192.168.1.1; done"], ["ip", "sysctl", "traceroute", "ping"]],
         help: [7, "the short list of commands", ["help"], "Prints the commands of this lab, one line each. For the details of one command use man.", [], [], ["man"]],
         man: [1, "show the manual page of a command", ["man COMMAND", "man -k WORD"],
             "Shows how a command is used in this lab.",
@@ -46,10 +49,10 @@ const MAN = {
 
         // ---------------------------------------------------------------- network
         ip: [8, "show and change addresses, routes and neighbours", ["ip addr", "ip addr add|replace ADDRESS/PREFIX dev NIC", "ip addr del ADDRESS/PREFIX dev NIC", "ip addr flush dev NIC",
-            "ip route", "ip route add NETWORK/PREFIX|default via GATEWAY", "ip neigh", "ip link"],
+            "ip route", "ip route add NETWORK/PREFIX|default via GATEWAY", "ip route del NETWORK/PREFIX|default", "ip neigh", "ip link"],
             "The main network tool of Linux. Every word may be shortened (ip a, ip r). On a Linux switch: ip link shows the ports, ip link set swpN up|down switches one on or off.",
             [["addr", "the network cards and their IP addresses"], ["route", "the routing table: where packets go"], ["neigh", "the ARP cache: IP address → MAC address"], ["link", "the network cards without addresses"]],
-            ["ip addr", "ip addr replace 192.168.1.5/24 dev NIC1", "ip route add default via 192.168.1.1", "ip route | grep default"], ["arp", "ifconfig"]],
+            ["ip addr", "ip addr replace 192.168.1.5/24 dev NIC1", "ip route add default via 192.168.1.1", "ip route | grep default"], ["arp", "ifconfig", "router"]],
         arp: [8, "show the ARP cache (old style)", ["arp -a"], "Lists which MAC address belongs to which IP address, as learned by ARP. The new way is ip neigh.", [], ["arp -a"], ["ip", "arping"]],
         arping: [8, "ask who has an IP address (ARP request)", ["arping ADDRESS"],
             "Sends ARP requests to a neighbour in the same network and prints every reply with the MAC address. Ctrl-C stops it.", [], ["arping 192.168.1.2"], ["arp", "ping"]],

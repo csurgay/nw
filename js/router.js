@@ -123,7 +123,7 @@ class Router extends Host {
         const keep = base.sections.filter(s => /^(Routing|ARP|Waiting)/.test(s.h));
         return {
             title: `${this.id}`,
-            sub: "IP router · net.ipv4.ip_forward = 1" + (this.hasSession() ? " · shell open" : ""),
+            sub: "IP router · net.ipv4.ip_forward = " + (this.forwarding ? 1 : 0) + (this.hasSession() ? " · shell open" : ""),
             badge: "RTR",
             color: "#5fbf8f",
             wide: true,

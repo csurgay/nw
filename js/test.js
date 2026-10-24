@@ -99,6 +99,18 @@ class Test {
         ["exit", ["*"], 100],
         ["wireshark -Y 'ip.adr == 1'", [/^wireshark: display filter: “ip\.adr” is neither a protocol nor a field name/, "*"], 100],
         ["wireshark -i host9:NIC9", [/^wireshark: “host9:NIC9”: no such interface/, "*"], 100],
+        ["lab router-diy", ["Loaded lab: 18 · Your turn: set up a router for three networks", "*"], 100],
+        ["ssh host1 ping -c 1 192.168.2.10", ["ping: connect: Network is unreachable", "*"], 100],
+        ["ssh router1 ip addr add 192.168.1.1/24 dev NIC7", ["*"], 100],
+        ["ssh router1 ip addr add 192.168.2.1/24 dev NIC8", ["*"], 100],
+        ["ssh router1 ip addr add 192.168.3.1/24 dev NIC9", ["*"], 100],
+        ["for i in {1..2}; do ssh host$i ip route add default via 192.168.1.1; done", ["*"], 100],
+        ["for i in {3..4}; do ssh host$i ip route add default via 192.168.2.1; done", ["*"], 100],
+        ["for i in {5..6}; do ssh host$i ip route add default via 192.168.3.1; done", ["*"], 100],
+        ["ssh router1 sysctl -w net.ipv4.ip_forward=1", ["net.ipv4.ip_forward = 1", "*"], 100],
+        ["ssh host1 ping -c 1 192.168.3.11", ["PING 192.168.3.11 (192.168.3.11) 56(84) bytes of data."], 100],
+        ["", ["--- 192.168.3.11 ping statistics ---", "1 packets transmitted, 1 received, 0% packet loss, time 0ms", "*", "*"], 18000],
+        ["ssh router1 ip route del 192.168.9.0/24", ["RTNETLINK answers: No such process", "*"], 100],
     ];
 
     constructor(terminal, shell) {

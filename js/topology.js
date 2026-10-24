@@ -86,8 +86,10 @@ const Topology = {
             }
             else if (d.type == "router") {
                 const r = new Router(d.x, d.y, terminal, { w: d.w });
-                d.ifs.forEach(f => r.addNic(this.makeNic(f.ip), f.side || "left"));
+                // an interface without "ip" starts empty: the lab where you set the router up yourself
+                d.ifs.forEach(f => r.addNic(f.ip ? this.makeNic(f.ip) : new NIC(0, 0, new MAC("same")), f.side || "left"));
                 this.applyRoutes(r, d.routes);
+                if (d.forward === false) r.forwarding = false;
                 r.spec = d;
                 if (d.name) names.push([r, d.name]);
             }

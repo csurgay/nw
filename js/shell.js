@@ -574,6 +574,16 @@ class Shell {
                 if (err) this.t.println(err);
                 else Sim.event("info", `<b>${h}</b> new route: ${dest} via ${via}`, { proto: "IPv4", obj: h });
             }
+            else if (command[2] == "del" || command[2] == "delete") {
+                // ip route del <net>/<cidr>|default — only the routes added with "via" (the others belong to an address)
+                const dest = command[3];
+                let net = "0.0.0.0", cidr = 0;
+                if (dest && dest != "default") { [net, cidr] = dest.split("/"); cidr = cidr == null ? 32 : parseInt(cidr); net = IP.isValid(net) ? IP.networkOf(net, cidr) : null; }
+                const rt = dest && net != null && h.l3.routing.table.find(r => r.proto == "static" && r.net == net && r.cidr == cidr);
+                if (!rt) { this.t.println("RTNETLINK answers: No such process"); return; }
+                h.l3.routing.table = h.l3.routing.table.filter(r => r !== rt);
+                Sim.event("info", `<b>${h}</b> route removed: ${dest}`, { proto: "IPv4", obj: h });
+            }
             else this.t.println(h.l3.routing.lines().join("\n"));
         }
         else if ("neighbour".startsWith(sub) && sub != "" || "neighbor".startsWith(sub) && sub != "") {
@@ -629,6 +639,19 @@ class Shell {
             "  lldpcli update | show neighbors | show chassis",
             "  for i in {1..12}; do ssh host$i <cmd>; done",
             "  clear (or Ctrl-L), test",
+            "",
+            "More:",
+            "  man ping, man bash, man router  (manual page of every command)",
+            "  ip route del 192.168.3.0/24     (remove a route)",
+            "  wireshark [-i NIC1] [-Y icmp]   (watch the frames, field by field)",
+            "  ping 192.168.1.2 &, jobs, fg, bg, kill %1, Ctrl-Z  (jobs)",
+            "  watch -n 1 ip neigh             (again and again, Ctrl-C stops)",
+            "  alias p='ping -c 1', alias, unalias p",
+            "  history, !!, !$, !ssh, ^host1^host2, Ctrl-R  (earlier commands)",
+            "  Ctrl-A/E, Alt-B/F, Ctrl-U/K/W, Ctrl-Y, Ctrl-_, Alt-., Ctrl-T",
+            "  autotest                        (all tests in a window)",
+            "  lab 18, lab 19                  (set up the routers yourself)",
+            "Lexicon ▸ The Linux terminal: all of it explained in more detail.",
         ].join("\n"));
     }
 }
