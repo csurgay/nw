@@ -289,6 +289,17 @@ const UiTest = {
                 kd({ key: "c", ctrlKey: true });
                 return a == "ssh host1 ip route" && b == "ssh host2 ip addr" && c == "ssh" ? null : `got “${a}”, “${b}”, back “${c}”`;
             }],
+            ["PgUp / ↑ while a command still runs: nothing is mixed into the history", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                t.runCommand("watch -n 1 hostname");
+                await U.sleep(1200);
+                const before = t.textarea.value;
+                kd({ key: "PageUp" }); kd({ key: "ArrowUp" }); await U.sleep(150);
+                const same = t.textarea.value == before;
+                kd({ key: "c", ctrlKey: true }); await U.sleep(200);
+                const clean = t.history.every(h => !h.includes("\n"));
+                return same && clean ? null : `screen ${same ? "kept" : "changed"}, history ${clean ? "clean" : "has output in it"}`;
+            }],
             ["Ctrl-R finds an earlier command; Ctrl-A, Alt-F, Ctrl-K, Ctrl-Y, Ctrl-_ edit it", async () => {
                 const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
                 t.history.push("ssh host1 ip neigh show", "lab");

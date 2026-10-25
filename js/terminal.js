@@ -31,8 +31,17 @@ class Terminal {
     // like in a real terminal, so it never gets mixed into what is being typed.
     showPrompt(newLine=false) {
         if (this.waiting) return; // a prompt is already there (e.g. a background job ended)
+        // typed ahead while the command ran: it moves behind the new prompt (like bash)
+        let ahead = "";
+        if (this.typedAhead) {
+            const v = this.textarea.value, at = Math.min(this.aheadPos, v.length);
+            ahead = v.substring(at);
+            this.textarea.value = v.substring(0, at);
+            if (this.textarea.value && !this.textarea.value.endsWith("\n")) this.textarea.value += "\n";
+            this.typedAhead = false;
+        }
         if (newLine) this.newLine();
-        this.raw(this.prompt);
+        this.raw(this.prompt + ahead);
         this.waiting = true;
     }
 
@@ -47,6 +56,16 @@ class Terminal {
     }
 
     print(string) {
+        if (!this.waiting && this.typedAhead) {
+            // a command runs and something was typed meanwhile: the output goes before the typed text
+            const v = this.textarea.value, at = Math.min(this.aheadPos, v.length);
+            const caret = this.textarea.selectionStart - at;
+            this.textarea.value = v.substring(0, at) + string + v.substring(at);
+            this.aheadPos = at + string.length;
+            this.textarea.selectionStart = this.textarea.selectionEnd = this.aheadPos + Math.max(0, caret);
+            this.showBottom();
+            return;
+        }
         if (!this.waiting) return this.raw(string);
         const ta = this.textarea, v = ta.value, p = v.lastIndexOf(this.prompt);
         if (p < 0 || v.indexOf("\n", p) >= 0) return this.raw(string);
@@ -68,10 +87,7 @@ class Terminal {
     }
 
     mouseclick(evt) {
-        if (this.textarea.selectionStart - 
-            this.textarea.value.lastIndexOf(this.prompt) - 
-            this.prompt.length < 0) 
-        {
+        if (this.textarea.selectionStart < this.lineStart()) {
             //evt.preventDefault();
             this.textarea.selectionStart = this.textarea.value.length;
             this.textarea.selectionEnd = this.textarea.value.length;
@@ -129,6 +145,7 @@ class Terminal {
     }
 
     enter(command) {
+        this.typedAhead = false;
         // a question is open (login:, Password:, yes/no): the answer goes to it, not to the shell
         if (shell.prompter) {
             const fn = shell.prompter;
@@ -161,6 +178,7 @@ class Terminal {
             }
             if (x.line != command) { this.raw(x.line + "\n"); command = x.line; }
         }
+        if (command.includes("\n")) command = command.split("\n").pop().trim(); // never output, only the typed line
         if (command != "" && command != this.history[
             this.history.length-1]) 
         {
@@ -195,7 +213,7 @@ class Terminal {
     tab() {
         if (this.booting || typeof Completion == "undefined") return;
         const v = this.textarea.value;
-        const start = v.lastIndexOf(this.prompt) + this.prompt.length;
+        const start = this.lineStart();
         const line = v.substring(start);
         const r = Completion.complete(shell, line);
         if (r.line != line) {
@@ -301,7 +319,16 @@ class Terminal {
     }
 
     // ---- the line being typed (after the last prompt)
-    lineStart() { return this.textarea.value.lastIndexOf(this.prompt) + this.prompt.length; }
+    // where the typed line starts: after the prompt — if the prompt is on the last line. While a
+    // command still runs there is no prompt: then only what was typed after its output counts
+    lineStart() {
+        const v = this.textarea.value, p = v.lastIndexOf(this.prompt);
+        if (this.typedAhead && !this.waiting) return Math.min(this.aheadPos, v.length);
+        if (p >= 0 && v.indexOf("\n", p) < 0) return p + this.prompt.length;
+        return v.lastIndexOf("\n") + 1;
+    }
+    // no prompt on the screen: a command is still running (the history keys wait for it)
+    busy() { return !!shell.job && !shell.prompter; }
     line() { return this.textarea.value.substring(this.lineStart()); }
     setLine(s) {
         this.textarea.value = this.textarea.value.substring(0, this.lineStart()) + s;
@@ -388,6 +415,12 @@ class Terminal {
             if (!yanking) this.yank = null;
             if (!searching) this.hsearch = null;
         }
+        if ((yanking || searching) && this.busy()) { evt.preventDefault(); return; } // wait for the prompt
+        if (this.busy() && !this.waiting && !this.typedAhead && evt.key && evt.key.length == 1 && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
+            this.typedAhead = true;
+            this.aheadPos = this.textarea.value.length;
+            if (this.textarea.value && !this.textarea.value.endsWith("\n")) { this.textarea.value += "\n"; this.aheadPos++; }
+        }
         if (yanking) { evt.preventDefault(); this.yankLastArg(); this.showBottom(); return; }
         if (searching) { evt.preventDefault(); this.historySearch(evt.key == "PageUp" ? -1 : 1); this.showBottom(); return; }
         if (evt.key == "Tab") {
@@ -408,27 +441,15 @@ class Terminal {
         if (evt.key != "Shift") this.lastTab = null;
         if (["ArrowUp","ArrowDown","Control"].includes(evt.key)) evt.preventDefault();
         if (evt.key == "ArrowLeft") {
-            if (this.textarea.selectionStart - 
-                this.textarea.value.lastIndexOf(this.prompt) - 
-                this.prompt.length < 1) 
-            {
-                evt.preventDefault();
-            }
+            if (this.textarea.selectionStart - this.lineStart() < 1) evt.preventDefault();
         }
         if (evt.key == "Home") {
             evt.preventDefault();
-            this.textarea.selectionStart = 
-                this.textarea.value.lastIndexOf(this.prompt) + 
-                this.prompt.length;
+            this.textarea.selectionStart = this.lineStart();
             this.textarea.selectionEnd = this.textarea.selectionStart;
         }
         if (evt.key == "Backspace") {
-            if (this.textarea.selectionStart - 
-                this.textarea.value.lastIndexOf(this.prompt) - 
-                this.prompt.length < 1) 
-            {
-                evt.preventDefault();
-            }
+            if (this.textarea.selectionStart - this.lineStart() < 1) evt.preventDefault();
         }
         if (evt.ctrlKey && (evt.key == 'c' || evt.key == 'C') && shell.prompter) {
             // Ctrl-C at a question: it is abandoned
@@ -478,9 +499,10 @@ class Terminal {
         }    
         if (evt.key == "Enter") {
             evt.preventDefault();
-            let command = this.textarea.value.substring(this.textarea.value.lastIndexOf(
-                this.prompt)+this.prompt.length).trim();
-            this.enter(command);
+            this.enter(this.line().trim());
+        }
+        else if ((evt.key == "ArrowUp" || evt.key == "ArrowDown") && this.busy()) {
+            // a command is still running: the history waits until the prompt is back
         }
         else if (evt.key == "ArrowUp") {
             if (this.history.length > 0) {
@@ -488,9 +510,7 @@ class Terminal {
                 if (this.historyIndex > this.history.length) {
                     this.historyIndex = this.history.length;
                 }
-                this.textarea.value = this.textarea.value.substring(0,
-                    this.textarea.value.lastIndexOf(this.prompt)+this.prompt.length);
-                this.raw(this.history[this.history.length-this.historyIndex]);
+                this.setLine(this.history[this.history.length-this.historyIndex]);
             }
         }
         else if (evt.key == "ArrowDown") {
@@ -501,9 +521,7 @@ class Terminal {
                     this.historyIndex = 1;
                     newCommand = "";
                 }
-                this.textarea.value = this.textarea.value.substring(0,
-                    this.textarea.value.lastIndexOf(this.prompt)+this.prompt.length);
-                this.raw(newCommand);
+                this.setLine(newCommand);
             }
         }
         else if (!["ArrowLeft", "ArrowRight"].includes(evt.key)) {

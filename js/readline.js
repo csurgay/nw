@@ -8,6 +8,7 @@ Object.assign(Terminal.prototype, {
     // returns true when the key was handled here
     readlineKey(evt) {
         if (this.isearch) return this.isearchKey(evt);
+        if (this.busy && this.busy() && evt.ctrlKey && /^(r|p|n)$/i.test(evt.key)) { evt.preventDefault(); return true; } // history waits for the prompt
         const k = evt.key, code = evt.code || "";
         const ctrl = evt.ctrlKey && !evt.altKey && !evt.metaKey, alt = evt.altKey && !evt.ctrlKey;
         // Mac: Option+B gives "∫", so the physical key (code) decides
