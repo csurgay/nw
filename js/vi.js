@@ -1,6 +1,6 @@
 // A small vi: enough to edit /etc/hosts and friends the real way.
 //   normal mode   h j k l (arrows) 0 ^ $ w b e gg G   x X D dd yy p P J r u Ctrl-R   i a I A o O   /text n N   :
-//   insert mode   type, Enter, Backspace, arrows — Esc goes back to normal mode
+//   insert mode   i or the Insert key (R, or Insert again: overwrite) — type, Enter, Backspace, arrows; Esc goes back
 //   : commands    :w  :w FILE  :q  :q!  :wq  :x  ZZ  :NUMBER  :$  :set nu / nonu
 // It takes over the terminal while it runs (like the real one), then the prompt comes back.
 const Vi = {
@@ -96,7 +96,7 @@ const Vi = {
         this.el.querySelector(".vi-text").innerHTML = html;
         const left = this.el.querySelector(".vi-left");
         if (s.mode == "cmd") left.innerHTML = esc(s.cmdChar + s.cmd) + `<span class="vi-cur">&nbsp;</span>`;
-        else if (s.mode == "insert") left.innerHTML = `<b>-- INSERT --</b>`;
+        else if (s.mode == "insert") left.innerHTML = s.replace ? `<b>-- REPLACE --</b>` : `<b>-- INSERT --</b>`;
         else left.innerHTML = s.err ? `<span class="vi-err">${esc(s.msg)}</span>` : esc(s.msg || "");
         const hl = this.el.querySelector(".vi-hintline");
         hl.textContent = s.hint || "";
@@ -186,7 +186,7 @@ const Vi = {
 
     insertKey(evt) {
         const s = this.st, k = evt.key;
-        if (k == "Escape" || (evt.ctrlKey && (k == "c" || k == "[" ))) { s.mode = "normal"; s.col = Math.max(0, s.col - 1); s.msg = ""; return; }
+        if (k == "Escape" || (evt.ctrlKey && (k == "c" || k == "[" ))) { s.replace = false; s.mode = "normal"; s.col = Math.max(0, s.col - 1); s.msg = ""; return; }
         const L = this.line();
         if (k == "Enter") { s.lines.splice(s.row, 1, L.substring(0, s.col), L.substring(s.col)); s.row++; s.col = 0; return; }
         if (k == "Backspace") {
@@ -202,7 +202,9 @@ const Vi = {
         if (k == "Home") { s.col = 0; return; }
         if (k == "End") { s.col = L.length; return; }
         if (k == "Tab") { s.lines[s.row] = L.substring(0, s.col) + "\t" + L.substring(s.col); s.col++; return; }
-        if (k.length == 1 && !evt.ctrlKey && !evt.metaKey) { s.lines[s.row] = L.substring(0, s.col) + k + L.substring(s.col); s.col++; }
+        // the Insert key switches between inserting and overwriting (like in Vim)
+        if (k == "Insert") { s.replace = !s.replace; return; }
+        if (k.length == 1 && !evt.ctrlKey && !evt.metaKey) { s.lines[s.row] = L.substring(0, s.col) + k + L.substring(s.col + (s.replace ? 1 : 0)); s.col++; }
     },
 
     cmdKey(evt) {
@@ -277,7 +279,8 @@ const Vi = {
             case "p": case "P": return this.put(k == "P", cnt);
             case "u": return this.undoIt();
             case "d": case "y": case "g": case "r": case "Z": s.pending = k; s.count = had ? String(cnt) : ""; return;
-            case "i": this.save(); s.mode = "insert"; return;
+            case "i": case "Insert": this.save(); s.mode = "insert"; s.replace = false; return;
+            case "R": this.save(); s.mode = "insert"; s.replace = true; return;
             case "a": this.save(); s.mode = "insert"; s.col = Math.min(L.length, s.col + 1); return;
             case "I": this.save(); s.mode = "insert"; this.firstNonBlank(); return;
             case "A": this.save(); s.mode = "insert"; s.col = L.length; return;

@@ -101,7 +101,7 @@ class Server extends Host {
     actions() {
         const id = this.id.toString();
         return [
-            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "Console", console: true, title: "Log in on its console — the terminal opens here, in this window" },
             ...(this.dhcpd ? [{ label: "leases", cmd: `ssh ${id} cat /var/lib/dhcpd/dhcpd.leases` }] : []),
             ...(this.named ? [{ label: "zone file", cmd: `ssh ${id} cat /var/named/${this.named.domain}.zone` }] : []),
             { label: "ip neigh", cmd: `ssh ${id} ip neigh` },

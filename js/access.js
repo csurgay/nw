@@ -333,6 +333,17 @@ const Access = {
         return false;
     },
 
+    // the Console button of a device window: log in on its console (in both access modes)
+    consoleTo(d) {
+        const t = terminal, sh = shell;
+        if (this.inConsoleOf(d) && sh.sessions.length <= 1) return;
+        if (sh.prompter) sh.cancelPrompter();
+        if (sh.sessions.length || sh.loginAt) { t.waiting = false; t.raw((t.textarea.value.endsWith("\n") || t.textarea.value.endsWith(t.prompt) ? "" : "\n") + "~.\n"); this.disconnect(sh); t.showPrompt(); }
+        else if (sh.host) { t.waiting = false; t.raw("exit\n"); sh.toConsole(); t.showPrompt(); }
+        this.auto = d;
+        t.runCommand("console " + d.id);
+    },
+
     // ------------------------------------------------------------------ hint chips and popup buttons
     // "ssh host1 ping …" from a button: in console mode it becomes  console host1 (logged in for you), then the command
     adapt(cmd) {

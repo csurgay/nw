@@ -240,6 +240,26 @@ const UiTest = {
                 await U.dblclick(x + 120, y - 60);
                 return App.px == 0 && App.py == 0 ? null : `double-click left the picture at ${Math.round(App.px)},${Math.round(App.py)}`;
             }],
+            ["host1's window: Console opens the terminal inside the window, Ctrl-D twice brings it back", async () => {
+                const h = Id.find("host1");
+                await U.click(...U.body(h));
+                await U.sleep(300);
+                const w = Inspector.wins.get(h);
+                const btn = w && [...w.el.querySelectorAll(".act")].find(b => b.textContent == "Console");
+                if (!btn) { if (w) Inspector.close(h); return "no Console button"; }
+                await U.pressEl(btn);
+                await U.sleep(300);
+                const inside = !!consoleArea.closest(".pop") && shell.host === h;
+                const kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                terminal.textarea.value += "hostname"; kd({ key: "Enter" }); await U.sleep(150);
+                const ran = /host1\n\[root@host1 ~\]# $/.test(terminal.textarea.value);
+                kd({ key: "d", ctrlKey: true }); await U.sleep(150);
+                kd({ key: "d", ctrlKey: true }); await U.sleep(400);
+                Inspector.tick(performance.now() + 1000);
+                const home = !!consoleArea.closest(".panel-term") && !shell.host;
+                Inspector.close(h);
+                return inside && ran && home ? null : `in the window ${inside}, command ${ran}, back home ${home}`;
+            }],
             ["router1's window: the routing button switches forwarding off and on", async () => {
                 const r = Id.find("router1");
                 await U.click(...U.body(r));

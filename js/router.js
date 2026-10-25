@@ -136,8 +136,8 @@ class Router extends Host {
             sections: [
                 {
                     h: "Routing (IP forwarding)", key: "fwd", html: this.forwarding
-                        ? `<p><span class="pill on">ON</span> &nbsp;<code>net.ipv4.ip_forward = 1</code> — packets for other networks are passed on (the FWD light on the box is green).</p>`
-                        : `<p><span class="pill off">OFF</span> &nbsp;<code>net.ipv4.ip_forward = 0</code> — this box answers pings to itself, but <b>drops every packet meant for another network</b>${this.fwdStats.off ? ` (${this.fwdStats.off} so far)` : ""}. Switch it on with the button below, or <code>sysctl -w net.ipv4.ip_forward=1</code>.</p>`
+                        ? `<p><span class="pill on">ON</span> &nbsp;<code>net.ipv4.ip_forward = 1</code></p><p class="note">Packets for other networks are passed on — the FWD light on the box is green.</p>`
+                        : `<p><span class="pill off">OFF</span> &nbsp;<code>net.ipv4.ip_forward = 0</code>${this.fwdStats.off ? ` · ${this.fwdStats.off} dropped` : ""}</p><p class="note">This box answers pings to itself, but <b>drops every packet meant for another network</b>. Switch it on with the button below, or <code>sysctl -w net.ipv4.ip_forward=1</code>.</p>`
                 },
                 {
                     h: "How a router works", html: `<p>A router connects <b>different IP networks</b>; each interface sits in another one. When a frame arrives for the router's MAC but the IP packet inside is for someone else, the router:</p>
@@ -158,7 +158,7 @@ class Router extends Host {
     actions() {
         const id = this.id.toString();
         return [
-            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "Console", console: true, title: "Log in on its console — the terminal opens here, in this window" },
             {   // follows the state: one click switches routing on or off
                 label: () => this.forwarding ? "Routing: ON ✔ (switch off)" : "Enable routing",
                 cmd: () => `ssh ${id} sysctl -w net.ipv4.ip_forward=${this.forwarding ? 0 : 1}`,

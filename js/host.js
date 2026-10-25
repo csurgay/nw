@@ -364,7 +364,7 @@ class Host extends Clickable {
         const id = this.id.toString();
         const n = this.nics[0];
         return [
-            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "Console", console: true, title: "Log in on its console — the terminal opens here, in this window" },
             ...(this.useDhcp || !(n && n.ip) ? [{ label: "dhclient", cmd: `ssh ${id} dhclient` }] : []),
             {   // one button that follows the state of the daemon
                 label: () => this.lldpOn() ? "Stop lldpd" : "Start lldpd",

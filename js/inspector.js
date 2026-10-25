@@ -76,6 +76,11 @@ class Inspector {
     static close(obj) {
         const w = Inspector.wins.get(obj);
         if (!w) return;
+        // its console is open in the window: unplug it, the terminal goes home
+        if (Inspector.con && Inspector.con.w === w) {
+            if (Access.inConsoleOf(obj)) { terminal.waiting = false; Access.disconnect(shell); terminal.showPrompt(); }
+            Inspector.consoleBack();
+        }
         w.el.remove();
         Inspector.wins.delete(obj);
     }
@@ -87,8 +92,10 @@ class Inspector {
     static render(w, data) {
         data = data || w.obj.inspect();
         w.sub.textContent = data.sub || "";
+        const hw = !(w.obj instanceof Frame); // device windows stay small: the explanations are ⓘ tooltips
         data.sections.forEach((s, i) => {
             const key = s.key || s.h || i;
+            if (hw && (s.explain || /^(How |What |Unmanaged$|Cable$|Log in)/.test(s.h))) return Inspector.tipChip(w, key, s.h, s.html);
             let rec = w.secs[key];
             if (!rec) {
                 const sec = document.createElement("div");
@@ -101,9 +108,130 @@ class Inspector {
             if (rec.html !== s.html) {
                 rec.b.innerHTML = s.html;
                 rec.html = s.html;
+                if (hw) Inspector.notesToTip(rec);
                 if (typeof Lexicon != "undefined") Lexicon.linkify(rec.b);
             }
         });
+    }
+
+    // ---------------------------------------------------------------- ⓘ tooltips
+    // a whole explanation ("How a router works") becomes a small chip at the top
+    static tipChip(w, key, title, html) {
+        if (!w.tips) {
+            w.tips = document.createElement("div");
+            w.tips.className = "pop-tips";
+            w.body.prepend(w.tips);
+            w.chips = {};
+        }
+        let c = w.chips[key];
+        if (!c) {
+            c = document.createElement("span");
+            c.className = "tipchip";
+            c.tabIndex = 0;
+            c.innerHTML = `<b>ⓘ</b> ${esc(title)}`;
+            w.tips.appendChild(c);
+            w.chips[key] = c;
+        }
+        c._tip = `<div class="tip-h">${esc(title)}</div>` + html;
+    }
+
+    // the small grey notes of a section go into an ⓘ next to its title
+    static notesToTip(rec) {
+        const h = rec.el.querySelector(".sec-h");
+        h.querySelectorAll(".itip").forEach(e => e.remove());
+        const notes = [...rec.b.querySelectorAll("p.note")];
+        if (!notes.length) return;
+        const i = document.createElement("span");
+        i.className = "itip";
+        i.tabIndex = 0;
+        i.textContent = "ⓘ";
+        i._tip = notes.map(n => `<p>${n.innerHTML}</p>`).join("");
+        notes.forEach(n => n.remove());
+        h.appendChild(i);
+    }
+
+    static initTips() {
+        if (Inspector.tipEl) return;
+        const t = document.createElement("div");
+        t.className = "tipbox";
+        t.hidden = true;
+        document.body.appendChild(t);
+        Inspector.tipEl = t;
+        const show = (el) => {
+            t.innerHTML = el._tip || "";
+            if (typeof Lexicon != "undefined") Lexicon.linkify(t);
+            t.hidden = false;
+            const r = el.getBoundingClientRect(), w = Math.min(340, innerWidth - 16);
+            t.style.width = w + "px";
+            t.style.left = Math.max(8, Math.min(r.left - 20, innerWidth - w - 8)) + "px";
+            const below = r.bottom + 6, h = t.offsetHeight;
+            t.style.top = (below + h > innerHeight - 8 ? Math.max(8, r.top - h - 6) : below) + "px";
+            Inspector.tipFor = el;
+        };
+        const hide = () => { if (!Inspector.tipPinned) { t.hidden = true; Inspector.tipFor = null; } };
+        document.addEventListener("mouseover", ev => {
+            const el = ev.target.closest && ev.target.closest(".itip, .tipchip");
+            if (el && !Inspector.tipPinned) show(el);
+        });
+        document.addEventListener("mouseout", ev => {
+            const el = ev.target.closest && ev.target.closest(".itip, .tipchip");
+            if (el && !(ev.relatedTarget && (el.contains(ev.relatedTarget) || t.contains(ev.relatedTarget)))) hide();
+        });
+        t.addEventListener("mouseleave", hide);
+        // a click (or a tap on a phone) keeps it open; another click closes it
+        document.addEventListener("click", ev => {
+            const el = ev.target.closest && ev.target.closest(".itip, .tipchip");
+            if (el) {
+                if (Inspector.tipPinned && Inspector.tipFor === el) { Inspector.tipPinned = false; t.hidden = true; return; }
+                show(el);
+                Inspector.tipPinned = true;
+                return;
+            }
+            if (!t.contains(ev.target)) { Inspector.tipPinned = false; t.hidden = true; }
+        });
+    }
+
+    // ---------------------------------------------------------------- the console inside the window
+    // "Console": log in on the device's console and move the terminal into its window
+    static consoleIn(w) {
+        const obj = w.obj;
+        if (Inspector.con && Inspector.con.w !== w) Inspector.consoleBack();
+        Access.consoleTo(obj);
+        if (Inspector.con) { terminal.textarea.focus(); return; }
+        const ta = terminal.textarea;
+        const box = document.createElement("div");
+        box.className = "pop-con";
+        box.innerHTML = `<div class="pop-con-h"><span>Console · <b>${esc(obj.id.toString())}</b></span><span class="pop-con-k">Ctrl-D or ~. leaves</span>
+            <button class="mini pop-con-back" title="Put the terminal back in its own panel (you stay logged in)">⇲ terminal panel</button></div>`;
+        const slot = document.createElement("div");
+        slot.className = "pop-con-slot";
+        box.appendChild(slot);
+        w.body.prepend(box);
+        const ph = document.createElement("div");
+        ph.className = "term-away";
+        ph.innerHTML = `The terminal is in the window of <b>${esc(obj.id.toString())}</b> now. <button class="mini">bring it back</button>`;
+        const home = ta.parentElement, next = ta.nextSibling;
+        home.insertBefore(ph, ta);
+        slot.appendChild(ta);
+        Inspector.con = { w, obj, box, home, next, ph };
+        box.querySelector(".pop-con-back").addEventListener("click", () => Inspector.consoleBack());
+        ph.querySelector("button").addEventListener("click", () => Inspector.consoleBack());
+        w.body.scrollTop = 0;
+        terminal.showBottom();
+        deskFocus(ta);
+    }
+
+    // the terminal goes back to its panel
+    static consoleBack() {
+        const c = Inspector.con;
+        if (!c) return;
+        Inspector.con = null;
+        const ta = terminal.textarea;
+        c.home.insertBefore(ta, c.ph);
+        c.ph.remove();
+        c.box.remove();
+        if (typeof Vi != "undefined" && Vi.active) Vi.build();
+        terminal.showBottom();
     }
 
     static buildActions(w, acts) {
@@ -130,12 +258,13 @@ class Inspector {
                 const label = () => {
                     b.textContent = val(a.label);
                     const show = v => Array.isArray(v) ? v.join("  ⏎  ") : v;
-                    b.title = (show(val(a.cmd)) || show(a.tpl) || "").replace("{}", "<…>");
+                    b.title = a.title || (show(val(a.cmd)) || show(a.tpl) || "").replace("{}", "<…>");
                 };
                 label();
                 if (typeof a.label == "function") (w.live = w.live || []).push(label);
                 if (myInput) b.dataset.forInput = "1";
                 b.addEventListener("click", () => {
+                    if (a.console) return Inspector.consoleIn(w);
                     const fill = t => t.replace("{}", (myInput ? myInput.value.trim() : ""));
                     const cmd = val(a.cmd) || (Array.isArray(a.tpl) ? a.tpl.map(fill) : fill(a.tpl));
                     // several commands: typed one after the other, like a person would
@@ -223,6 +352,8 @@ class Inspector {
     static tick(now) {
         if (now - Inspector.lastRefresh < 250) return;
         Inspector.lastRefresh = now;
+        // the console of the window was left (~., Ctrl-D, a lab was loaded): the terminal goes home
+        if (Inspector.con && !Access.inConsoleOf(Inspector.con.obj)) Inspector.consoleBack();
         Inspector.wins.forEach(w => {
             Inspector.render(w);
             if (w.live) w.live.forEach(f => f());

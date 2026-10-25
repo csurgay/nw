@@ -392,7 +392,7 @@ class Switch extends Hub {
         if (!this.managed) return [];
         const id = this.id.toString();
         if (this.managed == "linux") return [
-            { label: "Open shell", cmd: `ssh ${id}` },
+            { label: "Console", console: true, title: "Log in on its console — the terminal opens here, in this window" },
             { label: "MAC table", cmd: `ssh ${id} bridge fdb show` },
             { label: "VLANs", cmd: `ssh ${id} bridge vlan show` },
             { label: "Ports", cmd: `ssh ${id} ip link` },
@@ -401,7 +401,7 @@ class Switch extends Hub {
             { label: "Reboot", cmd: `ssh ${id} reboot` },
         ];
         return [
-            { label: "Open CLI", cmd: `ssh ${id}` },
+            { label: "Console", console: true, title: "Log in on its console — the terminal opens here, in this window" },
             { label: "MAC table", cmd: `ssh ${id} show mac address-table` },
             { label: "VLANs", cmd: `ssh ${id} show vlan brief` },
             { label: "Ports", cmd: `ssh ${id} show interfaces status` },
