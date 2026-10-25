@@ -14,6 +14,7 @@ class Host extends Clickable {
         this.l2 = new Layer2(this);
         this.l3 = new Layer3(this);
         this.udp = new Udp(this);
+        this.tcp = new Tcp(this);
         this.dhcpc = new DhcpClient(this);
         this.resolver = new Resolver(this);
         this.dnsServer = null; // nameserver from /etc/resolv.conf
@@ -21,6 +22,17 @@ class Host extends Clickable {
         this.useDhcp = false;
         this.info.push(["LLDP",function(o){return o.l2.lldp?o.l2.lldp.enabled:"false";}]);
     }
+
+    // ssh: the daemon, the machine's own key, the root password (on its disk: they survive a reboot)
+    sshdOn() { return this.sshd !== false && !this.down; }
+    hostKeyFp() {
+        if (!this.hostKey) {
+            const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            this.hostKey = Array.from({ length: 43 }, () => A[Math.floor(Math.random() * 64)]).join("");
+        }
+        return this.hostKey;
+    }
+    rootPassword() { return this.rootPw || "nw"; }
 
     towerX() { return this.mirrored ? this.x : this.x + this.w - 20; }
     monitorX() { return this.mirrored ? this.x + 24 : this.x; }
@@ -276,7 +288,8 @@ class Host extends Clickable {
     reboot() {
         if (this.down) return;
         const name = this.id.toString();
-        if (shell.host == this) {
+        if (typeof Access != "undefined" && Access.onReboot(this)) { /* its console or ssh session took care */ }
+        else if (shell.host == this) {
             if (shell.job) { shell.job.cancel(false); shell.job = null; }
             terminal.println(`Connection to ${name} closed by remote host.\nConnection to ${name} closed.`);
             if (!shell.oneShot) shell.toConsole();
@@ -305,6 +318,9 @@ class Host extends Clickable {
         this.l2 = new Layer2(this);
         this.l3 = new Layer3(this);
         this.udp = new Udp(this);
+        if (this.tcp) this.tcp.reset();
+        this.tcp = new Tcp(this);
+        this.sshd = true; // started at boot (systemctl stop sshd lasts until the next reboot)
         this.dhcpc = new DhcpClient(this);
         this.resolver = new Resolver(this);
         this.lease = null;

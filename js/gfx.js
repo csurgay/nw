@@ -5,6 +5,8 @@ const COLORS = {
     LLDP: "#a78bfa",
     IPv4: "#60a5fa",
     UDP: "#e2e8f0",
+    TCP: "#2dd4bf",
+    SSH: "#e879f9",
     DHCP: "#fb7185",
     DNS: "#fde047",
     VLAN: "#f472b6",

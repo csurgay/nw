@@ -4,7 +4,7 @@ const Coreutils = {
     BIN: ["bash", "cat", "date", "df", "echo", "env", "false", "file", "free", "grep", "head", "host", "hostname", "id",
         "less", "ls", "lldpcli", "man", "mkdir", "more", "netstat", "nslookup", "ping", "printenv", "ps", "pwd", "rm", "rmdir", "sort",
         "ss", "ssh", "su", "sudo", "systemctl", "tail", "touch", "traceroute", "tree", "true", "uname", "uniq", "uptime",
-        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl", "sysctl", "watch", "kill", "wireshark"],
+        "w", "wc", "which", "who", "whoami", "groups", "hostnamectl", "sysctl", "watch", "kill", "wireshark", "ssh-keygen", "ssh-copy-id", "passwd"],
     SBIN: ["arp", "arping", "dhclient", "dhcpd", "ifconfig", "ip", "lldpd", "named", "sshd", "reboot", "shutdown", "poweroff", "halt", "init"],
 
     // commands that read text and may sit behind a |
@@ -232,7 +232,10 @@ const Coreutils = {
     sockets(sh) {
         const h = sh.host;
         if (!h) return [];
-        const s = [{ proto: "tcp", state: "LISTEN", local: "0.0.0.0:22", prog: "sshd", pid: 702 }];
+        const s = h.sshdOn && !h.sshdOn() ? [] : [{ proto: "tcp", state: "LISTEN", local: "0.0.0.0:22", prog: "sshd", pid: 702 }];
+        // open ssh connections (console access): ESTAB
+        if (h.tcp) h.tcp.conns.forEach(c => s.push({ proto: "tcp", state: c.state == "EST" ? "ESTAB" : c.state == "SYN_SENT" ? "SYN-SENT" : c.state == "SYN_RCVD" ? "SYN-RECV" : "CLOSE-WAIT",
+            local: c.lip + ":" + c.lp, peer: c.rip + ":" + c.rp, prog: c.server ? "sshd" : "ssh", pid: c.server ? 2207 : 2311 }));
         const known = { 67: ["dhcpd", 812], 68: ["dhclient", 960], 53: ["named", 830] };
         Object.keys(h.udp ? h.udp.sockets : {}).map(Number).sort((a, b) => a - b).forEach(port => {
             const k = known[port] || ["resolver", 1201];
@@ -630,10 +633,10 @@ const Coreutils = {
             const prog = o.f.has("p");
             if (name == "netstat") {
                 return Coreutils.out(sh, "Active Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State      " + (prog ? " PID/Program name" : "") + "\n" +
-                    s.map(x => `${x.proto.padEnd(5)}      0      0 ${x.local.padEnd(23)} ${"0.0.0.0:*".padEnd(23)} ${(x.state == "LISTEN" ? "LISTEN" : "").padEnd(10)} ${prog ? " " + x.pid + "/" + x.prog : ""}`.replace(/\s+$/, "")).join("\n"));
+                    s.map(x => `${x.proto.padEnd(5)}      0      0 ${x.local.padEnd(23)} ${(x.peer || "0.0.0.0:*").padEnd(23)} ${(x.state == "LISTEN" ? "LISTEN" : x.state == "ESTAB" ? "ESTABLISHED" : "").padEnd(10)} ${prog ? " " + x.pid + "/" + x.prog : ""}`.replace(/\s+$/, "")).join("\n"));
             }
             Coreutils.out(sh, "Netid State  Recv-Q Send-Q   Local Address:Port    Peer Address:Port" + (prog ? " Process" : "") + "\n" +
-                s.map(x => `${x.proto.padEnd(5)} ${x.state.padEnd(6)} 0      ${x.state == "LISTEN" ? "128" : "0  "}    ${x.local.padStart(18)}      ${"0.0.0.0:*".padEnd(13)}` +
+                s.map(x => `${x.proto.padEnd(5)} ${x.state.padEnd(6)} 0      ${x.state == "LISTEN" ? "128" : "0  "}    ${x.local.padStart(18)}      ${(x.peer || "0.0.0.0:*").padEnd(13)}` +
                     (prog ? ` users:(("${x.prog}",pid=${x.pid},fd=${x.proto == "tcp" ? 3 : 6}))` : "")).join("\n"));
         },
         netstat(sh, a) { return Coreutils.cmds.ss(sh, a, "netstat"); },

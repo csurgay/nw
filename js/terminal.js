@@ -102,6 +102,21 @@ class Terminal {
             setTimeout(() => this.runCommand(command), 200);
             return;
         }
+        // console access: "ssh host1 …" from a button becomes  console host1  (logged in for you)
+        const steps = typeof Access != "undefined" && !this.adapting ? Access.adapt(command) : null;
+        if (steps) {
+            this.adapting = true;
+            try {
+                steps.forEach(s => {
+                    if (s.disconnect) { shell.cancelPrompter(); this.waiting = false; this.raw((this.textarea.value.endsWith("\n") || this.textarea.value.endsWith(this.prompt) ? "" : "\n") + "~.\n"); Access.disconnect(shell); this.showPrompt(); return; }
+                    if (s.auto) Access.auto = s.auto;
+                    this.runCommand(s.cmd);
+                });
+            } finally { this.adapting = false; }
+            return;
+        }
+        // a question was open (login:, password): the button wins
+        if (shell.prompter) { shell.cancelPrompter(); this.waiting = false; this.raw("^C\n"); this.showPrompt(); }
         const v = this.textarea.value;
         const p = v.lastIndexOf(this.prompt);
         if (p >= 0 && v.indexOf("\n", p) < 0) {
@@ -114,6 +129,19 @@ class Terminal {
     }
 
     enter(command) {
+        // a question is open (login:, Password:, yes/no): the answer goes to it, not to the shell
+        if (shell.prompter) {
+            const fn = shell.prompter;
+            shell.prompter = null;
+            shell.prompterCancel = null;
+            this.secret = false;
+            this.secretBuf = "";
+            this.waiting = false;
+            this.newLine();
+            shell.updatePrompt();
+            if (fn(command) === true) this.showPrompt();
+            return;
+        }
         this.waiting = false;
         if (shell.job) { // a new command interrupts a waiting ping / arping
             shell.job.cancel(false);
@@ -137,6 +165,21 @@ class Terminal {
             this.history.length-1]) 
         {
             this.history.push(command);
+        }
+        // ~. leaves the console (or the ssh connection) at once
+        if (command.trim() == "~." && (shell.sessions.length || shell.loginAt)) {
+            const top = shell.sessions[shell.sessions.length - 1];
+            if (top && top.kind == "ssh") top.client.close(`Connection to ${top.client.ip} closed.`);
+            else if (Access.disconnect(shell)) this.showPrompt();
+            return;
+        }
+        // logged in with ssh over the network: the line travels to the other machine
+        const top = shell.sessions[shell.sessions.length - 1];
+        if (top && top.kind == "ssh" && !(shell.host && shell.host.cli)) {
+            if (/^(exit|logout)$/.test(command.trim())) { top.client.logout(command.trim() == "exit" ? "logout" : "logout"); return; }
+            if (command.trim() == "") { this.showPrompt(); return; }
+            top.client.line(command);
+            return;
         }
         const ctx = shell.host;
         if (shell.parse(command)) {
@@ -194,6 +237,14 @@ class Terminal {
         this.textarea.addEventListener("beforeinput", ev => {
             const ta = this.textarea, start = this.lineStart(), t = ev.inputType || "";
             if (this.booting) { ev.preventDefault(); return; }
+            if (this.secret) {
+                // a password on a phone: kept, not shown
+                ev.preventDefault();
+                if (t == "insertLineBreak" || t == "insertParagraph") this.enter(this.secretBuf || "");
+                else if (t.startsWith("delete")) this.secretBuf = (this.secretBuf || "").slice(0, -1);
+                else if (t.startsWith("insert") && ev.data) this.secretBuf = (this.secretBuf || "") + ev.data;
+                return;
+            }
             if (this.isearch) {
                 // Ctrl-R search on a phone: the letters go into the search
                 ev.preventDefault();
@@ -232,6 +283,7 @@ class Terminal {
         else if (/^Ctrl[A-Z]$/.test(k)) fake(k[4].toLowerCase(), { ctrlKey: true });
         else if (k == "ArrowLeft") { const p = Math.max(start, ta.selectionStart - 1); ta.selectionStart = ta.selectionEnd = p; }
         else if (k == "ArrowRight") { const p = Math.min(ta.value.length, ta.selectionEnd + 1); ta.selectionStart = ta.selectionEnd = p; }
+        else if (k.length == 1 && this.secret) this.secretBuf = (this.secretBuf || "") + k;
         else if (k.length == 1) {
             if (k == "?" && shell.host && shell.host.cli) return fake("?");
             const p = Math.max(start, ta.selectionStart);
@@ -263,6 +315,7 @@ class Terminal {
             return;
         }
         if (!shell.host || shell.host.cli) return; // the console stays; the IOS-style CLI leaves with "exit"
+        if (shell.sessions.length && shell.sessions[shell.sessions.length - 1].kind != "simple") { this.waiting = false; Access.leave(shell); return; }
         const name = shell.host.id.toString();
         this.raw("logout\nConnection to " + name + " closed.\n");
         this.waiting = false;
@@ -311,6 +364,8 @@ class Terminal {
 
     keypress(evt) {
         if (this.booting) return;
+        if (this.secret && evt.ctrlKey && (evt.key == "c" || evt.key == "C")) { /* falls through to Ctrl-C below */ }
+        else if (this.secretKey && this.secretKey(evt)) return;
         if (this.readlineKey && this.readlineKey(evt)) return;
         const yanking = evt.altKey && (evt.key == "." || evt.code == "Period");
         const searching = evt.key == "PageUp" || evt.key == "PageDown";
@@ -359,6 +414,19 @@ class Terminal {
             {
                 evt.preventDefault();
             }
+        }
+        if (evt.ctrlKey && (evt.key == 'c' || evt.key == 'C') && shell.prompter) {
+            // Ctrl-C at a question: it is abandoned
+            evt.preventDefault();
+            const c = shell.prompterCancel;
+            shell.prompter = null;
+            shell.prompterCancel = null;
+            this.secret = false;
+            this.waiting = false;
+            this.raw("^C\n");
+            shell.updatePrompt();
+            if (c) c(); else this.showPrompt();
+            return;
         }
         if (evt.ctrlKey && (evt.key == 'c' || evt.key == 'C')) {
             evt.preventDefault();

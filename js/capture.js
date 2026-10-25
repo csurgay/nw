@@ -164,6 +164,17 @@ const Capture = {
                     add("icmp.ident", ic.getValue("Identifier") || 0); add("icmp.seq", ic.getValue("Seq") || 0);
                 }
             }
+            if (p.getValue("Protocol") == "TCP") {
+                const seg = p.getPayload(), fl = seg.flags.split(",");
+                add("tcp", 1);
+                add("tcp.srcport", seg.sp); add("tcp.dstport", seg.dp); add("tcp.port", seg.sp); add("tcp.port", seg.dp);
+                add("tcp.seq", seg.rel.seq); add("tcp.ack", seg.rel.ack); add("tcp.len", seg.len);
+                ["syn", "ack", "fin", "reset", "push"].forEach(k => add("tcp.flags." + k, fl.includes({ reset: "RST", push: "PSH" }[k] || k.toUpperCase()) ? 1 : 0));
+                if (seg.data) {
+                    add("ssh", 1);
+                    seg.data.forEach(m => { if (m.type == "banner") add("ssh.protocol", m.text); if (m.type == "enc") add("ssh.encrypted_packet", 1); });
+                }
+            }
             if (p.getValue("Protocol") == "UDP") {
                 const u = p.getPayload(), a = u.getPayload();
                 add("udp", 1);
@@ -196,6 +207,8 @@ const Capture = {
             Opcode: "arp.opcode", "Sender MAC": "arp.src.hw_mac", "Sender IP": "arp.src.proto_ipv4", "Target MAC": "arp.dst.hw_mac", "Target IP": "arp.dst.proto_ipv4" },
         ip: { "Version / IHL": "ip.version", "DSCP / ECN": "ip.dsfield", "Total length": "ip.len", Identification: "ip.id", "Flags / Fragment": "ip.flags",
             "Time to live": "ip.ttl", Protocol: "ip.proto", "Header checksum": "ip.checksum", "Source address": "ip.src", "Destination address": "ip.dst" },
+        tcp: { "Source port": "tcp.srcport", "Destination port": "tcp.dstport", "Sequence number": "tcp.seq", "Acknowledgment number": "tcp.ack", "Header length / Flags": "tcp.flags.syn", Window: "tcp.window_size", Checksum: "tcp.checksum" },
+        ssh: { Protocol: "ssh.protocol", "Encrypted packet": "ssh.encrypted_packet", "Packet length (encrypted)": "ssh.encrypted_packet" },
         udp: { "Source port": "udp.srcport", "Destination port": "udp.dstport", Length: "udp.length", Checksum: "udp.checksum" },
         icmp: { Type: "icmp.type", Code: "icmp.code", Checksum: "icmp.checksum", Identifier: "icmp.ident", Sequence: "icmp.seq", Data: "data", "Original packet": "icmp.orig" },
         lldp: { "Chassis ID TLV": "lldp.chassis.id", "Port ID TLV": "lldp.port.id", "Time To Live TLV": "lldp.time_to_live", "System Name TLV": "lldp.tlv.system.name",
@@ -215,7 +228,7 @@ const Capture = {
     },
 
     // ---------------------------------------------------------------- display filter
-    PROTOS: ["frame", "eth", "vlan", "arp", "ip", "icmp", "udp", "dhcp", "bootp", "dns", "lldp"],
+    PROTOS: ["frame", "eth", "vlan", "arp", "ip", "icmp", "udp", "tcp", "ssh", "dhcp", "bootp", "dns", "lldp"],
     KNOWN: null,
     known() {
         if (this.KNOWN) return this.KNOWN;
@@ -227,7 +240,9 @@ const Capture = {
             "icmp.type", "icmp.code", "icmp.ident", "icmp.seq",
             "udp.srcport", "udp.dstport", "udp.port", "udp.length",
             "dhcp.id", "dhcp.type", "dhcp.option.dhcp", "dhcp.ip.client", "dhcp.ip.your", "dhcp.ip.server", "dhcp.hw.mac_addr",
-            "dns.id", "dns.qry.name", "dns.flags.response", "dns.flags.rcode", "dns.a"].forEach(k => s.add(k));
+            "dns.id", "dns.qry.name", "dns.flags.response", "dns.flags.rcode", "dns.a",
+            "tcp.srcport", "tcp.dstport", "tcp.port", "tcp.seq", "tcp.ack", "tcp.len", "tcp.flags.syn", "tcp.flags.ack", "tcp.flags.fin", "tcp.flags.reset", "tcp.flags.push",
+            "ssh.protocol", "ssh.encrypted_packet"].forEach(k => s.add(k));
         return (this.KNOWN = s);
     },
 
@@ -392,6 +407,8 @@ const Capture = {
         ["lldp", "neighbours introducing themselves"],
         ["vlan", "frames with an 802.1Q tag (on a trunk)"],
         ["!lldp", "hide the LLDP chatter"],
+        ["tcp.flags.syn == 1", "the start of every TCP connection (SYN, SYN-ACK)"],
+        ["ssh", "ssh: banners, key exchange, then only encrypted packets"],
         ["arp || icmp", "two protocols together"],
         ["ip.src == 192.168.1.0/24 && icmp", "pings from one subnet"],
     ],
@@ -576,7 +593,8 @@ const Capture = {
     rowClass(rec) {
         const f = rec.frame;
         if (f.isError()) return "err";
-        return { ARP: "arp", ICMP: "icmp", LLDP: "lldp", DHCP: "dhcp", DNS: "dns", UDP: "udp" }[rec.proto] || "ip";
+        if (rec.proto == "TCP" && rec.frame.payload.getPayload().flags.includes("RST")) return "err";
+        return { ARP: "arp", ICMP: "icmp", LLDP: "lldp", DHCP: "dhcp", DNS: "dns", UDP: "udp", TCP: "tcp", SSH: "ssh" }[rec.proto] || "ip";
     },
 
     row(rec) {
@@ -645,6 +663,8 @@ const Capture = {
             case "ip": return `Internet Protocol Version 4, Src: ${p.getValue("SrcIP")}, Dst: ${p.getValue("DstIP")}`;
             case "icmp": return "Internet Control Message Protocol";
             case "udp": { const u = p.getPayload(); return `User Datagram Protocol, Src Port: ${u.getValue("SrcPort")}, Dst Port: ${u.getValue("DstPort")}`; }
+            case "tcp": { const t = p.getPayload(); return `Transmission Control Protocol, Src Port: ${t.sp}, Dst Port: ${t.dp}, Seq: ${t.rel.seq}` + (t.flags.includes("ACK") ? `, Ack: ${t.rel.ack}` : "") + `, Len: ${t.len}`; }
+            case "ssh": return "SSH Protocol";
             case "dhcp": return `Dynamic Host Configuration Protocol (${f.app().type[0] + f.app().type.slice(1).toLowerCase()})`;
             case "dns": return `Domain Name System (${f.app().qr ? "response" : "query"})`;
             case "lldp": return "Link Layer Discovery Protocol";
@@ -824,6 +844,17 @@ const Capture = {
             }
             case "DHCP": return `<p>A computer without an address gets one: Discover (who can give me an address?) → Offer → Request → Ack. ${bc ? "This one is a broadcast — the client has no IP address yet." : ""}</p>`;
             case "DNS": return f.app().qr ? `<p>The DNS server answers with the IP address of the name.</p>` : `<p>A program wants to reach a name; the computer asks its DNS server for the IP address.</p>`;
+            case "TCP": {
+                const fl = p.getPayload().flags;
+                if (fl == "SYN") return `<p>The first step of the <b>three-way handshake</b>: the ssh client asks “shall we talk?” (SYN). Next comes SYN-ACK (“yes, let's”), then ACK (“fine”) — and the connection is open.</p>`;
+                if (fl == "SYN,ACK") return `<p>The second step of the handshake: the server agrees (SYN) and acknowledges the client's SYN (ACK).</p>`;
+                if (fl.includes("RST")) return `<p><b>Reset</b>: nobody listens on that port (or sshd is stopped) — the client prints “Connection refused”.</p>`;
+                if (fl.includes("FIN")) return `<p>Closing the connection politely: each side sends a FIN and acknowledges the other one's.</p>`;
+                return `<p>An acknowledgment: “I got your bytes up to here”. The third step of the handshake is such an ACK.</p>`;
+            }
+            case "SSH": return p.getPayload().data.some(m => m.type == "enc")
+                ? `<p>Encrypted: a password, a command or its output — you cannot tell which. That is why ssh replaced the old telnet, which sent everything as plain text.</p>`
+                : `<p>The beginning of an ssh connection is still readable: the version banners and the key exchange. After “New Keys” everything is encrypted.</p>`;
             case "LLDP": return `<p>Every 30 seconds lldpd says hello on each cable: “I am …, this is my port …”. Switches never pass it on, so only the direct neighbour hears it.</p>`;
         }
         return "";

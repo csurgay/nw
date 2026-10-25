@@ -27,6 +27,10 @@ class ICMP {
             Sim.event("l3", `<b>${this.host}</b> echo reply seq=${icmpPacket.getValue("Seq")} from ${src} arrived — ${src} is alive!`, { frame, obj: this.host });
             this.onReply(src, icmpPacket, payload);
         }
+        else if ((type == "TimeExceeded" || type == "DestUnreachable") && icmpPacket.orig && icmpPacket.orig.getValue("Protocol") == "TCP") {
+            Sim.event("l3", `<b>${this.host}</b> ICMP error from ${src}: “${ICMP.errText(icmpPacket)}” about one of its TCP segments`, { frame, obj: this.host });
+            if (this.host.tcp) this.host.tcp.icmpError(icmpPacket.orig, icmpPacket);
+        }
         else if (type == "TimeExceeded" || type == "DestUnreachable") {
             Sim.event("l3", `<b>${this.host}</b> ICMP error from ${src}: “${ICMP.errText(icmpPacket)}” — it carries the start of our own packet, so we know which one failed`, { frame, obj: this.host });
             this.onError(src, icmpPacket);
@@ -75,6 +79,7 @@ class ICMP {
 
     // our own ARP for the next hop failed
     localUnreachable(packet) {
+        if (packet.getValue("Protocol") == "TCP") { if (this.host.tcp) this.host.tcp.icmpError(packet, null); return; }
         const icmp = packet.getPayload();
         const job = icmp ? this.jobFor(icmp.getValue("Identifier")) : null;
         if (!icmp || !job || !job.active || job.kind != "ping" || job.ident != icmp.getValue("Identifier")) return;

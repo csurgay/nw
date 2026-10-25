@@ -1,4 +1,4 @@
-// File ▸ Autotest: runs the whole test suite and shows every case in a window,
+// ⚙ Settings ▸ Autotest: runs the whole test suite and shows every case in a window,
 // a green tick when it passed, the expected and the real line when it did not.
 // The text can be selected and copied (or use the Copy button).
 const AutoTest = {
@@ -103,6 +103,8 @@ const AutoTest = {
         this.t0 = Date.now();
         this.total = Test.case.length + UiTest.count();
         this.saved = this.snapshot(); // the network you were working on comes back at the end
+        this.savedAccess = Access.mode;
+        Access.set("simple", true); // the tests log in the short way (the console-access tests switch by themselves)
         this.watchMode(this.small());
         this.running = true;
         this.btnRun.textContent = "Stop";
@@ -159,6 +161,7 @@ const AutoTest = {
     // the terminal tests are over (or the run was stopped): the network comes back
     onDone(ok, stopped) {
         test.listener = null;
+        if (this.savedAccess) Access.set(this.savedAccess, true);
         if (this.following) this.follow(false);
         try { this.restore(this.saved); }
         catch (e) { this.add("bad", "Could not bring your network back: " + e.message); }

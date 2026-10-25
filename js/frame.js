@@ -42,6 +42,7 @@ class Frame extends Drawable {
                 const app = this.payload.getPayload() && this.payload.getPayload().getPayload();
                 return app && app.kind ? app.kind : "UDP";
             }
+            if (pr == "TCP") return this.payload.getPayload().data ? "SSH" : "TCP";
             return pr == "ICMP" ? "ICMP" : "IPv4";
         }
         return this.etherType;
@@ -87,6 +88,8 @@ class Frame extends Drawable {
         if (p == "DNS") return this.app().qr ? "DNS answer" : "DNS query";
         if (p == "ICMP" && this.isError()) return this.payload.getPayload().getValue("Type") == "TimeExceeded" ? "TTL exceeded" : "unreachable";
         if (p == "ICMP") return (this.isReply() ? "pong #" : "ping #") + this.payload.getPayload().getValue("Seq");
+        if (p == "TCP") return this.payload.getPayload().flags.replace("PSH,", "").replace(",", "-");
+        if (p == "SSH") { const d = this.payload.getPayload().data; return d.some(m => m.type == "enc") ? "SSH 🔒" : d[0].type == "banner" ? "SSH hello" : "SSH keys"; }
         return p;
     }
 

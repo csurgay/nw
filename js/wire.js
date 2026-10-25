@@ -69,6 +69,11 @@ class Wire {
             }
             return "UDP " + d.getValue("SrcPort") + " → " + d.getValue("DstPort");
         }
+        if (frame.etherType == "IPv4" && p.getValue("Protocol") == "TCP") {
+            const seg = p.getPayload();
+            if (seg.data) return seg.data.map(m => m.info()).join(", ");
+            return `${seg.sp} → ${seg.dp} [${seg.flags.split(",").join(", ")}] Seq=${seg.rel.seq}` + (seg.flags.includes("ACK") ? ` Ack=${seg.rel.ack}` : "") + " Win=64240 Len=0";
+        }
         if (frame.etherType == "IPv4") {
             const icmp = p.getPayload();
             if (p.getValue("Protocol") == "ICMP" && icmp && icmp.getValue("Type") == "TimeExceeded")
@@ -211,6 +216,7 @@ class Wire {
     static l4Bytes(p) {
         if (!p.getPayload()) return [];
         if (p.getValue("Protocol") == "UDP") return Wire.udpParts(p).bytes;
+        if (p.getValue("Protocol") == "TCP") return Wire.tcpParts(p).bytes;
         return Wire.icmpParts(p.getPayload()).bytes;
     }
 
@@ -236,6 +242,20 @@ class Wire {
         const bytes = noSum.slice();
         bytes[6] = sum >> 8; bytes[7] = sum & 255;
         return { sp, dp, len, sum, appF, bytes, app };
+    }
+
+    // TCP header + the SSH messages inside
+    static TCP_BITS = { FIN: 1, SYN: 2, RST: 4, PSH: 8, ACK: 16 };
+    static tcpParts(p) {
+        const seg = p.getPayload();
+        const msgs = seg.data || [];
+        const data = [].concat(...msgs.map(m => m.bytes()));
+        const flags = seg.flags.split(",").reduce((n, f) => n | (Wire.TCP_BITS[f] || 0), 0);
+        const head = [...Wire.u16(seg.sp), ...Wire.u16(seg.dp), ...Wire.u32(seg.getValue("Seq")), ...Wire.u32(seg.getValue("Ack")), 0x50, flags, ...Wire.u16(64240), 0, 0, 0, 0];
+        const pseudo = [...Wire.ip(Wire.ipStr(p.getValue("SrcIP"))), ...Wire.ip(Wire.ipStr(p.getValue("DstIP"))), 0, 6, ...Wire.u16(head.length + data.length)];
+        const sum = Wire.checksum([...pseudo, ...head, ...data]);
+        head[16] = sum >> 8; head[17] = sum & 255;
+        return { seg, msgs, data, flags, sum, head, bytes: [...head, ...data] };
     }
 
     static dhcpFields(m) {
@@ -296,28 +316,14 @@ class Wire {
     }
 
     static encodeIpv4(p, begin, field, end) {
+        if (p.getValue("Protocol") == "TCP") return Wire.encodeTcp(p, begin, field, end);
         const isUdp = p.getValue("Protocol") == "UDP";
         const icmp = isUdp ? null : p.getPayload();
         const ic = icmp ? Wire.icmpParts(icmp) : null;
         const U = isUdp ? Wire.udpParts(p) : null;
         const H = Wire.ipHeader(p, ic ? ic.bytes.length : U ? U.bytes.length : 0);
 
-        begin("Internet Protocol v4", "ip", COLORS.IPv4,
-            "Layer 3. The IP header carries the logical addresses; routers use them to forward packets between networks.");
-        field("Version / IHL", [0x45], "4 / 20 bytes",
-            "<b>0x45</b>: the high 4 bits say IP <b>version 4</b>, the low 4 bits the header length in 32-bit words (5 × 4 = 20 bytes).");
-        field("DSCP / ECN", [0], "0x00", "<b>Differentiated services</b> — priority marking for quality of service. 0 = normal.");
-        field("Total length", Wire.u16(H.total), H.total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + (H.total - 20) + " bytes of " + p.getValue("Protocol") + ").");
-        field("Identification", Wire.u16(H.ident), Wire.hex(H.ident, 4), "<b>Identification</b> — a counter, used to put fragments of the same packet back together. Routers don't change it.");
-        field("Flags / Fragment", [0x40, 0], "Don't fragment",
-            "<b>Flags</b>: DF = don't fragment. Fragment offset 0 — this packet is not split up.");
-        field("Time to live", [H.ttl], String(H.ttl),
-            "<b>TTL</b> — every router lowers it by one; when it would reach 0 the packet is dropped and the router sends back an ICMP “time exceeded”. This stops packets from circling forever. Linux starts at 64; <code>traceroute</code> uses 1, 2, 3… on purpose.");
-        field("Protocol", [H.proto], H.proto + " (" + p.getValue("Protocol") + ")", "<b>Protocol</b> of the data inside: 1 = ICMP, 6 = TCP, 17 = UDP.");
-        field("Header checksum", Wire.u16(H.sum), Wire.hex(H.sum, 4), "<b>Header checksum</b> — protects only the IP header; every router recomputes it after lowering the TTL.");
-        field("Source address", Wire.ip(p.getValue("SrcIP")), p.getValue("SrcIP"), "<b>Source IP</b> — who sent the packet. Routers don't change it.");
-        field("Destination address", Wire.ip(p.getValue("DstIP")), p.getValue("DstIP"), "<b>Destination IP</b> — where the packet should end up, maybe many networks away. Stays the same all the way, while the MAC addresses change at every router.");
-        end();
+        Wire.encodeIpHeader(p, H, begin, field, end);
 
         if (U) {
             begin("User Datagram Protocol", "udp", COLORS.UDP, "Layer 4. UDP adds port numbers, so the packet reaches the right program on the computer.");
@@ -361,6 +367,71 @@ class Wire {
             field("Original packet", ic.body, ic.body.length + " bytes: " + (o ? o.getValue("SrcIP") + " → " + o.getValue("DstIP") + (oi ? ", ICMP seq=" + oi.getValue("Seq") : "") : ""),
                 "<b>The beginning of the packet that failed</b> — its IP header plus the first 8 bytes of its data. Thanks to this the sender (and its ping or traceroute) can tell exactly which packet it was.");
         }
+        end();
+    }
+
+    static encodeIpHeader(p, H, begin, field, end) {
+        begin("Internet Protocol v4", "ip", COLORS.IPv4,
+            "Layer 3. The IP header carries the logical addresses; routers use them to forward packets between networks.");
+        field("Version / IHL", [0x45], "4 / 20 bytes",
+            "<b>0x45</b>: the high 4 bits say IP <b>version 4</b>, the low 4 bits the header length in 32-bit words (5 × 4 = 20 bytes).");
+        field("DSCP / ECN", [0], "0x00", "<b>Differentiated services</b> — priority marking for quality of service. 0 = normal.");
+        field("Total length", Wire.u16(H.total), H.total + " bytes", "<b>Total length</b> of the IP packet: header + data (here the 20-byte header + " + (H.total - 20) + " bytes of " + p.getValue("Protocol") + ").");
+        field("Identification", Wire.u16(H.ident), Wire.hex(H.ident, 4), "<b>Identification</b> — a counter, used to put fragments of the same packet back together. Routers don't change it.");
+        field("Flags / Fragment", [0x40, 0], "Don't fragment",
+            "<b>Flags</b>: DF = don't fragment. Fragment offset 0 — this packet is not split up.");
+        field("Time to live", [H.ttl], String(H.ttl),
+            "<b>TTL</b> — every router lowers it by one; when it would reach 0 the packet is dropped and the router sends back an ICMP “time exceeded”. This stops packets from circling forever. Linux starts at 64; <code>traceroute</code> uses 1, 2, 3… on purpose.");
+        field("Protocol", [H.proto], H.proto + " (" + p.getValue("Protocol") + ")", "<b>Protocol</b> of the data inside: 1 = ICMP, 6 = TCP, 17 = UDP.");
+        field("Header checksum", Wire.u16(H.sum), Wire.hex(H.sum, 4), "<b>Header checksum</b> — protects only the IP header; every router recomputes it after lowering the TTL.");
+        field("Source address", Wire.ip(p.getValue("SrcIP")), p.getValue("SrcIP"), "<b>Source IP</b> — who sent the packet. Routers don't change it.");
+        field("Destination address", Wire.ip(p.getValue("DstIP")), p.getValue("DstIP"), "<b>Destination IP</b> — where the packet should end up, maybe many networks away. Stays the same all the way, while the MAC addresses change at every router.");
+        end();
+    }
+
+    static encodeTcp(p, begin, field, end) {
+        const T = Wire.tcpParts(p), seg = T.seg;
+        const H = Wire.ipHeader(p, T.bytes.length);
+        Wire.encodeIpHeader(p, H, begin, field, end);
+        const svc = { 22: "ssh" };
+        const fl = seg.flags.split(",").join(", ");
+        begin("Transmission Control Protocol", "tcp", COLORS.TCP,
+            "Layer 4. TCP makes a reliable <i>conversation</i> out of single packets: it opens a connection (SYN, SYN-ACK, ACK), numbers every byte, gets every byte acknowledged, and closes the connection politely (FIN). ssh, web pages and e-mail all ride on TCP.");
+        field("Source port", Wire.u16(seg.sp), seg.sp + (svc[seg.sp] ? " (" + svc[seg.sp] + ")" : ""), "<b>Source port</b> — the program that sent it. The ssh client picks a random high number; the ssh server always answers from 22.");
+        field("Destination port", Wire.u16(seg.dp), seg.dp + (svc[seg.dp] ? " (" + svc[seg.dp] + ")" : ""), "<b>Destination port</b> — which program should get it: 22 = the ssh server (sshd). <code>ss -tulpn</code> shows which ports are listening on a machine.");
+        field("Sequence number", Wire.u32(seg.getValue("Seq")), seg.getValue("Seq") + "  (relative: " + seg.rel.seq + ")",
+            "<b>Sequence number</b> — the number of the first byte in this segment. Each side starts from a random number (Wireshark shows them from 0, “relative”). SYN and FIN count as one byte each.");
+        field("Acknowledgment number", Wire.u32(seg.getValue("Ack")), seg.getValue("Ack") + "  (relative: " + seg.rel.ack + ")",
+            "<b>Acknowledgment number</b> — “I have got everything up to here, send the next byte from this number”. This is how TCP notices a lost packet and sends it again.");
+        field("Header length / Flags", [0x50, T.flags], "20 bytes · [" + fl + "]",
+            "<b>Flags</b> — SYN: let's open a connection · ACK: the acknowledgment number is valid · PSH: hand the data to the program now · FIN: I am done, let's close · RST: no, go away (nobody listens on that port, or something went wrong). Here: <b>" + fl + "</b>.");
+        field("Window", Wire.u16(64240), "64240 bytes", "<b>Window</b> — how many bytes the sender of this segment can still receive before the other side has to wait. This is how a slow receiver is not flooded (flow control).");
+        field("Checksum", Wire.u16(T.sum), Wire.hex(T.sum, 4), "<b>Checksum</b> over the TCP header, the data and a “pseudo header” with the IP addresses.");
+        field("Urgent pointer", [0, 0], "0", "<b>Urgent pointer</b> — almost never used. 0.");
+        end();
+        if (!T.msgs.length) return;
+        begin("SSH Protocol", "ssh", COLORS.SSH,
+            "Secure Shell: logging in to another machine over the network. Only the version banners and the key exchange can be read; after <b>New Keys</b> everything — the password, the commands, the answers — is encrypted.");
+        T.msgs.forEach(m => {
+            const b = m.bytes();
+            if (m.type == "banner") {
+                field("Protocol", b, m.text, "<b>Version banner</b> — the first thing both sides say, in plain text: “I speak SSH version 2.0, my program is " + esc(m.text.split("-").slice(2).join("-")) + "”.");
+                return;
+            }
+            if (m.type == "enc") {
+                field("Packet length (encrypted)", b.slice(0, 4), "(encrypted)", "Even the length is encrypted (with the chacha20-poly1305 cipher).");
+                field("Encrypted packet", b.slice(4), (b.length - 4) + " bytes", "<b>Encrypted</b> — this is the whole point of ssh: whoever sees this frame on the cable (like you in Wireshark) cannot tell whether it is a password, a command or its output. Only the two ends know the key.");
+                return;
+            }
+            const what = { kexinit: "Key Exchange Init — the lists of methods this side knows: key exchange (curve25519-sha256), host key (ssh-ed25519), cipher (chacha20-poly1305@openssh.com) … Both sides pick the first common one.",
+                "ecdh-init": "Elliptic Curve Diffie-Hellman Init — the client's half of the key exchange: a public number. From the two halves both sides compute the same secret, which never travels on the cable.",
+                "ecdh-reply": "Elliptic Curve Diffie-Hellman Reply — the server's half, plus its <b>host key</b> and a signature. The client compares the host key with ~/.ssh/known_hosts: is this really the same machine as last time?",
+                newkeys: "New Keys — “from the next packet on, everything is encrypted”." }[m.type];
+            field("Packet length", b.slice(0, 4), String(b.length - 4) + " bytes", "<b>Packet length</b> — how many bytes follow in this SSH message.");
+            field("Padding length", [b[4]], String(b[4]), "<b>Padding</b> — filler bytes, so that the length is a multiple of 8.");
+            field("Message code", [b[5]], b[5] + " (" + m.info().split(": ")[1] + ")", "<b>Message code</b> — " + what);
+            if (b.length > 6) field("Payload", b.slice(6), (b.length - 6) + " bytes", what);
+        });
         end();
     }
 

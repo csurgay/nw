@@ -352,6 +352,17 @@ const UiTest = {
                 if (n < 2 || !allPing) return `the filter showed ${n} frames${allPing ? "" : ", not only ping requests"}`;
                 return /icmp\.seq/.test(ex) && resp ? null : `explanation “${ex.slice(0, 60)}”, response link ${resp}`;
             }],
+            ["⚙ Settings: console access, then simplified ssh again", async () => {
+                const m0 = Access.mode;
+                await U.press("#btnSettings");
+                await U.press('.settings input[value="console"]');
+                const c = Access.mode == "console";
+                await U.press('.settings input[value="simple"]');
+                const s = Access.mode == "simple";
+                await U.press(".settings .set-x");
+                Access.set(m0, true);
+                return c && s ? null : `mode after the clicks: ${c ? "console" : "?"}, ${s ? "simple" : "?"}`;
+            }],
             ["Lexicon: open, search “vlan”, switch to HU, close", async () => {
                 const lang = Lang.cur;
                 await U.press("#btnLex");

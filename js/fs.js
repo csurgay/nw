@@ -164,16 +164,18 @@ class Vfs {
             "netlab-release": F(`${Vfs.OS} release ${Vfs.VER} (Blue Wire)`),
             "machine-id": F(Array.from({ length: 32 }, (_, i) => "0123456789abcdef"[(Vfs.fakeSize((h ? h.id.defaultName() : "console") + i * 7919) >> 3) & 15]).join("")),
             "motd": F(h ? `\nWelcome to ${name}!\nThis is a ${isSwitch ? "managed switch running Linux: its ports are swp1, swp2 ... (try  bridge fdb show)" : isRouter ? "router: it passes packets between networks" : isServer ? "server: other machines ask it for things" : "computer on the lab network"}.\nType  help  to see what you can do here.\n`
-                : "\nWelcome to the admin console.\nThis machine is not on the lab network: log in to one with  ssh host1\n"),
+                : "\nWelcome to the admin console.\nThis machine is not on the lab network: log in to one with  " + (Access.mode == "console" ? "console host1" : "ssh host1") + "\n"),
             "passwd": F(this.passwd(isServer)),
             "group": F("root:x:0:\nbin:x:1:\ndaemon:x:2:\nwheel:x:10:admin\n" + (isServer ? (h.dhcpd ? "dhcpd:x:177:\n" : "") + (h.named ? "named:x:25:\n" : "") : "") + (h ? "" : "admin:x:1000:\n")),
-            "shadow": F("root:!locked::0:99999:7:::\nbin:*:19000:0:99999:7:::\n" + (h ? "" : "admin:$6$lab$Ze5mE3sQqzY...:20000:0:99999:7:::\n"), { mode: "----------", priv: true }),
+            "shadow": F(() => (h && Access.mode == "console" ? "root:$6$" + (Vfs.fakeSize(h.rootPassword()) % 99991).toString(36) + "$Qx7..secret-hash..:20000:0:99999:7:::\n" : "root:!locked::0:99999:7:::\n") + "bin:*:19000:0:99999:7:::\n" + (h ? "" : "admin:$6$lab$Ze5mE3sQqzY...:20000:0:99999:7:::\n"), { mode: "----------", priv: true }),
             "fstab": F("# /etc/fstab: which disks are attached where\n/dev/sda1   /       xfs     defaults        0 0\n/dev/sda2   swap    swap    defaults        0 0"),
             "resolv.conf": F(() => h ? ((h.domain ? "search " + h.domain + "\n" : "") + (h.dnsServer ? "nameserver " + h.dnsServer : "# no nameserver configured")) : "# the console uses no DNS", { mtime: () => h && h.lease ? new Date(Vfs.BOOT.getTime() + h.lease.got) : boot() }),
             "services": F("# service name  port/protocol   # what it is\nssh             22/tcp          # Secure Shell login\ndomain          53/udp          # DNS: names -> IP addresses\nbootps          67/udp          # DHCP server\nbootpc          68/udp          # DHCP client\nhttp            80/tcp          # web pages\nntp             123/udp         # time\nhttps           443/tcp         # secure web pages"),
             "protocols": F("# protocol  number  NAME   # what it is\nip          0       IP     # internet protocol\nicmp        1       ICMP   # ping, traceroute errors\ntcp         6       TCP    # reliable streams\nudp         17      UDP    # quick datagrams (DHCP, DNS)"),
             "localtime": L("../usr/share/zoneinfo/" + (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")),
-            "ssh": D({ "sshd_config": F("Port 22\nPermitRootLogin yes\nPasswordAuthentication no   # this lab trusts you anyway :)") }),
+            "ssh": D({ "sshd_config": F(() => Access.mode == "console"
+                ? "# /etc/ssh/sshd_config — the ssh server\nPort 22\nPermitRootLogin yes\nPubkeyAuthentication yes\nAuthorizedKeysFile .ssh/authorized_keys\nPasswordAuthentication yes"
+                : "Port 22\nPermitRootLogin yes\nPasswordAuthentication no   # simplified ssh: this lab trusts you anyway :)") }),
             "sysconfig": D({
                 "network-scripts": D(() => {
                     const o = {};
@@ -241,7 +243,18 @@ class Vfs {
             ".bashrc": F("# .bashrc\nalias ll='ls -l'\nalias la='ls -la'\nPS1='[\\u@\\h \\W]\\# '"),
             ".bash_profile": F("# .bash_profile\n[ -f ~/.bashrc ] && . ~/.bashrc"),
             ".bash_history": F(hist, { mode: "-rw-------", mtime: now }),
-            ".ssh": D({ "authorized_keys": F("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL4b admin@console", { mode: "-rw-------" }) }, { mode: "drwx------" }),
+            ".ssh": D(() => {
+                const o = {}, prv = { mode: "-rw-------" };
+                const keys = [...(Access.mode == "simple" ? ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL4b admin@console"] : []), ...(h && h.authorizedKeys || [])];
+                if (keys.length) o["authorized_keys"] = F(keys.join("\n"), prv);
+                const kh = h && h.knownHosts ? Object.entries(h.knownHosts) : [];
+                if (kh.length) o["known_hosts"] = F(kh.map(([ip, fp]) => `${ip} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI${fp}`).join("\n"));
+                if (h && h.sshKey) {
+                    o["id_ed25519"] = F("-----BEGIN OPENSSH PRIVATE KEY-----\n(the secret half of the key: it never leaves this machine)\n-----END OPENSSH PRIVATE KEY-----", prv);
+                    o["id_ed25519.pub"] = F(h.sshKey.pub);
+                }
+                return o;
+            }, { mode: "drwx------" }),
             "anaconda-ks.cfg": F("# Kickstart file: how this machine was installed\nlang en_US.UTF-8\nkeyboard us\ntimezone Europe/Budapest\nrootpw --lock\n%packages\n@core\n%end", { mode: "-rw-------" }),
             "README.txt": F(() => isSwitch ? this.switchReadme() : this.readme(isRouter, isServer)),
         }, { mode: "dr-xr-x---", priv: true });

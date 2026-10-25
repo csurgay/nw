@@ -237,6 +237,7 @@ class IosCli {
         const name = this.sw.id.toString();
         this.reset();
         if (shell.host != this.sw) return "";
+        if (!shell.oneShot && typeof Access != "undefined" && Access.inConsoleOf(this.sw)) { Access.iosLogout(shell, this.sw); return ""; }
         if (!quiet) this.sh.t.println(`Connection to ${name} closed.`);
         if (!shell.oneShot) shell.toConsole();
         return "";

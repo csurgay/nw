@@ -245,7 +245,8 @@ class Switch extends Hub {
     reboot() {
         if (this.down) return;
         const name = this.id.toString();
-        if (shell.host == this) {
+        if (typeof Access != "undefined" && Access.onReboot(this)) { /* its console took care */ }
+        else if (shell.host == this) {
             terminal.println(`Connection to ${name} closed by remote host.\nConnection to ${name} closed.`);
             if (!shell.oneShot) shell.toConsole();
         }

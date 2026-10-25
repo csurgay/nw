@@ -5,7 +5,7 @@
 const Completion = {
     // commands of the lab shell (shell.js) — the rest comes from Coreutils
     SHELL_CMDS: ["exit", "clear", "help", "for", "ssh", "systemctl", "lldpcli", "arping", "arp", "ip", "traceroute",
-        "tracert", "lab", "dhclient", "host", "nslookup", "ping", "jobs", "fg", "bg", "kill", "alias", "unalias", "watch", "autotest", "wireshark"],
+        "tracert", "lab", "dhclient", "host", "nslookup", "ping", "jobs", "fg", "bg", "kill", "alias", "unalias", "watch", "autotest", "wireshark", "console", "access", "ssh-keygen", "ssh-copy-id", "passwd"],
 
     // line: everything after the prompt -> { line: completed line, list: [shown words] }
     complete(sh, line) {
@@ -44,7 +44,20 @@ const Completion = {
             case "sudo": return this.candidates(sh, prev.slice(1), cur);
             case "man": return this.w(MAN.names());
             case "which": return this.w(this.commands());
+            case "console":
+                return n == 1 ? this.w(this.hostNames()) : [];
+            case "access":
+                return n == 1 ? this.w(["simple", "console"]) : [];
+            case "ssh-copy-id":
+                return [];
             case "ssh":
+                if (n == 1 && typeof Access != "undefined" && Access.mode == "console") {
+                    // over the network: the addresses this machine knows (ARP cache, known_hosts)
+                    const h = sh.host, ips = new Set();
+                    if (h && h.knownHosts) Object.keys(h.knownHosts).forEach(i => ips.add(i));
+                    if (h && h.l3) (h.l3.arp.cache || []).forEach(e => e.ip && ips.add(String(e.ip)));
+                    return this.w([...ips]);
+                }
                 if (n == 1) {
                     const at = cur.startsWith("root@") ? "root@" : "";
                     return this.w(this.hostNames().map(h => at + h));

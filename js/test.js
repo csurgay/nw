@@ -111,6 +111,20 @@ class Test {
         ["ssh host1 ping -c 1 192.168.3.11", ["PING 192.168.3.11 (192.168.3.11) 56(84) bytes of data."], 100],
         ["", ["--- 192.168.3.11 ping statistics ---", "1 packets transmitted, 1 received, 0% packet loss, time 0ms", "*", "*"], 18000],
         ["ssh router1 ip route del 192.168.9.0/24", ["RTNETLINK answers: No such process", "*"], 100],
+        ["lab switch", ["Loaded lab: 3 · A switch learns MAC addresses", "*"], 100],
+        ["access console", [/^  ssh ADDRESS/, "*"], 100],
+        ["ssh host1", [/^\(console access: the admin laptop is not on the lab network/, "*"], 100],
+        ["console host1", ["host1 login: "], 100],
+        ["root", ["Password: "], 100],
+        ["nw", [/^Last login: /, "[root@host1 ~]# "], 100],
+        ["ssh 192.168.1.2 hostname", ["Are you sure you want to continue connecting (yes/no/[fingerprint])? "], 20000],
+        ["yes", ["Warning: Permanently added '192.168.1.2' (ED25519) to the list of known hosts.", "root@192.168.1.2's password: "], 100],
+        ["nw", ["host2", "[root@host1 ~]# "], 20000],
+        ["ssh 192.168.1.9", ["ssh: connect to host 192.168.1.9 port 22: No route to host", "*"], 14000],
+        ["ssh-keygen -R 192.168.1.2", ["/root/.ssh/known_hosts updated.", "*", "*"], 100],
+        ["~.", ["Disconnected from the console of host1.", "*"], 100],
+        ["access simple", [/^  ssh NAME COMMAND/, "*"], 100],
+        ["ssh host1 hostname", ["host1", "*"], 100],
     ];
 
     constructor(terminal, shell) {

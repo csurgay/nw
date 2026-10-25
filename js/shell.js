@@ -9,6 +9,9 @@ class Shell {
         this.consoleCwd = this.cwd; // remembered while logged in to a host
         this.consoleFiles = {}; // files the admin made on the console
         this.status = 0; // exit status of the last command: $?
+        this.sessions = []; // console access: [{kind: "console"|"ssh", host, client}] — the innermost last
+        this.loginAt = null; // at the login prompt of this machine's console
+        this.prompter = null; // a question is open (login:, Password:, yes/no)
     }
 
     vfs() { return new Vfs(this); }
@@ -65,6 +68,11 @@ class Shell {
 
     // back to the admin console (exit, Ctrl-D, loading a lab)
     toConsole() {
+        // every ssh connection opened from here ends, the console cable is unplugged
+        (this.sessions || []).forEach(s => { if (s.client) { const c = s.client; c.session = null; if (c.c && c.c.state == "EST") c.from.tcp.close(c.c); } });
+        this.sessions = [];
+        this.loginAt = null;
+        if (this.prompter) { this.prompter = null; this.prompterCancel = null; this.t.secret = false; }
         if (this.host && this.hangUp) this.hangUp(this.host);
         this.host = null;
         this.cwd = this.consoleCwd || "/home/admin";
@@ -258,7 +266,7 @@ class Shell {
     // commands that only make sense on a host, not on the admin console
     needHost(name) {
         if (this.host) return false;
-        this.t.println(name + ": you are on the admin console — log in to a host first, e.g.  ssh host1");
+        this.t.println(name + ": you are on the admin console — log in to a host first, e.g.  " + (typeof Access != "undefined" && Access.mode == "console" ? "console host1" : "ssh host1"));
         return true;
     }
 
@@ -303,7 +311,29 @@ class Shell {
         // jobs, fg, bg, kill, alias, unalias, watch
         const b = this.builtin(command, cmd);
         if (b !== undefined) return b;
-        if (command[0] == "exit") { if (this.host) this.t.quitToConsole(); else this.t.println("logout — (this is the admin console: it stays open)"); }
+        if (command[0] == "exit") { if (this.host) { if (!Access.leave(this)) this.t.quitToConsole(); } else this.t.println("logout — (this is the admin console: it stays open)"); }
+        else if (command[0] == "console") return Access.consoleCmd(this, command);
+        else if (command[0] == "access") {
+            if (command[1] && !Access.set(command[1])) this.t.println("usage: access [simple|console]");
+            else this.t.println("access: " + Access.describe());
+        }
+        else if (command[0] == "ssh" && Access.mode == "console") return Access.ssh(this, command);
+        else if (command[0] == "ssh-keygen") return Access.keygen(this, command);
+        else if (command[0] == "ssh-copy-id") return Access.copyId(this, command);
+        else if (command[0] == "passwd") return Access.passwd(this);
+        else if (command[0] == "systemctl" && /^sshd?(\.service)?$/.test(command[2] || "")) {
+            if (this.needHost("systemctl")) return true;
+            const h = this.host, on = h.sshd !== false;
+            const a = command[1];
+            if (a == "is-active") { this.t.println(on ? "active" : "inactive"); this.status = on ? 0 : 3; }
+            else if (a == "status") this.t.println(`● sshd.service - OpenSSH server daemon\n     Loaded: loaded (/usr/lib/systemd/system/sshd.service; enabled; preset: enabled)\n     Active: ${on ? "active (running)" : "inactive (dead)"} since ${Vfs.bootOf(h).toString().slice(0, 24)}\n   Main PID: ${on ? "702 (sshd)" : "-"}\n     CGroup: /system.slice/sshd.service\n             ${on ? "└─702 \"sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups\"" : ""}\n\n${on ? "Server listening on 0.0.0.0 port 22." : ""}`);
+            else if (a == "stop" || a == "start" || a == "restart") {
+                h.sshd = a != "stop";
+                Sim.event("info", `<b>${h}</b> sshd ${a == "stop" ? "stopped: nobody listens on TCP port 22 — a new ssh gets “Connection refused” (the sessions already open stay)" : "listens on TCP port 22"}`, { obj: h });
+            }
+            else if (a == "enable" || a == "disable") this.t.println(a == "enable" ? "" : "Removed \"/etc/systemd/system/multi-user.target.wants/sshd.service\".");
+            else this.t.println("usage: systemctl start|stop|restart|status|is-active sshd");
+        }
         else if (command[0] == "start") start();
         else if (command[0] == "stop") stop();
         else if (command[0] == "clear") this.t.textarea.value = "";
@@ -651,6 +681,9 @@ class Shell {
             "  Ctrl-A/E, Alt-B/F, Ctrl-U/K/W, Ctrl-Y, Ctrl-_, Alt-., Ctrl-T",
             "  autotest                        (all tests in a window)",
             "  lab 18, lab 19                  (set up the routers yourself)",
+            "  access console | simple         (how you reach the machines, also ⚙)",
+            "  console router1                 (console access: the console cable)",
+            "  ssh 192.168.1.11, ssh-keygen, ssh-copy-id, passwd  (ssh over the net)",
             "Lexicon ▸ The Linux terminal: all of it explained in more detail.",
         ].join("\n"));
     }

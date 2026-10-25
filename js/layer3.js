@@ -60,6 +60,9 @@ class Layer3 {
         else if (protocol == 'UDP') {
             this.host.udp.receive(payload, nic, frame);
         }
+        else if (protocol == 'TCP') {
+            if (this.host.tcp) this.host.tcp.receive(payload, nic, frame);
+        }
     }
 
     // Router: decrement TTL, look up the next hop, build a new frame

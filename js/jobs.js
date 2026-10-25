@@ -254,7 +254,7 @@ Object.assign(Shell.prototype, {
                 return true;
             }
             case "autotest":
-                // the File ▸ Autotest window, also on a phone where the editor bar is small
+                // the ⚙ Settings ▸ Autotest window
                 if (this.host) { t.println("autotest: run it on the console (exit first)"); return true; }
                 setTimeout(() => AutoTest.open(), 50);
                 t.println("Autotest: the window opens — UI tests first, then the terminal tests.");
