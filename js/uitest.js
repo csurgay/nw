@@ -354,12 +354,15 @@ const UiTest = {
             }],
             ["⚙ Settings: console access, then simplified ssh again", async () => {
                 const m0 = Access.mode;
+                UiTest.inSettingsCase = true; // the switch is locked while Autotest runs — except for this test
+                Access.sync();
                 await U.press("#btnSettings");
                 await U.press('.settings input[value="console"]');
                 const c = Access.mode == "console";
                 await U.press('.settings input[value="simple"]');
                 const s = Access.mode == "simple";
                 await U.press(".settings .set-x");
+                UiTest.inSettingsCase = false;
                 Access.set(m0, true);
                 return c && s ? null : `mode after the clicks: ${c ? "console" : "?"}, ${s ? "simple" : "?"}`;
             }],

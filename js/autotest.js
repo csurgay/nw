@@ -108,6 +108,7 @@ const AutoTest = {
         this.watchMode(this.small());
         this.running = true;
         this.btnRun.textContent = "Stop";
+        Access.sync();
         this.add("head", `NetLab autotest · ${new Date().toLocaleString()} · ${this.total} cases`);
         this.add("head", "Your network is put aside and comes back at the end. This takes a few minutes in real time.\n");
         this.tick();
@@ -206,6 +207,7 @@ const AutoTest = {
     finish(ok, stopped) {
         clearInterval(this.timer);
         this.running = false;
+        Access.sync();
         this.btnRun.textContent = "Run again";
         const secs = Math.round((Date.now() - this.t0) / 1000);
         const time = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");

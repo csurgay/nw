@@ -74,7 +74,7 @@ const Access = {
 
     // the text a Linux console shows before the login prompt
     getty(sh, d) {
-        sh.t.println(`\n${Vfs.OS} ${Vfs.VER} (Blue Wire)\nKernel ${Vfs.KERNEL} on an x86_64\n`);
+        sh.t.println(`\n${Vfs.OS} ${Vfs.VER} (Blue Wire)\nKernel ${Vfs.KERNEL} on an x86_64\n\n(to leave the console: ~. or Ctrl-D at the login prompt)`);
         this.login(sh, d);
     },
 
@@ -131,7 +131,7 @@ const Access = {
             return true;
         };
         if (this.auto === d) { this.auto = null; t.println(`${d.id} con0 is now available\n\nPress RETURN to get started.\n`); go(); t.showPrompt(); return true; }
-        t.ask(`${d.id} con0 is now available\n\nPress RETURN to get started.\n`, a => {
+        t.ask(`${d.id} con0 is now available\n\nPress RETURN to get started.   (~. or Ctrl-D: leave the console)\n`, a => {
             if (a.trim() == "~.") return this.disconnect(sh);
             return go();
         }, { cancel: () => this.iosReady(sh, d) });
@@ -360,6 +360,7 @@ const Access = {
         el.hidden = true;
         el.innerHTML = `<div class="set-h"><span>⚙</span><b>Settings</b><button class="pop-x set-x" title="Close">×</button></div>
             <div class="set-sec"><div class="set-t">Access to the lab machines</div>
+                <p class="set-note set-lock" hidden>🔒 Autotest is running — it switches the access itself, and puts yours back at the end.</p>
                 <label class="set-opt"><input type="radio" name="nwAccess" value="simple"><div><b>Simplified ssh</b>
                     <span><code>ssh host1</code> logs in straight from the admin console, <code>ssh host1 systemctl start lldpd</code> runs one command there. A shortcut of the lab: it works even when the machine has no address yet.</span></div></label>
                 <label class="set-opt"><input type="radio" name="nwAccess" value="console"><div><b>Console access</b> <i>(realistic)</i>
@@ -379,15 +380,30 @@ const Access = {
             if (!el.hidden) { const r = btn.getBoundingClientRect(); el.style.top = (r.bottom + 6) + "px"; el.style.right = Math.max(8, innerWidth - r.right) + "px"; this.sync(); }
         });
         el.querySelector(".set-x").addEventListener("click", close);
-        el.querySelectorAll('input[name="nwAccess"]').forEach(r => r.addEventListener("change", () => this.set(r.value)));
-        el.querySelector(".set-at").addEventListener("click", () => { close(); AutoTest.open(); });
+        el.querySelectorAll('input[name="nwAccess"]').forEach(r => r.addEventListener("change", () => {
+            // the tests need the access they started with: no switching while they run
+            if (typeof AutoTest != "undefined" && AutoTest.running && !(typeof UiTest != "undefined" && UiTest.inSettingsCase)) { this.sync(); return; }
+            this.set(r.value);
+        }));
+        el.querySelector(".set-at").addEventListener("click", () => {
+            close();
+            if (AutoTest.running) { UiTest.stopped = true; test.stop(); AutoTest.open(); return; }
+            AutoTest.open();
+        });
         document.addEventListener("click", ev => { if (!el.hidden && !ev.target.closest(".settings, #btnSettings")) close(); });
         window.addEventListener("keydown", ev => { if (ev.key == "Escape" && !el.hidden) close(); });
         this.sync();
     },
 
     sync() {
-        if (this.el) this.el.querySelectorAll('input[name="nwAccess"]').forEach(r => { r.checked = r.value == this.mode; });
+        const locked = typeof AutoTest != "undefined" && AutoTest.running;
+        if (this.el) {
+            this.el.querySelectorAll('input[name="nwAccess"]').forEach(r => { r.checked = r.value == this.mode; r.disabled = locked && !(typeof UiTest != "undefined" && UiTest.inSettingsCase); });
+            const n = this.el.querySelector(".set-lock");
+            if (n) n.hidden = !locked;
+            const at = this.el.querySelector(".set-at");
+            if (at) at.textContent = locked ? "■ Stop Autotest" : "✔ Run Autotest…";
+        }
         const b = document.getElementById("btnSettings");
         if (b) b.title = "Settings — access: " + (this.mode == "console" ? "console (realistic)" : "simplified ssh") + " · Autotest";
     },

@@ -275,6 +275,12 @@ class Terminal {
         if (document.activeElement != ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; }
         const fake = (key, mods = {}) => this.keypress(Object.assign({ key, code: "", altKey: false, ctrlKey: false, preventDefault() {} }, mods));
         const start = this.lineStart();
+        if (k == "TildeDot") {
+            // ~. on its own line: leave the console (or the ssh connection); elsewhere just the characters
+            if ((shell.loginAt || shell.sessions.length) && this.line().trim() == "" && !this.secret) { this.setLine("~."); this.enter("~."); this.showBottom(); }
+            else { const p = Math.max(start, ta.selectionStart); ta.value = ta.value.substring(0, p) + "~." + ta.value.substring(Math.max(p, ta.selectionEnd)); ta.selectionStart = ta.selectionEnd = p + 2; }
+            return;
+        }
         if (k == "AltDot") fake(".", { altKey: true, code: "Period" });
         else if (k == "CtrlC") fake("c", { ctrlKey: true });
         else if (k == "CtrlL") fake("l", { ctrlKey: true });
@@ -306,6 +312,15 @@ class Terminal {
     // deletes the character under the cursor
     ctrlD() {
         const ta = this.textarea, start = this.lineStart();
+        // at the login prompt of a console (or "Press RETURN"): Ctrl-D unplugs the console cable
+        if (shell.loginAt && shell.prompter && !this.secret && this.line() == "") {
+            shell.cancelPrompter();
+            this.waiting = false;
+            this.raw("^D\n");
+            Access.disconnect(shell);
+            this.showPrompt();
+            return;
+        }
         if (this.line() != "") {
             const p = Math.max(start, ta.selectionStart);
             if (p < ta.value.length) {
