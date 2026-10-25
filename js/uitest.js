@@ -315,6 +315,20 @@ const UiTest = {
                 kd({ key: "c", ctrlKey: true });
                 return a == "ssh host1 ip route" && b == "ssh host2 ip addr" && c == "ssh" ? null : `got “${a}”, “${b}”, back “${c}”`;
             }],
+            ["The output above the prompt cannot be changed, typing goes to the prompt", async () => {
+                const t = terminal, ta = t.textarea;
+                t.runCommand("echo hello"); await U.sleep(150);
+                const v0 = ta.value, at = v0.lastIndexOf("hello\n");
+                // what a browser does when you type into the output: the event, then the change
+                ta.focus();
+                ta.selectionStart = ta.selectionEnd = at + 2;
+                ta.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, cancelable: true, inputType: "insertText", data: "Z" }));
+                if (ta.value == v0) { ta.value = v0.substring(0, at + 2) + "Z" + v0.substring(at + 2); ta.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "Z" })); }
+                await U.sleep(100);
+                const ok = ta.value.startsWith(v0) && ta.value.endsWith("Z") && ta.value.lastIndexOf("hello\n") == at;
+                t.setLine("");
+                return ok ? null : "the text above the prompt was changed";
+            }],
             ["PgUp / ↑ while a command still runs: nothing is mixed into the history", async () => {
                 const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
                 t.runCommand("watch -n 1 hostname");

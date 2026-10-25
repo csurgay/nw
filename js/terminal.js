@@ -251,10 +251,15 @@ class Terminal {
                 if (b) this.virtualKey(b.dataset.k);
             });
         }
+        this.textarea.addEventListener("input", () => this.guardInput());
         // Android keyboards often send Backspace and Enter only as text input, not as keys
         this.textarea.addEventListener("beforeinput", ev => {
             const ta = this.textarea, start = this.lineStart(), t = ev.inputType || "";
             if (this.booting) { ev.preventDefault(); return; }
+            // the browser's own undo/redo would change the output above the prompt
+            if (t.startsWith("history")) { ev.preventDefault(); return; }
+            // a safety net for everything else (dead keys, drag and drop …): see the input event below
+            this.beforeEdit = { v: ta.value, start, data: ev.data || (ev.dataTransfer && ev.dataTransfer.getData("text/plain")) || "", type: t };
             if (this.secret) {
                 // a password on a phone: kept, not shown
                 ev.preventDefault();
@@ -286,6 +291,21 @@ class Terminal {
                 ta.selectionStart = ta.selectionEnd = ta.value.length;
             }
         });
+    }
+
+    // the output above the prompt is read-only: select and copy it, but not change it.
+    // If an edit got there anyway, it is undone and what was typed goes to the end of the line.
+    guardInput() {
+        const b = this.beforeEdit;
+        this.beforeEdit = null;
+        if (!b) return;
+        const ta = this.textarea;
+        if (ta.value.substring(0, b.start) === b.v.substring(0, b.start)) return;
+        let fix = b.v;
+        if (b.type.startsWith("insert") && b.data && !/LineBreak|Paragraph/.test(b.type)) fix += b.data.replace(/\r?\n/g, " ");
+        ta.value = fix;
+        ta.selectionStart = ta.selectionEnd = fix.length;
+        this.showBottom();
     }
 
     virtualKey(k) {

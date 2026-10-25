@@ -29,7 +29,8 @@ class Router extends Host {
                 if (side == "left") { n.x = this.x; n.y = this.y + this.h * f; }
                 if (side == "right") { n.x = this.x + this.w; n.y = this.y + this.h * f; }
                 if (side == "up") { n.x = this.x + this.w * f; n.y = this.y; }
-                if (side == "down") { n.x = this.x + this.w * f; n.y = this.y + this.h; }
+                // bottom sockets sit in the right half: the router's name stays free in the middle
+                if (side == "down") { n.x = this.x + this.w * (0.5 + f * 0.5); n.y = this.y + this.h; }
             });
         });
     }
