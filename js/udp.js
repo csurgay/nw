@@ -271,8 +271,17 @@ class Resolver {
     }
 
     // cb(ip, errorText)
-    resolve(name, cb) {
+    // o.dnsOnly: host and nslookup ask the DNS server only, like the real ones
+    resolve(name, cb, o = {}) {
         if (IP.isValid(name)) return cb(name, null);
+        // /etc/nsswitch.conf  hosts: files dns  — first the file, then the server
+        if (!o.dnsOnly) {
+            const ip = Vfs.hostsLookup(this.host, name);
+            if (ip) {
+                Sim.event("info", `<b>${this.host}</b> finds “${esc(name)}” in /etc/hosts → ${ip} (no DNS question needed)`, { obj: this.host });
+                return cb(ip, null);
+            }
+        }
         const server = this.host.dnsServer;
         if (!server) return cb(null, "Name or service not known");
         const q = this.fqdn(name);

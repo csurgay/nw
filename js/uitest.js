@@ -315,6 +315,20 @@ const UiTest = {
                 kd({ key: "c", ctrlKey: true });
                 return a == "ssh host1 ip route" && b == "ssh host2 ip addr" && c == "ssh" ? null : `got “${a}”, “${b}”, back “${c}”`;
             }],
+            ["vi: open a file, insert a line, save with :wq", async () => {
+                const t = terminal, kd = (o) => consoleArea.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true, cancelable: true }, o)));
+                const keys = async (s) => { for (const ch of s) { kd({ key: ch }); await U.sleep(25); } };
+                t.runCommand("vi /tmp/ui-vi.txt"); await U.sleep(200);
+                const open = Vi.active;
+                await keys("i"); await keys("hello vi"); kd({ key: "Escape" }); await U.sleep(80);
+                await keys(":q"); kd({ key: "Enter" }); await U.sleep(80);
+                const refused = Vi.active && /E37/.test(document.querySelector(".vi-left").textContent);
+                await keys(":wq"); kd({ key: "Enter" }); await U.sleep(200);
+                const v = shell.vfs(), r = v.lookup("/tmp/ui-vi.txt");
+                const saved = !Vi.active && r.node && v.read(r.node) == "hello vi\n";
+                if (Vi.active) Vi.close();
+                return open && refused && saved ? null : `open ${open}, :q refused ${refused}, saved ${saved}`;
+            }],
             ["The output above the prompt cannot be changed, typing goes to the prompt", async () => {
                 const t = terminal, ta = t.textarea;
                 t.runCommand("echo hello"); await U.sleep(150);

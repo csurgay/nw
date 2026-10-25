@@ -747,3 +747,20 @@ body.at-watch .at-h .mini { padding: 2px 7px; }
 @media (max-width: 820px) {
     .settings { left: 8px; right: 8px !important; width: auto; top: 8px !important; }
 }
+
+/* ---------- vi (covers the terminal while it runs) ---------- */
+.vi { position: absolute; left: 0; right: 0; z-index: 3; display: flex; flex-direction: column; background: #05080c; pointer-events: none;
+    font-family: var(--mono); color: #e5edf5; }
+.vi[hidden] { display: none; }
+.vi-text { flex: 1; margin: 0; padding: 8px 12px 0; overflow: hidden; font: inherit; line-height: 1.45; white-space: pre; tab-size: 4; }
+.vi-tilde { color: #3b82f6; }
+.vi-nu { color: #a16207; }
+.vi-cur { background: #e5edf5; color: #05080c; }
+.vi-cur.ins { background: none; color: inherit; box-shadow: inset 2px 0 0 #e5edf5; }
+.vi-status { flex: none; display: flex; gap: 12px; padding: 2px 12px 6px; line-height: 1.45; white-space: pre; overflow: hidden; }
+.vi-left { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.vi-right { color: #94a3b8; }
+.vi-err { background: #b91c1c; color: #fff; padding: 0 2px; }
+.vi-hint { color: #64748b; }
+.vi-hintline { flex: none; padding: 0 12px; color: #64748b; white-space: normal; font-size: .9em; }
+.vi-hintline[hidden] { display: none; }

@@ -262,7 +262,7 @@ const Access = {
 
     noName(sh, from, dest, prog) {
         sh.t.println(`${prog}: Could not resolve hostname ${dest}: Name or service not known` +
-            (from.dnsServer ? "" : `\n(${from.id} has no DNS server — use the IP address, e.g.  ${prog} 192.168.1.11)`));
+            (from.dnsServer ? "" : `\n(${from.id} has no DNS server — use the IP address, or write the name into /etc/hosts:  echo "192.168.1.11 ${dest}" >> /etc/hosts)`));
         sh.status = 255;
     },
 

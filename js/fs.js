@@ -50,7 +50,24 @@ class Vfs {
 
     writable(path) {
         return path == "/tmp" || path.startsWith("/tmp/") || path == "/var/tmp" || path.startsWith("/var/tmp/") ||
-            path.startsWith(this.home() + "/");
+            path.startsWith(this.home() + "/") || (!!this.host && path == "/etc/hosts");
+    }
+
+    // ---- /etc/hosts: names without DNS (written by hand, kept on the machine's disk)
+    static HOSTS = "127.0.0.1   localhost localhost.localdomain\n::1         localhost localhost.localdomain\n";
+    static hostsText(h) {
+        const f = h && h.userFiles && h.userFiles["/etc/hosts"];
+        return f ? String(f.data) : Vfs.HOSTS;
+    }
+    // the address of a name in /etc/hosts, or null ("host2" also finds "host2.lab")
+    static hostsLookup(h, name) {
+        name = String(name).toLowerCase().replace(/\.$/, "");
+        for (const raw of Vfs.hostsText(h).split("\n")) {
+            const w = raw.replace(/#.*/, "").trim().split(/\s+/);
+            if (w.length < 2 || !IP.isValid(w[0])) continue;
+            if (w.slice(1).some(n => { n = n.toLowerCase(); return n == name || n.split(".")[0] == name && name.indexOf(".") < 0; })) return w[0];
+        }
+        return null;
     }
 
     // ---- paths
@@ -134,7 +151,10 @@ class Vfs {
         if (dir.node.t != "d") return "Not a directory";
         if (!this.writable(path)) return this.host ? "Read-only file system" : "Permission denied";
         const old = ov[path];
-        ov[path] = Vfs.F(append && old ? old.data + text : text, { mtime: new Date(), owner: this.user() });
+        // >> onto a file the system made (like /etc/hosts): its content stays in front
+        const base = old ? old.data : (r.node && r.node.t == "f" ? (this.read(r.node) || "") : "");
+        const prev = base && !base.endsWith("\n") ? base + "\n" : base;
+        ov[path] = Vfs.F(append ? prev + text : text, { mtime: new Date(), owner: this.user() });
         return null;
     }
 
@@ -158,7 +178,7 @@ class Vfs {
         // /etc
         const etc = {
             "hostname": F(() => h ? (h.persistName || h.id.defaultName()) : "console"),
-            "hosts": F("127.0.0.1   localhost localhost.localdomain\n::1         localhost localhost.localdomain\n"),
+            "hosts": F(Vfs.HOSTS),
             "os-release": F(`NAME="${Vfs.OS}"\nVERSION="${Vfs.VER} (Blue Wire)"\nID="netlab"\nID_LIKE="rhel centos fedora"\nVERSION_ID="${Vfs.VER}"\nPRETTY_NAME="${Vfs.OS} ${Vfs.VER} (Blue Wire)"\nHOME_URL="https://github.com/csurgay/nw"`),
             "redhat-release": L("netlab-release"),
             "netlab-release": F(`${Vfs.OS} release ${Vfs.VER} (Blue Wire)`),

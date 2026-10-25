@@ -256,6 +256,14 @@ class Terminal {
         this.textarea.addEventListener("beforeinput", ev => {
             const ta = this.textarea, start = this.lineStart(), t = ev.inputType || "";
             if (this.booting) { ev.preventDefault(); return; }
+            if (typeof Vi != "undefined" && Vi.active) {
+                // a phone keyboard while vi runs: the letters go to vi
+                ev.preventDefault();
+                if (t == "insertLineBreak" || t == "insertParagraph") Vi.key({ key: "Enter", preventDefault() {} });
+                else if (t.startsWith("delete")) Vi.key({ key: "Backspace", preventDefault() {} });
+                else if (t.startsWith("insert") && ev.data) Vi.text(ev.data);
+                return;
+            }
             // the browser's own undo/redo would change the output above the prompt
             if (t.startsWith("history")) { ev.preventDefault(); return; }
             // a safety net for everything else (dead keys, drag and drop …): see the input event below
@@ -310,6 +318,13 @@ class Terminal {
 
     virtualKey(k) {
         const ta = this.textarea;
+        if (typeof Vi != "undefined" && Vi.active) {
+            if (document.activeElement != ta) ta.focus();
+            const m = k.match(/^Ctrl([A-Z])$/);
+            if (m) return Vi.key({ key: m[1].toLowerCase(), ctrlKey: true, preventDefault() {} });
+            if (k == "AltDot" || k == "TildeDot") return Vi.text(k == "AltDot" ? "." : "~.");
+            return Vi.key({ key: k, preventDefault() {} });
+        }
         if (document.activeElement != ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; }
         const fake = (key, mods = {}) => this.keypress(Object.assign({ key, code: "", altKey: false, ctrlKey: false, preventDefault() {} }, mods));
         const start = this.lineStart();
@@ -426,6 +441,7 @@ class Terminal {
 
     keypress(evt) {
         if (this.booting) return;
+        if (typeof Vi != "undefined" && Vi.active) return Vi.key(evt); // vi has the whole screen
         if (this.secret && evt.ctrlKey && (evt.key == "c" || evt.key == "C")) { /* falls through to Ctrl-C below */ }
         else if (this.secretKey && this.secretKey(evt)) return;
         if (this.readlineKey && this.readlineKey(evt)) return;

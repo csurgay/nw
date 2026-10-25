@@ -313,6 +313,11 @@ class Shell {
         if (b !== undefined) return b;
         if (command[0] == "exit") { if (this.host) { if (!Access.leave(this)) this.t.quitToConsole(); } else this.t.println("logout — (this is the admin console: it stays open)"); }
         else if (command[0] == "console") return Access.consoleCmd(this, command);
+        else if (command[0] == "vi" || command[0] == "vim" || command[0] == "view") {
+            if (this.piping) { this.t.println("Vim: Warning: Output is not to a terminal"); return true; }
+            return Vi.open(this, command, command[0] == "view");
+        }
+        else if (command[0] == "nano" || command[0] == "emacs" || command[0] == "pico") { this.t.println(`${command[0]}: command not found...   (the editor of this lab is vi:  vi /etc/hosts)`); this.status = 127; }
         else if (command[0] == "access") {
             if (command[1] && !Access.set(command[1])) this.t.println("usage: access [simple|console]");
             else this.t.println("access: " + Access.describe());
@@ -405,7 +410,11 @@ class Shell {
                     this.oneShot = (this.oneShot || 0) + 1;
                     const cliMode = o.cli ? o.cli.mode : null;
                     if (o.cli) o.cli.mode = "exec"; // a single command arrives in user mode
-                    try { showPrompt = this.parse(cmd.trim().replace(/^ssh\s+\S+\s+/, "")); }
+                    // ssh host1 "echo x >> /etc/hosts": the quotes keep the line together for the other machine
+                    let rest = cmd.trim().replace(/^ssh\s+\S+\s+/, "");
+                    const q = rest.match(/^(['"])([\s\S]*)\1$/);
+                    if (q) rest = q[2];
+                    try { showPrompt = this.parse(rest); }
                     finally {
                         this.oneShot--;
                         if (o.cli) { o.cli.mode = cliMode; o.cli.ask = null; }
@@ -474,11 +483,11 @@ class Shell {
             if (!dst) {
                 this.t.println("usage: arping <destination>");
             }
-            else if(!IP.isValid(dst)) {
+            else if (!IP.isValid(dst) && !Vfs.hostsLookup(this.host, dst)) {
                 this.t.println("arping: " + dst + ": Name or service not known");
             }
             else {
-                showPrompt = this.host.l3.startArping(this, dst);
+                showPrompt = this.host.l3.startArping(this, IP.isValid(dst) ? dst : Vfs.hostsLookup(this.host, dst));
             }
         }
         else if (command[0] == "arp") {
@@ -533,8 +542,33 @@ class Shell {
                     else t.println(err && err.indexOf("Temporary") == 0 ? ";; connection timed out; no servers could be reached" : "Host " + fq + " not found: 3(NXDOMAIN)");
                 }
                 t.showPrompt();
-            });
+            }, { dnsOnly: true });
             job.cancel = () => { job.active = false; if (req) req.cancel(); };
+            showPrompt = false;
+        }
+        else if (command[0] == "getent") {
+            // getent hosts NAME: what the programs get — /etc/hosts first, then DNS
+            if (command[1] != "hosts" || !command[2]) { this.t.println("Usage: getent hosts NAME   (in this lab: only the hosts database)"); this.status = 1; return true; }
+            if (this.needHost("getent")) return true;
+            const h = this.host, t = this.t, name = command[2];
+            let sync = true, res = null;
+            const job = { active: true };
+            const done = (ip) => {
+                if (ip) t.println(ip.padEnd(16) + name);
+                else this.status = 2; // getent prints nothing when the name is unknown
+            };
+            const req = h.resolver.resolve(name, (ip) => {
+                if (sync) { res = { ip }; return; }
+                if (!job.active) return;
+                job.active = false;
+                if (this.job == job) this.job = null;
+                done(ip);
+                t.showPrompt();
+            });
+            sync = false;
+            if (res) { done(res.ip); return true; }
+            job.cancel = () => { job.active = false; if (req && req.cancel) req.cancel(); };
+            this.job = job;
             showPrompt = false;
         }
         else if (command[0] == "ping") {
@@ -684,6 +718,8 @@ class Shell {
             "  access console | simple         (how you reach the machines, also ⚙)",
             "  console router1                 (console access: the console cable)",
             "  ssh 192.168.1.11, ssh-keygen, ssh-copy-id, passwd  (ssh over the net)",
+            "  vi /etc/hosts                   (edit a file: i, Esc, :wq)",
+            "  echo \"192.168.1.11 host2\" >> /etc/hosts, getent hosts host2  (names without DNS)",
             "Lexicon ▸ The Linux terminal: all of it explained in more detail.",
         ].join("\n"));
     }

@@ -125,6 +125,13 @@ class Test {
         ["~.", ["Disconnected from the console of host1.", "*"], 100],
         ["access simple", [/^  ssh NAME COMMAND/, "*"], 100],
         ["ssh host1 hostname", ["host1", "*"], 100],
+        ["ssh host1 ping -c 1 host2", ["ping: host2: Name or service not known", "*"], 100],
+        ["ssh host1 \"echo 192.168.1.2 host2 >> /etc/hosts\"", ["*"], 100],
+        ["ssh host1 tail -1 /etc/hosts", ["192.168.1.2 host2", "*"], 100],
+        ["ssh host1 getent hosts host2", ["192.168.1.2     host2", "*"], 100],
+        ["ssh host1 host host2", [";; connection timed out; no servers could be reached", "*"], 100],
+        ["ssh host1 ping -c 1 host2", ["PING host2 (192.168.1.2) 56(84) bytes of data."], 100],
+        ["", ["--- host2 ping statistics ---", "1 packets transmitted, 1 received, 0% packet loss, time 0ms", "*", "*"], 9000],
     ];
 
     constructor(terminal, shell) {
