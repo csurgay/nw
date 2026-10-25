@@ -121,6 +121,14 @@ const UiTest = {
         App.py = top + h / 2 - (App.by * App.uz + 250 * App.bs * App.uz);
         App.applyView();
     },
+    // the same for an element in hand: click it with the pointer when it is not covered
+    async pressEl(e) {
+        e.scrollIntoView({ block: "nearest" });
+        const r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        if (r.width && this.target(x, y).closest("button, input, a, select") === e) return this.click(x, y);
+        e.click();
+        await this.sleep(150);
+    },
     visible(sel) { const e = document.querySelector(sel); return !!(e && e.offsetParent && e.getBoundingClientRect().width); },
     el(sel) { const r = document.querySelector(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
     // a spot on the canvas with nothing on it (and no window above it)
@@ -231,6 +239,24 @@ const UiTest = {
                 }
                 await U.dblclick(x + 120, y - 60);
                 return App.px == 0 && App.py == 0 ? null : `double-click left the picture at ${Math.round(App.px)},${Math.round(App.py)}`;
+            }],
+            ["router1's window: the routing button switches forwarding off and on", async () => {
+                const r = Id.find("router1");
+                await U.click(...U.body(r));
+                await U.sleep(300);
+                const btn = () => [...document.querySelectorAll(".pop .act")].find(b => /routing/i.test(b.textContent));
+                const b1 = btn();
+                if (!b1) { Inspector.close(r); return "no routing button in the window"; }
+                await U.pressEl(b1);
+                await U.sleep(300);
+                const pop = Inspector.wins.get(r);
+                if (pop) Inspector.render(pop); // the window refreshes itself 4× a second (real time); at high speed check now
+                const off = r.forwarding === false && /Enable routing/.test(btn().textContent) && !!pop && /OFF/.test(pop.el.textContent);
+                await U.pressEl(btn());
+                await U.sleep(300);
+                const on = r.forwarding === true && /Routing: ON/.test(btn().textContent);
+                Inspector.close(r);
+                return off && on ? null : `after the clicks: ${off ? "off" : "not off"}, ${on ? "on" : "not on again"}`;
             }],
             ["Drag router1 onto the toolbar: deleted", async () => {
                 U.phoneView();

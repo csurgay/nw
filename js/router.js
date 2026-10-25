@@ -60,12 +60,13 @@ class Router extends Host {
         const cx = x + w / 2, cy = y + 22;
         ctx.beginPath();
         ctx.ellipse(cx, cy, 15, 9, 0, 0, Math.PI * 2);
-        ctx.fillStyle = "#5b8f74";
+        const fwd = this.forwarding;
+        ctx.fillStyle = fwd ? "#5b8f74" : "#4b5157"; // routing off: the symbol goes grey
         ctx.fill();
-        ctx.strokeStyle = "#a7d7bd";
+        ctx.strokeStyle = fwd ? "#a7d7bd" : "#7b838c";
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.strokeStyle = "#eafff2";
+        ctx.strokeStyle = fwd ? "#eafff2" : "#9aa3ab";
         ctx.lineWidth = 1.6;
         ctx.lineCap = "round";
         [[-1, -1], [1, 1], [-1, 1], [1, -1]].forEach(([dx, dy], i) => {
@@ -85,6 +86,9 @@ class Router extends Host {
         // status LEDs
         Gfx.led(x + 12, y + 12, 2.2, COLORS.ledGreen, true, 0.6);
         Gfx.led(x + 12, y + 20, 2.2, COLORS.ledAmber, this.activity() && Math.floor(Sim.time / 70) % 2 == 0, 0.6);
+        // routing (ip_forward) on or off: a labelled LED in the corner
+        Gfx.led(x + w - 12, y + 12, 2.6, fwd ? COLORS.ledGreen : "#f87171", true, 0.6);
+        Gfx.text(fwd ? "FWD" : "FWD OFF", x + w - 19, y + 15, { size: 7.5, weight: 800, align: "right", color: fwd ? "#b9f5cd" : "#fca5a5" });
 
         // interface sockets with their addresses
         this.nics.forEach(nic => {
@@ -111,7 +115,8 @@ class Router extends Host {
         return [
             `${this.id} · IP router (${this.nics.length} interfaces)`,
             ...this.nics.map(n => `${n.id}  ${n.ip ? n.ip.toString() : "—"}`),
-            `forwarded ${this.fwdStats.fwd} · TTL expired ${this.fwdStats.ttl} · no route ${this.fwdStats.noroute}`,
+            this.forwarding ? "routing ON (ip_forward = 1)" : "routing OFF (ip_forward = 0) — packets for other networks are dropped",
+            `forwarded ${this.fwdStats.fwd} · TTL expired ${this.fwdStats.ttl} · no route ${this.fwdStats.noroute}` + (this.fwdStats.off ? ` · dropped (routing off) ${this.fwdStats.off}` : ""),
         ];
     }
 
@@ -129,6 +134,11 @@ class Router extends Host {
             wide: true,
             sections: [
                 {
+                    h: "Routing (IP forwarding)", key: "fwd", html: this.forwarding
+                        ? `<p><span class="pill on">ON</span> &nbsp;<code>net.ipv4.ip_forward = 1</code> — packets for other networks are passed on (the FWD light on the box is green).</p>`
+                        : `<p><span class="pill off">OFF</span> &nbsp;<code>net.ipv4.ip_forward = 0</code> — this box answers pings to itself, but <b>drops every packet meant for another network</b>${this.fwdStats.off ? ` (${this.fwdStats.off} so far)` : ""}. Switch it on with the button below, or <code>sysctl -w net.ipv4.ip_forward=1</code>.</p>`
+                },
+                {
                     h: "How a router works", html: `<p>A router connects <b>different IP networks</b>; each interface sits in another one. When a frame arrives for the router's MAC but the IP packet inside is for someone else, the router:</p>
                     <p>1) throws away the Ethernet header, 2) lowers the <b>TTL</b> by one (at 0: drop + ICMP “time exceeded”), 3) looks up the destination in its <b>routing table</b>, 4) finds the next hop's MAC with ARP and 5) sends the packet in a <b>brand-new Ethernet frame</b>. The IP addresses never change on the way — the MAC addresses change at every hop.</p>`
                 },
@@ -137,7 +147,8 @@ class Router extends Host {
                 {
                     h: "Counters", html: `<table class="t kv"><tr><td>Packets forwarded</td><td class="m">${this.fwdStats.fwd}</td></tr>
                     <tr><td>TTL expired (time exceeded sent)</td><td class="m">${this.fwdStats.ttl}</td></tr>
-                    <tr><td>No route (unreachable sent)</td><td class="m">${this.fwdStats.noroute}</td></tr></table>`
+                    <tr><td>No route (unreachable sent)</td><td class="m">${this.fwdStats.noroute}</td></tr>
+                    <tr><td>Dropped: routing switched off</td><td class="m">${this.fwdStats.off || 0}</td></tr></table>`
                 },
             ],
         };
@@ -147,6 +158,10 @@ class Router extends Host {
         const id = this.id.toString();
         return [
             { label: "Open shell", cmd: `ssh ${id}` },
+            {   // follows the state: one click switches routing on or off
+                label: () => this.forwarding ? "Routing: ON ✔ (switch off)" : "Enable routing",
+                cmd: () => `ssh ${id} sysctl -w net.ipv4.ip_forward=${this.forwarding ? 0 : 1}`,
+            },
             { label: "ip route", cmd: `ssh ${id} ip route` },
             { label: "ip neigh", cmd: `ssh ${id} ip neigh` },
             { sep: true },

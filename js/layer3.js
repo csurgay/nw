@@ -50,6 +50,11 @@ class Layer3 {
         const dst = payload.getValue("DstIP");
         if (!this.isLocal(dst)) {
             if (this.host.forwarding) return this.forward(payload, nic, frame);
+            if (this.host.fwdStats) {
+                this.host.fwdStats.off = (this.host.fwdStats.off || 0) + 1;
+                Sim.event("drop", `<b>${this.host}</b> IP packet for ${dst} — routing is switched off (ip_forward = 0), so it is dropped. Turn it on: <code>sysctl -w net.ipv4.ip_forward=1</code>`, { frame, obj: this.host });
+                return;
+            }
             Sim.event("drop", `<b>${this.host}</b> IP packet for ${dst} is not for me and I am not a router — dropped`, { frame });
             return;
         }
